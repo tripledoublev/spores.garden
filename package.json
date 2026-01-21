@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite"
+    "start": "vite",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@atcute/client": "^4.2.1",
@@ -20,8 +23,12 @@
   "devDependencies": {
     "@types/chroma-js": "^3.1.2",
     "@types/dompurify": "^3.0.5",
+    "@vitest/ui": "^4.0.17",
+    "happy-dom": "^20.3.4",
+    "jsdom": "^27.4.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "vitest": "^4.0.17"
   },
   "keywords": [
     "atproto",
