@@ -79,8 +79,10 @@ class SiteApp extends HTMLElement {
           if (existingConfig) {
             // User has existing config - set as owner and don't show welcome
             setSiteOwnerDid(detail.did);
-            // Apply theme from loaded config
-            applyTheme(existingConfig.theme);
+            // Only apply user's theme if viewing their own garden, not on home page
+            if (this.isViewingOwnGarden(detail.did)) {
+              applyTheme(existingConfig.theme);
+            }
           } else {
             // New user - set as owner and show welcome
             setSiteOwnerDid(e.detail.did);
@@ -1127,6 +1129,18 @@ class SiteApp extends HTMLElement {
    */
   isViewingProfile(): boolean {
     return hasGardenIdentifierInUrl();
+  }
+
+  /**
+   * Check if the current user is viewing their own garden
+   * Returns true only if we're on a garden page AND it belongs to the given DID
+   */
+  private isViewingOwnGarden(userDid: string): boolean {
+    if (!this.isViewingProfile()) {
+      return false; // On home page, not viewing any garden
+    }
+    const ownerDid = getSiteOwnerDid();
+    return ownerDid === userDid;
   }
 
   /**
