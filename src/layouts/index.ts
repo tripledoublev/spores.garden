@@ -1,15 +1,11 @@
-/**
- * Layout Registry
- *
- * Layouts are the presentation layer - they render extracted fields
- * into HTML regardless of the source lexicon.
- */
+import { renderFlowerBed } from '../layouts/flower-bed';
+import { renderCollectedFlowers } from '../layouts/collected-flowers';
+import { renderSpecialSporeDisplay } from './special-spore-display';
+import { getConfig } from '../config';
+import { generateThemeFromDid } from '../themes/engine';
+import { buildAtUri } from '../at-client';
+import { getCurrentDid } from '../oauth';
 
-import { extractFields } from '../records/field-extractor';
-import { getProfile, parseAtUri } from '../at-client';
-import { sanitizeHtml, escapeHtml } from '../utils/sanitize';
-import { renderMarkdown, looksLikeMarkdown } from '../utils/markdown';
-import { renderFlowerBed } from './flower-bed';
 
 // Layout implementations
 const layouts = new Map();
@@ -62,9 +58,9 @@ export function getAvailableLayouts() {
   return Array.from(layouts.keys());
 }
 
-// ============================================
+// ============================================ 
 // Built-in Layouts
-// ============================================
+// ============================================ 
 
 /**
  * Card Layout - compact display for short content
@@ -444,9 +440,19 @@ registerLayout('raw', (fields) => {
  */
 registerLayout('flower-bed', renderFlowerBed);
 
-// ============================================
+/**
+ * Collected Flowers Layout - displays flowers taken from other gardens
+ */
+registerLayout('collected-flowers', renderCollectedFlowers);
+
+/**
+ * Special Spore Display Layout - displays the special spore item
+ */
+registerLayout('special-spore-display', renderSpecialSporeDisplay);
+
+// ============================================ 
 // Helper Functions
-// ============================================
+// ============================================ 
 
 function formatDate(date) {
   return new Intl.DateTimeFormat('en-US', {

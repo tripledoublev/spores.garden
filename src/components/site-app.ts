@@ -4,9 +4,10 @@
  */
 
 import { initConfig, getConfig, getSiteOwnerDid, isOwner, saveConfig, setSiteOwnerDid, loadUserConfig, hasUserConfig, updateTheme } from '../config';
-import { initOAuth, isLoggedIn, getCurrentDid, login, logout, createRecord } from '../oauth';
+import { initOAuth, isLoggedIn, getCurrentDid, login, logout, createRecord, uploadBlob, post } from '../oauth';
 import { applyTheme, generateThemeFromDid } from '../themes/engine';
 import { escapeHtml } from '../utils/sanitize';
+import { generateSocialCardImage } from '../utils/social-card';
 import type { WelcomeModalElement, WelcomeAction } from '../types';
 import './section-block';
 import './welcome-modal';
@@ -203,6 +204,14 @@ class SiteApp extends HTMLElement {
         editBtn.setAttribute('aria-pressed', this.editMode.toString());
         editBtn.addEventListener('click', () => this.toggleEditMode());
         controls.appendChild(editBtn);
+
+        // Share to Bluesky button
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'button button-secondary';
+        shareBtn.textContent = 'Share to Bluesky';
+        shareBtn.setAttribute('aria-label', 'Share your garden to Bluesky');
+        shareBtn.addEventListener('click', () => this.shareToBluesky());
+        controls.appendChild(shareBtn);
       } else if (!isOwnerLoggedIn && isViewingProfile) {
         // "Plant your flower" button for visitors
         const plantFlowerBtn = document.createElement('button');
@@ -211,6 +220,14 @@ class SiteApp extends HTMLElement {
         plantFlowerBtn.setAttribute('aria-label', 'Plant your flower in this garden');
         plantFlowerBtn.addEventListener('click', () => this.plantFlower());
         controls.appendChild(plantFlowerBtn);
+
+        // "Take this flower" button for visitors
+        const takeFlowerBtn = document.createElement('button');
+        takeFlowerBtn.className = 'button button-secondary';
+        takeFlowerBtn.textContent = 'Take this flower';
+        takeFlowerBtn.setAttribute('aria-label', 'Take this flower to your garden');
+        takeFlowerBtn.addEventListener('click', () => this.takeFlower());
+        controls.appendChild(takeFlowerBtn);
       }
 
       // Logout button
@@ -401,6 +418,14 @@ class SiteApp extends HTMLElement {
             <span class="icon">🌸</span>
             <span>Flower Bed</span>
           </button>
+          <button data-type="collected-flowers" class="section-type">
+            <span class="icon">🌼</span>
+            <span>Collected Flowers</span>
+          </button>
+          <button data-type="special-spore-display" class="section-type">
+            <span class="icon">✨</span>
+            <span>Special Spore</span>
+          </button>
           <button data-action="load-records" class="section-type">
             <span class="icon">📚</span>
             <span>Load Records</span>
@@ -464,8 +489,8 @@ class SiteApp extends HTMLElement {
     const section = {
       id,
       type,
-      layout: type === 'profile' ? 'profile' : type === 'guestbook' ? 'guestbook' : 'card',
-      title: type === 'guestbook' ? 'Guestbook' : ''
+      layout: type === 'profile' ? 'profile' : type === 'guestbook' ? 'guestbook' : type === 'flower-bed' ? 'flower-bed' : type === 'collected-flowers' ? 'collected-flowers' : type === 'special-spore-display' ? 'special-spore-display' : 'card',
+      title: type === 'guestbook' ? 'Guestbook' : type === 'flower-bed' ? 'Flower Bed' : type === 'collected-flowers' ? 'Collected Flowers' : type === 'special-spore-display' ? 'Special Spore' : ''
     };
 
     config.sections = [...(config.sections || []), section];
@@ -495,6 +520,77 @@ class SiteApp extends HTMLElement {
       this.showNotification(`Failed to plant flower: ${error.message}`, 'error');
     }
   }
+
+  async takeFlower() {
+    if (!isLoggedIn()) {
+      this.showNotification('You must be logged in to take a flower.', 'error');
+      return;
+    }
+
+    const ownerDid = getSiteOwnerDid();
+    if (!ownerDid) {
+      this.showNotification('Could not determine the garden owner whose flower to take.', 'error');
+      return;
+    }
+
+    try {
+      await createRecord('garden.spores.social.takenFlower', {
+        sourceDid: ownerDid,
+        createdAt: new Date().toISOString()
+      });
+      this.showNotification('You took a flower from this garden!', 'success');
+    } catch (error) {
+      console.error('Failed to take flower:', error);
+      this.showNotification(`Failed to take flower: ${error.message}`, 'error');
+    }
+  }
+
+  async shareToBluesky() {
+    if (!isLoggedIn()) {
+      this.showNotification('You must be logged in to share to Bluesky.', 'error');
+      return;
+    }
+
+    const currentDid = getCurrentDid();
+    if (!currentDid) {
+      this.showNotification('Could not determine your DID.', 'error');
+      return;
+    }
+
+    try {
+      this.showNotification('Generating social card and preparing post...', 'success');
+      const imageBlob = await generateSocialCardImage();
+
+      // 1. Upload image to Bluesky blob store
+      const uploadedImage = await uploadBlob(imageBlob, 'image/png');
+
+      // 2. Compose post
+      const text = `Check out my unique garden on spores.garden! ${window.location.origin}/@${currentDid}`;
+      const postRecord = {
+        $type: 'app.bsky.feed.post',
+        text: text,
+        createdAt: new Date().toISOString(),
+        embed: {
+          $type: 'app.bsky.embed.images',
+          images: [
+            {
+              alt: 'spores.garden social card',
+              image: uploadedImage.data.blob,
+            },
+          ],
+        },
+      };
+
+      // 3. Publish post
+      await post(postRecord);
+
+      this.showNotification('Successfully shared your garden to Bluesky!', 'success');
+    } catch (error) {
+      console.error('Failed to share to Bluesky:', error);
+      this.showNotification(`Failed to share to Bluesky: ${error.message}`, 'error');
+    }
+  }
+
 
   showCreateContentModal() {
     // Check if modal already exists
