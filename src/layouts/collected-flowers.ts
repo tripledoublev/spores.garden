@@ -9,13 +9,15 @@ export async function renderCollectedFlowers(section) {
   const visitorDid = getCurrentDid();
   const ownerDid = getSiteOwnerDid();
 
-  if (!visitorDid || visitorDid !== ownerDid) {
-    el.textContent = 'You must be logged in and viewing your own garden to see collected flowers.';
-    return el;
-  }
-
+  // Always use the site owner's DID to list records, so visitors can see them
   try {
-    const response = await listRecords(visitorDid, 'garden.spores.social.takenFlower', { limit: 100 });
+    const recordsOwnerDid = ownerDid || visitorDid;
+    if (!recordsOwnerDid) {
+      el.textContent = 'Could not determine garden owner.';
+      return el;
+    }
+
+    const response = await listRecords(recordsOwnerDid, 'garden.spores.social.takenFlower', { limit: 100 });
     const takenFlowers = response.records;
 
     if (takenFlowers.length === 0) {
@@ -25,11 +27,11 @@ export async function renderCollectedFlowers(section) {
 
     const grid = document.createElement('div');
     grid.className = 'flower-grid'; // Re-use flower-grid style
-    
+
     for (const flowerRecord of takenFlowers) {
       const sourceDid = flowerRecord.value.sourceDid;
       const note = flowerRecord.value.note;
-      
+
       const flowerEl = document.createElement('div');
       flowerEl.className = 'flower-grid-item';
 
@@ -40,7 +42,7 @@ export async function renderCollectedFlowers(section) {
       const viz = document.createElement('did-visualization');
       viz.setAttribute('did', sourceDid);
       link.appendChild(viz);
-      
+
       flowerEl.appendChild(link);
 
       // Display note if present
@@ -50,10 +52,10 @@ export async function renderCollectedFlowers(section) {
         noteEl.textContent = note;
         flowerEl.appendChild(noteEl);
       }
-      
+
       grid.appendChild(flowerEl);
     }
-    
+
     el.appendChild(grid);
 
   } catch (error) {
