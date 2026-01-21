@@ -1,6 +1,6 @@
 /**
  * Section container component.
- * Renders sections based on type (records, content, profile, guestbook).
+ * Renders sections based on type (records, content, profile).
  * Provides edit controls for section management.
  */
 
@@ -8,7 +8,9 @@ import { getCollectionRecords, getRecordsByUris } from '../records/loader';
 import { getSiteOwnerDid, getConfig, updateSection, removeSection, moveSectionUp, moveSectionDown } from '../config';
 import { getProfile, getRecord } from '../at-client';
 import { renderRecord, getAvailableLayouts } from '../layouts/index';
-import '../layouts/guestbook'; // Register guestbook layout
+import { renderFlowerBed } from '../layouts/flower-bed';
+import { renderCollectedFlowers } from '../layouts/collected-flowers';
+import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
 import './create-profile'; // Register profile editor component
 
 class SectionBlock extends HTMLElement {
@@ -96,19 +98,40 @@ class SectionBlock extends HTMLElement {
         case 'records':
           await this.renderRecords(content);
           break;
+        case 'flower-bed': {
+          const rendered = await renderFlowerBed(this.section);
+          content.innerHTML = '';
+          content.appendChild(rendered);
+          break;
+        }
+        case 'collected-flowers': {
+          const rendered = await renderCollectedFlowers(this.section);
+          content.innerHTML = '';
+          content.appendChild(rendered);
+          break;
+        }
         case 'content':
         case 'block': // Support legacy 'block' type
           await this.renderBlock(content);
           break;
-        case 'guestbook':
-          await this.renderGuestbook(content);
+        case 'share-to-bluesky':
+          await this.renderShareToBluesky(content);
           break;
         default:
           content.innerHTML = `<p>Unknown section type: ${this.section.type}</p>`;
       }
     } catch (error) {
       console.error('Failed to render section:', error);
-      content.innerHTML = `<p class="error">Failed to load section: ${error.message}</p>`;
+      const errorEl = createErrorMessage(
+        'Failed to load section',
+        async () => {
+          // Retry by re-rendering
+          await this.render();
+        },
+        error instanceof Error ? error.message : String(error)
+      );
+      content.innerHTML = '';
+      content.appendChild(errorEl);
     }
 
     if (token !== this.renderToken) {
@@ -176,6 +199,7 @@ class SectionBlock extends HTMLElement {
       this.section.type === 'content' || 
       this.section.type === 'block' || 
       this.section.type === 'profile';
+    // share-to-bluesky doesn't need editing - it's just a button
     
     if (supportsEditing) {
       const editBtn = document.createElement('button');
@@ -225,6 +249,8 @@ class SectionBlock extends HTMLElement {
       typeInfo = 'Content';
     } else if (this.section.type === 'records') {
       typeInfo = 'Loading...';
+    } else if (this.section.type === 'share-to-bluesky') {
+      typeInfo = 'Share to Bluesky';
     } else {
       typeInfo = this.section.type.charAt(0).toUpperCase() + this.section.type.slice(1);
     }
@@ -362,50 +388,68 @@ class SectionBlock extends HTMLElement {
       return;
     }
 
-    // Try to load from profile record first
-    let profileData = null;
-    if (this.section.collection === 'garden.spores.site.profile' && this.section.rkey) {
-      try {
-        const record = await getRecord(ownerDid, this.section.collection, this.section.rkey);
-        if (record && record.value) {
-          profileData = {
-            displayName: record.value.displayName,
-            description: record.value.description,
-            avatar: record.value.avatar,
-            banner: record.value.banner
-          };
+    // Show loading state
+    const loadingEl = createLoadingSpinner('Loading profile...');
+    container.innerHTML = '';
+    container.appendChild(loadingEl);
+
+    try {
+      // Try to load from profile record first
+      let profileData = null;
+      if (this.section.collection === 'garden.spores.site.profile' && this.section.rkey) {
+        try {
+          const record = await getRecord(ownerDid, this.section.collection, this.section.rkey);
+          if (record && record.value) {
+            profileData = {
+              displayName: record.value.displayName,
+              description: record.value.description,
+              avatar: record.value.avatar,
+              banner: record.value.banner
+            };
+          }
+        } catch (error) {
+          console.warn('Failed to load profile record, falling back to Bluesky profile:', error);
         }
-      } catch (error) {
-        console.warn('Failed to load profile record, falling back to Bluesky profile:', error);
       }
-    }
 
-    // Fall back to Bluesky profile if no record found
-    if (!profileData) {
-      const profile = await getProfile(ownerDid);
-      if (!profile) {
-        container.innerHTML = '<p>Could not load profile</p>';
-        return;
+      // Fall back to Bluesky profile if no record found
+      if (!profileData) {
+        const profile = await getProfile(ownerDid);
+        if (!profile) {
+          throw new Error('Could not load profile');
+        }
+        profileData = {
+          displayName: profile.displayName,
+          description: profile.description,
+          avatar: profile.avatar,
+          banner: profile.banner
+        };
       }
-      profileData = {
-        displayName: profile.displayName,
-        description: profile.description,
-        avatar: profile.avatar,
-        banner: profile.banner
+
+      // Convert profile to record format for layout
+      const record = {
+        value: {
+          title: profileData.displayName,
+          content: profileData.description,
+          image: profileData.avatar
+        }
       };
+
+      const rendered = await renderRecord(record, this.section.layout || 'profile');
+      container.innerHTML = '';
+      container.appendChild(rendered);
+    } catch (error) {
+      console.error('Failed to render profile:', error);
+      const errorEl = createErrorMessage(
+        'Failed to load profile',
+        async () => {
+          await this.renderProfile(container);
+        },
+        error instanceof Error ? error.message : String(error)
+      );
+      container.innerHTML = '';
+      container.appendChild(errorEl);
     }
-
-    // Convert profile to record format for layout
-    const record = {
-      value: {
-        title: profileData.displayName,
-        content: profileData.description,
-        image: profileData.avatar
-      }
-    };
-
-    const rendered = await renderRecord(record, this.section.layout || 'profile');
-    container.appendChild(rendered);
   }
 
   async renderRecords(container) {
@@ -416,22 +460,62 @@ class SectionBlock extends HTMLElement {
       return;
     }
 
-    const records = await getRecordsByUris(uris);
+    // Show loading state
+    const loadingEl = createLoadingSpinner('Loading records...');
+    container.innerHTML = '';
+    container.appendChild(loadingEl);
 
-    if (records.length === 0) {
-      container.innerHTML = '<p class="empty">Could not load selected records</p>';
-      return;
+    try {
+      const records = await getRecordsByUris(uris);
+
+      if (records.length === 0) {
+        container.innerHTML = '<p class="empty">Could not load selected records</p>';
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'record-grid';
+
+      for (const record of records) {
+        try {
+          const rendered = await renderRecord(record, this.section.layout || 'card');
+          grid.appendChild(rendered);
+        } catch (error) {
+          console.error('Failed to render record:', error);
+          // Create error placeholder for this specific record
+          const errorPlaceholder = document.createElement('div');
+          errorPlaceholder.className = 'record-error';
+          const errorMsg = createErrorMessage(
+            'Failed to render record',
+            async () => {
+              try {
+                const rendered = await renderRecord(record, this.section.layout || 'card');
+                errorPlaceholder.replaceWith(rendered);
+              } catch (retryError) {
+                console.error('Retry failed:', retryError);
+              }
+            },
+            error instanceof Error ? error.message : String(error)
+          );
+          errorPlaceholder.appendChild(errorMsg);
+          grid.appendChild(errorPlaceholder);
+        }
+      }
+
+      container.innerHTML = '';
+      container.appendChild(grid);
+    } catch (error) {
+      console.error('Failed to load records:', error);
+      const errorEl = createErrorMessage(
+        'Failed to load records',
+        async () => {
+          await this.renderRecords(container);
+        },
+        error instanceof Error ? error.message : String(error)
+      );
+      container.innerHTML = '';
+      container.appendChild(errorEl);
     }
-
-    const grid = document.createElement('div');
-    grid.className = 'record-grid';
-
-    for (const record of records) {
-      const rendered = await renderRecord(record, this.section.layout || 'card');
-      grid.appendChild(rendered);
-    }
-
-    container.appendChild(grid);
   }
 
   async renderBlock(container) {
@@ -442,6 +526,11 @@ class SectionBlock extends HTMLElement {
 
     // If section references a content record, load it from PDS
     if (this.section.collection === 'garden.spores.site.content' && this.section.rkey && ownerDid) {
+      // Show loading state
+      const loadingEl = createLoadingSpinner('Loading content...');
+      container.innerHTML = '';
+      container.appendChild(loadingEl);
+
       try {
         const record = await getRecord(ownerDid, this.section.collection, this.section.rkey);
         if (record && record.value) {
@@ -449,12 +538,19 @@ class SectionBlock extends HTMLElement {
           format = record.value.format || this.section.format || 'markdown';
           title = record.value.title || '';
         } else {
-          container.innerHTML = '<p class="error">Content record not found</p>';
-          return;
+          throw new Error('Content record not found');
         }
       } catch (error) {
         console.error('Failed to load content record:', error);
-        container.innerHTML = '<p class="error">Failed to load content</p>';
+        const errorEl = createErrorMessage(
+          'Failed to load content',
+          async () => {
+            await this.renderBlock(container);
+          },
+          error instanceof Error ? error.message : String(error)
+        );
+        container.innerHTML = '';
+        container.appendChild(errorEl);
         return;
       }
     } else {
@@ -467,31 +563,63 @@ class SectionBlock extends HTMLElement {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'content';
 
-    if (format === 'html') {
-      contentDiv.innerHTML = content;
-    } else if (format === 'markdown') {
-      // Basic markdown rendering
-      contentDiv.innerHTML = this.renderMarkdown(content);
-    } else {
-      contentDiv.textContent = content;
-    }
+    try {
+      if (format === 'html') {
+        contentDiv.innerHTML = content;
+      } else if (format === 'markdown') {
+        // Basic markdown rendering
+        contentDiv.innerHTML = this.renderMarkdown(content);
+      } else {
+        contentDiv.textContent = content;
+      }
 
-    container.appendChild(contentDiv);
+      container.innerHTML = '';
+      container.appendChild(contentDiv);
 
-    // In edit mode, make it editable (only for inline content, not records)
-    if (this.editMode && !this.section.rkey) {
-      contentDiv.contentEditable = true;
-      contentDiv.addEventListener('blur', () => {
-        updateSection(this.section.id, { content: contentDiv.innerText });
-      });
+      // In edit mode, make it editable (only for inline content, not records)
+      if (this.editMode && !this.section.rkey) {
+        contentDiv.contentEditable = true;
+        contentDiv.addEventListener('blur', () => {
+          updateSection(this.section.id, { content: contentDiv.innerText });
+        });
+      }
+    } catch (error) {
+      console.error('Failed to render content:', error);
+      const errorEl = createErrorMessage(
+        'Failed to render content',
+        async () => {
+          await this.renderBlock(container);
+        },
+        error instanceof Error ? error.message : String(error)
+      );
+      container.innerHTML = '';
+      container.appendChild(errorEl);
     }
   }
 
-  async renderGuestbook(container) {
-    // Import and use the guestbook layout
-    const { renderRecord } = await import('../layouts/index');
-    const rendered = await renderRecord({}, 'guestbook');
-    container.appendChild(rendered);
+  async renderShareToBluesky(container) {
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'share-to-bluesky-section';
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'center';
+    buttonContainer.style.padding = '1rem';
+
+    const button = document.createElement('button');
+    button.className = 'button button-primary';
+    button.textContent = 'Share to Bluesky';
+    button.setAttribute('aria-label', 'Share your garden to Bluesky');
+    
+    // Dispatch custom event that site-app can listen for
+    button.addEventListener('click', () => {
+      const event = new CustomEvent('share-to-bluesky', {
+        bubbles: true,
+        cancelable: true
+      });
+      this.dispatchEvent(event);
+    });
+
+    buttonContainer.appendChild(button);
+    container.appendChild(buttonContainer);
   }
 
   renderMarkdown(text) {
