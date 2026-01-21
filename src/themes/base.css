@@ -912,7 +912,8 @@ site-app {
   gap: var(--spacing-lg);
 }
 
-.spinner {
+.spinner,
+.loading-spinner {
   width: 40px;
   height: 40px;
   border: var(--border-width-thick) var(--border-style, solid) var(--color-border);
@@ -923,6 +924,40 @@ site-app {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Share Modal Styles */
+.share-modal .share-modal-body {
+  min-height: 200px;
+}
+
+.share-modal .share-preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.share-modal .share-preview-loading p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+}
+
+.share-modal .share-preview img {
+  display: block;
+  max-width: 100%;
+}
+
+.share-modal .share-error,
+.share-modal .share-success {
+  padding: var(--spacing-lg);
 }
 
 .welcome-selector {

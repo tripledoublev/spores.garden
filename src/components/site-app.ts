@@ -887,41 +887,165 @@ class SiteApp extends HTMLElement {
       return;
     }
 
+    // Show share modal with preview
+    this.showShareModal(currentDid);
+  }
+
+  async showShareModal(currentDid: string) {
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'modal share-modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 800px;">
+        <h2>Share to Bluesky</h2>
+        <div class="share-modal-body">
+          <div class="share-preview-loading">
+            <div class="loading-spinner"></div>
+            <p>Generating social card preview...</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="button button-primary share-confirm-btn" disabled>Share to Bluesky</button>
+          <button class="button button-secondary modal-close">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    const modalBody = modal.querySelector('.share-modal-body') as HTMLElement;
+    const confirmBtn = modal.querySelector('.share-confirm-btn') as HTMLButtonElement;
+    const closeBtn = modal.querySelector('.modal-close') as HTMLButtonElement;
+
+    // Close handlers
+    closeBtn.addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+
+    document.body.appendChild(modal);
+
+    // Variables to store generated data for posting
+    let imageBlob: Blob | null = null;
+    let dataUrl: string | null = null;
+
     try {
-      this.showNotification('Generating social card and preparing post...', 'success');
-      const imageBlob = await generateSocialCardImage();
+      // Generate social card
+      imageBlob = await generateSocialCardImage();
 
-      // 1. Upload image to Bluesky blob store
-      const uploadedImage = await uploadBlob(imageBlob, 'image/png');
+      // Convert blob to data URL for preview
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(imageBlob!);
+      });
 
-      // 2. Compose post
-      const text = `Check out my unique garden on spores.garden! ${window.location.origin}/@${currentDid}`;
-      const postRecord = {
-        $type: 'app.bsky.feed.post',
-        text: text,
-        createdAt: new Date().toISOString(),
-        embed: {
-          $type: 'app.bsky.embed.images',
-          images: [
-            {
-              alt: 'spores.garden social card',
-              image: uploadedImage.data.blob,
-            },
-          ],
-        },
-      };
+      // Show preview
+      modalBody.innerHTML = `
+        <div class="share-preview">
+          <img src="${dataUrl}" alt="Social card preview" style="width: 100%; border-radius: var(--border-radius); border: 1px solid var(--border-color);">
+          <p style="margin-top: var(--spacing-md); color: var(--text-secondary); font-size: 0.9em;">
+            This card will be shared to your Bluesky feed along with a link to your garden.
+          </p>
+        </div>
+      `;
 
-      // 3. Publish post
-      await post(postRecord);
+      // Enable confirm button
+      confirmBtn.disabled = false;
 
-      this.showNotification('Successfully shared your garden to Bluesky!', 'success');
     } catch (error) {
-      console.error('Failed to share to Bluesky:', error);
-      this.showNotification(`Failed to share to Bluesky: ${error.message}`, 'error');
+      console.error('Failed to generate social card preview:', error);
+      modalBody.innerHTML = `
+        <div class="share-error">
+          <p style="color: var(--error-color);">Failed to generate preview: ${this.escapeHtml(error.message)}</p>
+        </div>
+      `;
+      return;
     }
+
+    // Handle confirm button click
+    confirmBtn.addEventListener('click', async () => {
+      if (!imageBlob) return;
+
+      // Show posting state
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Posting...';
+      closeBtn.disabled = true;
+
+      try {
+        // 1. Upload image to Bluesky blob store
+        const uploadedImage = await uploadBlob(imageBlob, 'image/png');
+
+        // 2. Compose post
+        const text = `Check out my unique garden on spores.garden! ${window.location.origin}/@${currentDid}`;
+        const postRecord = {
+          $type: 'app.bsky.feed.post',
+          text: text,
+          createdAt: new Date().toISOString(),
+          embed: {
+            $type: 'app.bsky.embed.images',
+            images: [
+              {
+                alt: 'spores.garden social card',
+                image: uploadedImage.data.blob,
+              },
+            ],
+          },
+        };
+
+        // 3. Publish post
+        const result = await post(postRecord);
+
+        // 4. Show success with post URL
+        // AT Protocol URI format: at://did/app.bsky.feed.post/rkey
+        // Convert to Bluesky web URL: https://bsky.app/profile/did/post/rkey
+        const uri = result.uri as string;
+        const uriParts = uri.replace('at://', '').split('/');
+        const postDid = uriParts[0];
+        const postRkey = uriParts[2];
+        const postUrl = `https://bsky.app/profile/${postDid}/post/${postRkey}`;
+
+        modalBody.innerHTML = `
+          <div class="share-success">
+            <div style="text-align: center; padding: var(--spacing-lg);">
+              <div style="font-size: 3em; margin-bottom: var(--spacing-md);">🎉</div>
+              <h3 style="margin-bottom: var(--spacing-md);">Successfully shared!</h3>
+              <p style="margin-bottom: var(--spacing-lg);">Your garden has been shared to Bluesky.</p>
+              <a href="${postUrl}" target="_blank" rel="noopener noreferrer" class="button button-primary" style="display: inline-block; text-decoration: none;">
+                View Post on Bluesky →
+              </a>
+            </div>
+          </div>
+        `;
+
+        // Update modal actions
+        const actionsDiv = modal.querySelector('.modal-actions') as HTMLElement;
+        actionsDiv.innerHTML = `
+          <button class="button button-secondary modal-close">Close</button>
+        `;
+        actionsDiv.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+
+      } catch (error) {
+        console.error('Failed to share to Bluesky:', error);
+        modalBody.innerHTML = `
+          <div class="share-error">
+            <p style="color: var(--error-color);">Failed to share: ${this.escapeHtml(error.message)}</p>
+          </div>
+        `;
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Try Again';
+        closeBtn.disabled = false;
+      }
+    });
   }
 
   async previewSharecard() {
+    // Preview sharecard now uses the same flow as share, but without posting
+    // This allows users to see the preview before deciding to share
+    if (!isLoggedIn()) {
+      this.showNotification('You must be logged in to preview the sharecard.', 'error');
+      return;
+    }
+
     try {
       this.showNotification('Generating social card preview...', 'success');
       const imageBlob = await generateSocialCardImage();
