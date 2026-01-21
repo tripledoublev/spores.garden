@@ -513,30 +513,33 @@ function generateFlowerSVG(params: FlowerParams, size: number = 100, rng: () => 
   );
   svgElements.push(...centerElements);
   
-  // Add stem if needed
+  // Add stem if needed - stem connects directly to flower center where petals radiate from
   if (params.hasStem) {
-    const stemY = centerY + flowerRadius * 0.8;
-    const stemHeight = size * 0.18;
+    const stemHeight = size * 0.35; // Longer stem to extend from center to bottom
     const stemWidth = size * 0.025;
     const stemColor = adjustColor(params.secondaryColor, -40);
     
+    // Stem starts at flower center and extends downward
+    const stemStartY = centerY;
+    const stemEndY = centerY + stemHeight;
+    
     // Slightly curved stem
     const stemCurve = (rng() - 0.5) * 4;
-    svgElements.push(`<path d="M ${centerX} ${stemY} Q ${centerX + stemCurve} ${stemY + stemHeight * 0.5} ${centerX} ${stemY + stemHeight}" stroke="${stemColor}" stroke-width="${stemWidth}" fill="none" stroke-linecap="round" />`);
+    svgElements.unshift(`<path d="M ${centerX} ${stemStartY} Q ${centerX + stemCurve} ${stemStartY + stemHeight * 0.5} ${centerX} ${stemEndY}" stroke="${stemColor}" stroke-width="${stemWidth}" fill="none" stroke-linecap="round" />`);
     
-    // Add leaves if needed
+    // Add leaves if needed - positioned along the stem
     if (params.hasLeaves) {
       const leafSize = size * 0.1;
       const leafColor = adjustColor(params.secondaryColor, -30);
       
-      // Left leaf - attached at stem center, grows outward
-      const leftLeafY = stemY + stemHeight * 0.35;
-      svgElements.push(generateLeaf(params.leafStyle, centerX, leftLeafY, leafSize, -50, leafColor));
+      // Left leaf - attached at stem, grows outward
+      const leftLeafY = stemStartY + stemHeight * 0.4;
+      svgElements.unshift(generateLeaf(params.leafStyle, centerX, leftLeafY, leafSize, -50, leafColor));
       
-      // Right leaf (sometimes) - attached at stem center, grows outward
+      // Right leaf (sometimes) - attached at stem, grows outward
       if (rng() > 0.3) {
-        const rightLeafY = stemY + stemHeight * 0.55;
-        svgElements.push(generateLeaf(params.leafStyle, centerX, rightLeafY, leafSize * 0.85, 50, leafColor));
+        const rightLeafY = stemStartY + stemHeight * 0.6;
+        svgElements.unshift(generateLeaf(params.leafStyle, centerX, rightLeafY, leafSize * 0.85, 50, leafColor));
       }
     }
   }
