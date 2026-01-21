@@ -17,6 +17,11 @@ const FONT_PAIRINGS = [
 
 const BORDER_STYLES = ['solid', 'dashed', 'dotted', 'double', 'groove'];
 const BORDER_WIDTHS = ['1px', '2px', '3px', '4px'];
+const SHADOW_OFFSETS = [0, 2, 4, 6, 8, 10, 12];
+const SHADOW_BLURS = [0, 4, 8, 12, 16, 20, 28];
+const SHADOW_SPREADS = [0, 0, 1, 2, 3];
+const SHADOW_OPACITIES = [0, 0.06, 0.1, 0.14, 0.18, 0.22];
+const SHADOW_TYPES: Array<'normal' | 'inset'> = ['normal', 'normal', 'normal', 'inset'];
 
 const THEME_PRESETS = {
   minimal: {
@@ -124,15 +129,45 @@ export function generateThemeFromDid(did) {
   const borderWidthIndex = hash % BORDER_WIDTHS.length;
   const borderWidth = BORDER_WIDTHS[borderWidthIndex];
 
+  // Deterministic shadow recipe per DID (used to make UI feel unique)
+  const shadowOffsetIndex = hash % SHADOW_OFFSETS.length;
+  const shadowOffset = SHADOW_OFFSETS[shadowOffsetIndex];
+  const shadowBlurIndex = (hash >> 3) % SHADOW_BLURS.length;
+  const shadowBlur = SHADOW_BLURS[shadowBlurIndex];
+  const shadowSpreadIndex = (hash >> 6) % SHADOW_SPREADS.length;
+  const shadowSpread = SHADOW_SPREADS[shadowSpreadIndex];
+  const shadowOpacityIndex = (hash >> 9) % SHADOW_OPACITIES.length;
+  const shadowOpacity = SHADOW_OPACITIES[shadowOpacityIndex];
+  const shadowTypeIndex = (hash >> 12) % SHADOW_TYPES.length;
+  const shadowType = SHADOW_TYPES[shadowTypeIndex];
+
+  // Use accent (or text) as shadow tint so it feels tied to the garden palette
+  const shadowColorBase = colors.accent || colors.primary || colors.text || '#000000';
+  const shadowColor = chroma(shadowColorBase).alpha(shadowOpacity).css();
+
+  const shadow = {
+    type: shadowType,
+    x: `${shadowOffset}px`,
+    y: `${shadowOffset}px`,
+    blur: `${shadowBlur}px`,
+    spread: `${shadowSpread}px`,
+    color: shadowColor,
+  };
+
   const metadata = {
     hash,
     hue,
     fontPairingIndex,
     borderStyleIndex,
     borderWidthIndex,
+    shadowOffsetIndex,
+    shadowBlurIndex,
+    shadowSpreadIndex,
+    shadowOpacityIndex,
+    shadowTypeIndex,
   };
 
-  return { theme: { colors, fonts, borderStyle, borderWidth }, metadata };
+  return { theme: { colors, fonts, borderStyle, borderWidth, shadow }, metadata };
 }
 
 
@@ -148,6 +183,7 @@ export function applyTheme(themeConfig: any = {}, customCss = '') {
   const fonts = { ...presetTheme.fonts, ...themeConfig.fonts };
   const borderStyle = themeConfig.borderStyle || 'solid';
   const borderWidth = themeConfig.borderWidth || '2px';
+  const shadow = themeConfig.shadow || {};
 
   // Apply CSS custom properties
   const root = document.documentElement;
@@ -175,6 +211,14 @@ export function applyTheme(themeConfig: any = {}, customCss = '') {
   // Border style
   root.style.setProperty('--border-style', borderStyle);
   root.style.setProperty('--border-width', borderWidth);
+
+  // Drop shadows (all optional; safe defaults live in base.css)
+  if (shadow.type) root.style.setProperty('--shadow-type', String(shadow.type));
+  if (shadow.x) root.style.setProperty('--shadow-x', String(shadow.x));
+  if (shadow.y) root.style.setProperty('--shadow-y', String(shadow.y));
+  if (shadow.blur) root.style.setProperty('--shadow-blur', String(shadow.blur));
+  if (shadow.spread) root.style.setProperty('--shadow-spread', String(shadow.spread));
+  if (shadow.color) root.style.setProperty('--shadow-color', String(shadow.color));
 
   // Apply custom CSS
   if (customCss) {
