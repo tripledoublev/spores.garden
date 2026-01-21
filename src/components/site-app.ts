@@ -71,7 +71,7 @@ class SiteApp extends HTMLElement {
       // Listen for auth changes - MUST be before initOAuth to catch events from OAuth callback
       window.addEventListener('auth-change', async (e: Event) => {
         const detail = (e as CustomEvent).detail;
-        // If user logged in and no site owner set, they become the owner
+        // If user logged in and no site owner set (home page), they become the owner
         if (detail?.loggedIn && detail?.did && !getSiteOwnerDid()) {
           // Try to load existing config for this user
           const existingConfig = await loadUserConfig(detail.did);
@@ -79,11 +79,13 @@ class SiteApp extends HTMLElement {
           if (existingConfig) {
             // User has existing config - set as owner and don't show welcome
             setSiteOwnerDid(detail.did);
-            // Apply theme from loaded config
-            applyTheme(existingConfig.theme);
+            // Only apply user's theme if viewing their own garden (not on home page)
+            if (this.isViewingOwnGarden(detail.did)) {
+              applyTheme(existingConfig.theme);
+            }
           } else {
             // New user - set as owner and show welcome
-            setSiteOwnerDid(e.detail.did);
+            setSiteOwnerDid(detail.did);
             // Show welcome modal for first-time users
             if (!this.hasShownWelcome) {
               this.showWelcome();
@@ -1127,6 +1129,19 @@ class SiteApp extends HTMLElement {
    */
   isViewingProfile(): boolean {
     return hasGardenIdentifierInUrl();
+  }
+
+  /**
+   * Check if the given DID is viewing their own garden
+   * Returns true if the URL contains the user's DID or handle that resolves to their DID
+   */
+  isViewingOwnGarden(userDid: string): boolean {
+    const siteOwnerDid = getSiteOwnerDid();
+    // If no site owner set (home page), user is not viewing their own garden
+    if (!siteOwnerDid) {
+      return false;
+    }
+    return siteOwnerDid === userDid;
   }
 
   /**
