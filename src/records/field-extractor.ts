@@ -163,6 +163,14 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     preferredLayout: 'profile'
   },
 
+  // Spores.garden Image
+  'garden.spores.content.image': {
+    title: 'title',
+    image: 'image',
+    date: 'createdAt',
+    preferredLayout: 'image'
+  },
+
   // Spores.garden Flower (social interaction)
   'garden.spores.social.flower': {
     date: 'createdAt',
@@ -220,6 +228,7 @@ const KNOWN_LEXICONS = new Set([
   'blue.linkat.board',
   'garden.spores.site.config',
   'garden.spores.site.content',
+  'garden.spores.content.image',
   'garden.spores.site.profile',
   'garden.spores.social.flower',
   'garden.spores.social.takenFlower',
@@ -278,7 +287,7 @@ function getNestedValue(obj, path) {
  */
 function extractField(record, fieldType: string, lexiconType?: string): any {
   const value = record.value || record;
-  
+
   // First, try schema-based extraction if available
   if (lexiconType) {
     const schema = getLexiconSchema(lexiconType);
@@ -593,7 +602,7 @@ export interface LayoutSuggestion {
 function calculateConfidence(record: any, fields: ReturnType<typeof extractFields>): 'high' | 'medium' | 'low' {
   const lexiconType = fields.$type;
   const schema = getLexiconSchema(lexiconType);
-  
+
   // If schema exists with explicit confidence override, use it
   if (schema?.confidence) {
     return schema.confidence;
@@ -645,7 +654,7 @@ export function suggestLayout(record): LayoutSuggestion {
   const fields = extractFields(record);
   const lexiconType = fields.$type;
   const schema = getLexiconSchema(lexiconType);
-  
+
   // Calculate confidence based on schema availability and field extraction success
   let confidence = calculateConfidence(record, fields);
 

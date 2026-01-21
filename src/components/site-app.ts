@@ -13,6 +13,7 @@ import type { WelcomeModalElement, WelcomeAction } from '../types';
 import './section-block';
 import './welcome-modal';
 import './create-content';
+import './create-image';
 import './site-config';
 
 class SiteApp extends HTMLElement {
@@ -721,19 +722,9 @@ class SiteApp extends HTMLElement {
       return;
     }
 
-    // If it's image, create a records section with image layout
+    // If it's image, show the create image modal
     if (type === 'image') {
-      const config = getConfig();
-      const id = `section-${Date.now()}`;
-      const section = {
-        id,
-        type: 'records',
-        layout: 'image',
-        title: 'Images',
-        records: [] // User can add image records via Load Records or section editing
-      };
-      config.sections = [...(config.sections || []), section];
-      this.render();
+      this.showCreateImageModal();
       return;
     }
 
@@ -969,6 +960,22 @@ class SiteApp extends HTMLElement {
     }
   }
 
+
+  showCreateImageModal() {
+    // Check if modal already exists
+    let modal = document.querySelector('create-image') as HTMLElement & { setOnClose: (cb: () => void) => void; show: () => void };
+
+    if (!modal) {
+      modal = document.createElement('create-image') as HTMLElement & { setOnClose: (cb: () => void) => void; show: () => void };
+      document.body.appendChild(modal);
+    }
+
+    modal.setOnClose(() => {
+      this.render();
+    });
+
+    modal.show();
+  }
 
   showCreateContentModal() {
     // Check if modal already exists
