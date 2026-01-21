@@ -34,6 +34,8 @@ import { Client } from '@atcute/client';
 import { getPdsEndpoint } from '@atcute/identity';
 import type { OAuthConfig, OAuthSession, ATClientOptions } from './types';
 
+const SESSION_STORAGE_KEY = 'spores_garden_oauth_session';
+
 let oauthConfig: OAuthConfig | null = null;
 let currentAgent: OAuthUserAgent | null = null;
 let currentSession: OAuthSession | null = null;
@@ -67,8 +69,13 @@ export async function initOAuth(config: OAuthConfig) {
     identityResolver
   });
 
-  // Check for OAuth callback
+  // Check for OAuth callback first (takes precedence)
   await handleOAuthCallback();
+  
+  // If no callback and not logged in, try to restore session from storage
+  if (!currentAgent && !currentSession) {
+    await restoreSession();
+  }
 }
 
 /**
@@ -115,6 +122,9 @@ async function handleOAuthCallback() {
     const session = result.session as OAuthSession;
     currentSession = session;
     currentAgent = new OAuthUserAgent(session as unknown as OAuthSession);
+
+    // Save session to sessionStorage for persistence across page refreshes
+    saveSessionToStorage(session);
 
     // Clean up URL after successful authorization
     history.replaceState(null, '', location.pathname);
@@ -163,11 +173,106 @@ export async function login(handle: string) {
 }
 
 /**
+ * Save session to sessionStorage
+ */
+function saveSessionToStorage(session: OAuthSession) {
+  try {
+    // Store session data in sessionStorage (clears when tab closes)
+    // Serialize the session object - the atcute session should be JSON serializable
+    // We'll store it as-is since we don't know all the internal properties
+    const sessionAny = session as any;
+    const sessionData: Record<string, unknown> = {
+      info: session.info
+    };
+    
+    // Store known OAuth session properties if they exist
+    if (sessionAny.accessToken) sessionData.accessToken = sessionAny.accessToken;
+    if (sessionAny.refreshToken) sessionData.refreshToken = sessionAny.refreshToken;
+    if (sessionAny.expiresAt) sessionData.expiresAt = sessionAny.expiresAt;
+    
+    // Store any other enumerable properties (but skip functions)
+    for (const key in sessionAny) {
+      if (key !== 'info' && key !== 'accessToken' && key !== 'refreshToken' && key !== 'expiresAt') {
+        const value = sessionAny[key];
+        if (value !== undefined && typeof value !== 'function') {
+          try {
+            // Test if value is serializable
+            JSON.stringify(value);
+            sessionData[key] = value;
+          } catch {
+            // Skip non-serializable values
+          }
+        }
+      }
+    }
+    
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+  } catch (error) {
+    console.warn('Failed to save session to storage:', error);
+    // Non-fatal - continue without persistence
+  }
+}
+
+/**
+ * Restore session from sessionStorage
+ */
+async function restoreSession() {
+  try {
+    const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!stored) {
+      return; // No stored session
+    }
+
+    const sessionData = JSON.parse(stored);
+    
+    // Check if session is expired
+    if (sessionData.expiresAt && new Date(sessionData.expiresAt).getTime() < Date.now()) {
+      console.log('Stored session has expired, clearing');
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return;
+    }
+
+    // Reconstruct session object - cast to any to include all properties
+    const restoredSession = sessionData as OAuthSession & {
+      accessToken?: string;
+      refreshToken?: string;
+      expiresAt?: string | number;
+    };
+
+    // Recreate agent from restored session
+    currentSession = restoredSession;
+    currentAgent = new OAuthUserAgent(restoredSession as unknown as OAuthSession);
+
+    // Dispatch event to notify UI
+    window.dispatchEvent(new CustomEvent('auth-change', {
+      detail: { loggedIn: true, did: restoredSession.info.sub }
+    }));
+
+    console.log('Restored session from storage');
+  } catch (error) {
+    console.warn('Failed to restore session from storage:', error);
+    // Clear corrupted session data
+    try {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+}
+
+/**
  * Logout
  */
 export function logout() {
   currentAgent = null;
   currentSession = null;
+
+  // Clear session from storage
+  try {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Failed to clear session from storage:', error);
+  }
 
   window.dispatchEvent(new CustomEvent('auth-change', {
     detail: { loggedIn: false, did: null }
@@ -369,8 +474,29 @@ export async function post(record: unknown) {
     throw new Error('Missing OAuth session');
   }
 
+  // Resolve PDS endpoint to ensure we use the correct service
+  let pdsUrl: string | undefined;
+  try {
+    if (identityResolver) {
+      const resolved = await identityResolver.resolve(currentSession.info.sub);
+      if (resolved?.pds) {
+        pdsUrl = resolved.pds;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to resolve PDS for post, client will use default:', error);
+  }
+
+  // Create client with explicit service URL if we have it
+  const clientOptions: ATClientOptions = { handler: currentAgent };
+  if (pdsUrl) {
+    clientOptions.serviceUrl = pdsUrl;
+  }
+
+  const client = new Client(clientOptions);
+
   // Use post() for procedures (com.atproto.repo.createRecord is a procedure)
-  const response = await currentAgent.post('com.atproto.repo.createRecord', {
+  const response = await client.post('com.atproto.repo.createRecord', {
     input: {
       repo: currentSession.info.sub,
       collection: 'app.bsky.feed.post',
@@ -388,6 +514,10 @@ export async function post(record: unknown) {
 
 /**
  * Upload a blob (e.g., image) to the PDS
+ * 
+ * Blob uploads require raw binary data as the request body, which is different
+ * from typical JSON API calls. We use the OAuthUserAgent.handle() method which
+ * automatically handles DPoP authentication required by AT Protocol OAuth.
  */
 export async function uploadBlob(blob: Blob, mimeType: string) {
   if (!currentAgent) {
@@ -397,12 +527,32 @@ export async function uploadBlob(blob: Blob, mimeType: string) {
     throw new Error('Missing OAuth session');
   }
 
-  const response = await currentAgent.uploadBlob(blob, mimeType);
+  // Use the OAuthUserAgent.handle() method which automatically handles
+  // DPoP authentication (AT Protocol OAuth doesn't use simple Bearer tokens)
+  try {
+    const response = await currentAgent.handle('/xrpc/com.atproto.repo.uploadBlob', {
+      method: 'POST',
+      headers: {
+        'Content-Type': mimeType
+      },
+      body: blob
+    });
 
-  if (!response.ok) {
-    const errorMsg = response.data?.message || response.data?.error || 'Unknown error';
-    throw new Error(`Failed to upload blob: ${errorMsg}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData.message || errorData.error || `HTTP ${response.status}`;
+      throw new Error(`Failed to upload blob: ${errorMsg}`);
+    }
+
+    const data = await response.json();
+    
+    // Return response in the same format as other functions (with ok and data properties)
+    return {
+      ok: true,
+      data: data
+    };
+  } catch (error) {
+    console.error('uploadBlob error:', error);
+    throw error;
   }
-
-  return response;
 }
