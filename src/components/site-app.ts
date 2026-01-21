@@ -20,10 +20,12 @@ class SiteApp extends HTMLElement {
   private hasShownWelcome = false;
   private editMode = false;
   private renderId = 0;
+  private isThemeReady = false;
 
   constructor() {
     super();
     this.editMode = false;
+    this.isThemeReady = false;
   }
 
   private navigateToGardenIdentifier(rawInput: string) {
@@ -79,8 +81,8 @@ class SiteApp extends HTMLElement {
           if (existingConfig) {
             // User has existing config - set as owner and don't show welcome
             setSiteOwnerDid(detail.did);
-            // Apply theme from loaded config
-            applyTheme(existingConfig.theme);
+            // Apply theme from loaded config and wait for it to be ready
+            await applyTheme(existingConfig.theme);
           } else {
             // New user - set as owner and show welcome
             setSiteOwnerDid(e.detail.did);
@@ -103,10 +105,10 @@ class SiteApp extends HTMLElement {
       });
 
       // Listen for config updates
-      window.addEventListener('config-updated', () => {
+      window.addEventListener('config-updated', async () => {
         const config = getConfig();
-        // Re-apply theme when config is updated
-        applyTheme(config.theme);
+        // Re-apply theme when config is updated and wait for it to be ready
+        await applyTheme(config.theme);
         this.render();
       });
 
@@ -127,10 +129,14 @@ class SiteApp extends HTMLElement {
         this.showConfigModal();
       });
 
-      // Apply theme
-      applyTheme(config.theme);
+      // Apply theme and wait for it to be fully applied before rendering
+      await applyTheme(config.theme);
+      this.isThemeReady = true;
+      
+      // Add theme-ready class for smooth content fade-in
+      this.classList.add('theme-ready');
 
-      // Render
+      // Render only after theme is ready
       await this.render();
     } catch (error) {
       console.error('Failed to initialize site:', error);
