@@ -82,7 +82,7 @@ const THEME_PRESETS = {
   }
 };
 
-let customStyleEl = null;
+
 
 /**
  * Simple hash function to convert a string to a number
@@ -174,7 +174,7 @@ export function generateThemeFromDid(did) {
 /**
  * Apply a theme to the document
  */
-export function applyTheme(themeConfig: any = {}, customCss = '') {
+export function applyTheme(themeConfig: any = {}) {
   const preset = themeConfig.preset || 'minimal';
   const presetTheme = THEME_PRESETS[preset] || THEME_PRESETS.minimal;
 
@@ -220,17 +220,7 @@ export function applyTheme(themeConfig: any = {}, customCss = '') {
   if (shadow.spread) root.style.setProperty('--shadow-spread', String(shadow.spread));
   if (shadow.color) root.style.setProperty('--shadow-color', String(shadow.color));
 
-  // Apply custom CSS
-  if (customCss) {
-    if (!customStyleEl) {
-      customStyleEl = document.createElement('style');
-      customStyleEl.id = 'custom-css';
-      document.head.appendChild(customStyleEl);
-    }
-    customStyleEl.textContent = customCss;
-  } else if (customStyleEl) {
-    customStyleEl.textContent = '';
-  }
+
 
   // Add theme class to body
   document.body.className = document.body.className
@@ -274,4 +264,60 @@ export function getPresetColors(presetName) {
   }
   // Return a copy of the colors object
   return { ...preset.colors };
+}
+
+/**
+ * Check if a theme config has custom overrides beyond generated defaults
+ * 
+ * This determines whether we need to write theme data to PDS or if we can
+ * rely on client-side generation from the DID.
+ * 
+ * @param did - The DID to compare against
+ * @param themeConfig - The theme configuration to check
+ * @returns true if theme has custom overrides, false if it matches generated defaults
+ */
+export function hasCustomThemeOverrides(did: string, themeConfig: any): boolean {
+  if (!themeConfig || !did) {
+    return false;
+  }
+
+  const { theme: generated } = generateThemeFromDid(did);
+
+  // Check if any colors differ from generated
+  if (themeConfig.colors) {
+    for (const [key, value] of Object.entries(themeConfig.colors)) {
+      if (generated.colors[key] !== value) {
+        return true;
+      }
+    }
+  }
+
+  // Check if any fonts differ from generated
+  if (themeConfig.fonts) {
+    for (const [key, value] of Object.entries(themeConfig.fonts)) {
+      if (generated.fonts[key] !== value) {
+        return true;
+      }
+    }
+  }
+
+  // Check border style/width
+  if (themeConfig.borderStyle && themeConfig.borderStyle !== generated.borderStyle) {
+    return true;
+  }
+  if (themeConfig.borderWidth && themeConfig.borderWidth !== generated.borderWidth) {
+    return true;
+  }
+
+  // Check shadow overrides
+  if (themeConfig.shadow) {
+    const genShadow = generated.shadow || {};
+    for (const [key, value] of Object.entries(themeConfig.shadow)) {
+      if (genShadow[key] !== value) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
