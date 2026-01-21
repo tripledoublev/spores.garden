@@ -1,16 +1,18 @@
 import { getConfig } from '../config';
 import { generateThemeFromDid } from '../themes/engine';
 import { getCurrentDid } from '../oauth';
+import { generateFlowerSVGString } from './flower-svg';
 
 const SOCIAL_CARD_WIDTH = 1200;
 const SOCIAL_CARD_HEIGHT = 630;
 
 /**
- * Generates a social card image (data URL) for the current garden.
+ * Renders the social card to a canvas and returns it.
+ * Uses the same SVG flower generation as did-visualization.ts for consistency.
  */
-export async function generateSocialCardImage(): Promise<string> {
+async function renderSocialCardToCanvas(): Promise<HTMLCanvasElement> {
   const config = getConfig();
-  const currentDid = getCurrentDid();
+  const currentDid = getCurrentDid() || 'did:example:default';
 
   const canvas = document.createElement('canvas');
   canvas.width = SOCIAL_CARD_WIDTH;
@@ -22,53 +24,135 @@ export async function generateSocialCardImage(): Promise<string> {
   }
 
   // Use the theme to get colors
-  const { theme } = generateThemeFromDid(currentDid || 'did:example:default'); // Fallback DID
+  const { theme } = generateThemeFromDid(currentDid);
   const { colors } = theme;
 
+  // Layout: Split into left (text) and right (flower) sections, 50% each
+  const halfWidth = SOCIAL_CARD_WIDTH / 2;
+  
   // Background
   ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, SOCIAL_CARD_WIDTH, SOCIAL_CARD_HEIGHT);
 
-  // DID Visualization (monochrome grid)
-  const vizSize = 250;
-  const vizX = SOCIAL_CARD_WIDTH - vizSize - 50;
-  const vizY = (SOCIAL_CARD_HEIGHT - vizSize) / 2;
+  // === RIGHT SECTION: Flower (centered in right half) ===
+  const flowerSize = 400;
+  const flowerSVG = generateFlowerSVGString(currentDid, flowerSize);
+  const flowerImage = await svgToImage(flowerSVG, flowerSize, flowerSize);
+  
+  // Center flower in the right half
+  const rightCenterX = halfWidth + halfWidth / 2;
+  const rightCenterY = SOCIAL_CARD_HEIGHT / 2;
+  const flowerX = rightCenterX - flowerSize / 2;
+  const flowerY = rightCenterY - flowerSize / 2;
+  ctx.drawImage(flowerImage, flowerX, flowerY, flowerSize, flowerSize);
 
-  // Re-create the did-visualization logic here, but render to canvas
-  const hash = DidVisualizationStringToHash(currentDid || 'did:example:default');
-  const gridSize = 10;
-  const cellSize = vizSize / gridSize;
-
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-      const binaryValue = ((hash + i * gridSize + j) % 2);
-      ctx.fillStyle = binaryValue === 1 ? colors.primary : colors.background;
-      ctx.fillRect(vizX + j * cellSize, vizY + i * cellSize, cellSize, cellSize);
-    }
-  }
-
-  // Text content
+  // === LEFT SECTION: Text content (centered vertically in left half) ===
+  const leftPadding = 50;
+  const leftCenterY = SOCIAL_CARD_HEIGHT / 2;
+  
+  // Title
   ctx.fillStyle = colors.text;
-  ctx.font = '60px ' + config.theme?.fonts?.heading || 'sans-serif';
-  ctx.fillText(config.title || 'spores.garden', 50, 150);
+  ctx.font = '56px ' + (config.theme?.fonts?.heading || 'sans-serif');
+  ctx.fillText(config.title || 'My Garden', leftPadding, leftCenterY - 40);
 
-  ctx.font = '30px ' + config.theme?.fonts?.body || 'sans-serif';
-  ctx.fillText(config.subtitle || 'A personal ATProto website', 50, 200);
+  // Subtitle
+  ctx.font = '28px ' + (config.theme?.fonts?.body || 'sans-serif');
+  ctx.fillText(config.subtitle || 'A personal ATProto website', leftPadding, leftCenterY + 10);
 
-  // Link to garden
-  ctx.font = '24px ' + config.theme?.fonts?.body || 'sans-serif';
-  ctx.fillText(window.location.origin, 50, SOCIAL_CARD_HEIGHT - 50);
+  // spores.garden branding at the bottom left
+  ctx.font = 'bold 24px ' + (config.theme?.fonts?.body || 'sans-serif');
+  ctx.fillStyle = colors.primary;
+  ctx.fillText('🌱 spores.garden', leftPadding, SOCIAL_CARD_HEIGHT - 40);
 
+  return canvas;
+}
+
+/**
+ * Convert an SVG string to an Image element.
+ */
+function svgToImage(svgString: string, width: number, height: number): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(new Error('Failed to load SVG as image: ' + e));
+    
+    // Convert SVG string to data URL
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    img.src = url;
+  });
+}
+
+/**
+ * Generates a social card image as a Blob for the current garden.
+ */
+export async function generateSocialCardImage(): Promise<Blob> {
+  const canvas = await renderSocialCardToCanvas();
+  
+  // Convert canvas to Blob
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error('Failed to convert canvas to blob'));
+      }
+    }, 'image/png');
+  });
+}
+
+/**
+ * Generates a social card image as a data URL for preview purposes.
+ */
+export async function generateSocialCardDataUrl(): Promise<string> {
+  const canvas = await renderSocialCardToCanvas();
   return canvas.toDataURL('image/png');
 }
 
-// Helper function (copied from did-visualization.ts to avoid DOM rendering)
-function DidVisualizationStringToHash(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash |= 0; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
+/**
+ * Opens a preview of the social card in a new window.
+ */
+export async function previewSocialCard(): Promise<void> {
+  const dataUrl = await generateSocialCardDataUrl();
+  const previewWindow = window.open('', '_blank', 'width=1250,height=700');
+  if (previewWindow) {
+    previewWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Social Card Preview</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              background: #1a1a1a;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              font-family: system-ui, sans-serif;
+            }
+            h1 {
+              color: #fff;
+              margin-bottom: 20px;
+            }
+            img {
+              max-width: 100%;
+              border: 1px solid #333;
+              border-radius: 8px;
+            }
+            p {
+              color: #888;
+              margin-top: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Social Card Preview</h1>
+          <img src="${dataUrl}" alt="Social card preview" />
+          <p>This is how your garden will appear when shared to Bluesky.</p>
+        </body>
+      </html>
+    `);
+    previewWindow.document.close();
   }
+}
