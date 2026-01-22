@@ -99,7 +99,7 @@ export type ATClientOptions = { handler: any; serviceUrl?: string };
 // Component Types
 // ============================================
 
-export type WelcomeAction = 'load-records' | 'create-profile' | 'create-content' | 'skip';
+export type WelcomeAction = 'load-records' | 'create-content' | 'select-bsky-posts';
 
 export interface WelcomeModalElement extends HTMLElement {
   setOnClose: (callback: () => void) => void;

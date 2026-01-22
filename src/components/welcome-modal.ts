@@ -20,8 +20,7 @@ import './theme-metadata';
 type WelcomeAction =
   | 'load-records'
   | 'create-content'
-  | 'select-bsky-posts'
-  | 'skip';
+  | 'select-bsky-posts';
 
 class WelcomeModal extends HTMLElement {
   private did: string | null = null;
@@ -72,13 +71,13 @@ class WelcomeModal extends HTMLElement {
     this.className = 'welcome-modal';
     this.innerHTML = `
       <div class="welcome-content">
-        <div class="welcome-header">
-          <h1 class="welcome-title">Welcome to spores.garden</h1>
-          <p class="welcome-subtitle">Let's get your garden started.</p>
-        </div>
         <div id="onboarding-step-1">
-          <p>On Bluesky, you are known as <strong>${this.profile.displayName}</strong> (@${this.profile.handle}). On spores.garden, you can customize your page's headers.</p>
-          
+          <div class="welcome-header">
+            <h1 class="welcome-title">Welcome to spores.garden</h1>
+            <p class="welcome-subtitle">Let's get your garden started.</p>
+          </div>
+          <p>On Bluesky, you are known as <strong>${this.profile?.displayName || ''}</strong> (@${this.profile?.handle || ''}).</p>
+          <p>On spores.garden, you can customize your page's headers before generating your unique theme.</p>
           <div class="form-group">
             <label for="site-title">Site Title (H1)</label>
             <input type="text" id="site-title" class="input" value="${this.profile?.displayName || ''}">
@@ -92,16 +91,15 @@ class WelcomeModal extends HTMLElement {
         <div id="onboarding-step-2" style="display: none;">
           <h2 class="theme-generated-title">Your unique theme has been generated!</h2>
           <p class="theme-generated-subtitle">Here is a visualization of your DID:</p>
-          <did-visualization did="${this.did}" show-info></did-visualization>
+          <did-visualization did="${this.did}"></did-visualization>
+          <p class="favicon-note">This is the generated favicon for your garden's page.</p>
           <div class="generative-art-explanation">
             <p>Your DID (Decentralized Identifier) generates a unique visual flower pattern. This is your digital signature—no two gardens look the same, and your flower remains consistent across the network.</p>
             <p>The colors, patterns, and shape are derived from your DID's cryptographic hash, creating a one-of-a-kind garden theme that's yours forever.</p>
           </div>
-          <p class="favicon-note">This is the generated favicon for your garden's page.</p>
           <theme-metadata></theme-metadata>
           <button id="save-continue-btn" class="button button-primary">Save & Continue</button>
-
-        </div>
+          </div>
       </div>
     `;
 
@@ -129,8 +127,8 @@ class WelcomeModal extends HTMLElement {
             });
           }
 
-          this.querySelector('#onboarding-step-1').style.display = 'none';
-          this.querySelector('#onboarding-step-2').style.display = 'block';
+          (this.querySelector('#onboarding-step-1') as HTMLElement).style.display = 'none';
+          (this.querySelector('#onboarding-step-2') as HTMLElement).style.display = 'block';
 
           const themeMetadataEl = this.querySelector('theme-metadata');
           if (themeMetadataEl) {
@@ -152,38 +150,6 @@ class WelcomeModal extends HTMLElement {
         }
       });
     }
-  }
-
-  private createActionCard(options: {
-    icon: string;
-    title: string;
-    description: string;
-    action: () => void;
-  }) {
-    const card = document.createElement('button');
-    card.className = 'welcome-action-card';
-    card.type = 'button';
-
-    const icon = document.createElement('div');
-    icon.className = 'welcome-icon';
-    icon.textContent = options.icon;
-    card.appendChild(icon);
-
-    const content = document.createElement('div');
-    content.className = 'welcome-card-content';
-
-    const title = document.createElement('h3');
-    title.textContent = options.title;
-    content.appendChild(title);
-
-    const description = document.createElement('p');
-    description.textContent = options.description;
-    content.appendChild(description);
-
-    card.appendChild(content);
-    card.addEventListener('click', options.action);
-
-    return card;
   }
 
   async handleLoadRecords() {
@@ -281,9 +247,6 @@ class WelcomeModal extends HTMLElement {
       <div class="welcome-selector">
         <h2>Select Collection</h2>
         <p>Choose a collection to load records from</p>
-        <div class="form-hint" style="margin-bottom: var(--spacing-lg); font-style: normal;">
-          <strong>Advanced Feature:</strong> Load any AT Protocol record type to display. Rendering may vary—experiment and see what works!
-        </div>
         <div class="collection-list">
           ${collections.map(coll => `
             <button class="collection-item" data-collection="${coll}">
@@ -447,30 +410,6 @@ class WelcomeModal extends HTMLElement {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-  }
-
-  private async addSelectedPosts() {
-    const selected = Array.from(this.querySelectorAll<HTMLInputElement>('.post-item input:checked'));
-
-    if (selected.length === 0) {
-      alert('Please select at least one post.');
-      return;
-    }
-
-    // Group selected posts into a single collection section
-    const uris = selected.map(input => input.getAttribute('data-uri')).filter(Boolean);
-
-    addSection({
-      type: 'collection',
-      collection: 'app.bsky.feed.post',
-      records: uris,
-      layout: 'post',
-      title: 'My Bluesky Posts'
-    });
-
-    this.close(() => {
-      window.dispatchEvent(new CustomEvent('config-updated'));
-    });
   }
 
   private addSinglePost(uri: string) {
