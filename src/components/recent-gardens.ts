@@ -28,6 +28,20 @@ interface GardenMetadata {
 }
 
 /**
+ * Cache structure for known gardens with versioning and timestamps
+ */
+interface KnownGardensCache {
+  version: number;
+  lastUpdated: number; // timestamp
+  dids: string[];
+}
+
+// Cache version - increment when cache format changes
+const CACHE_VERSION = 1;
+// Cache TTL in milliseconds (1 hour)
+const CACHE_TTL_MS = 60 * 60 * 1000;
+
+/**
  * API interface for fetching recent gardens
  */
 interface RecentGardensAPI {
@@ -276,13 +290,40 @@ class ConstellationRecentGardensAPI implements RecentGardensAPI {
   }
 
   /**
-   * Load known gardens from localStorage
+   * Load known gardens from localStorage with cache validation
    */
   private loadKnownGardens() {
     try {
       const stored = localStorage.getItem('spores.garden.knownGardens');
       if (stored) {
-        this.knownGardenDids = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        
+        // Check if it's the new versioned format
+        if (typeof parsed === 'object' && parsed.version !== undefined) {
+          const cache = parsed as KnownGardensCache;
+          
+          // Validate cache version
+          if (cache.version !== CACHE_VERSION) {
+            console.log('Cache version mismatch, resetting known gardens cache');
+            this.knownGardenDids = [];
+            return;
+          }
+          
+          // Check if cache is stale (older than TTL)
+          const age = Date.now() - cache.lastUpdated;
+          if (age > CACHE_TTL_MS) {
+            console.log('Known gardens cache is stale, will refresh');
+            // Still use the data but mark for refresh
+            this.knownGardenDids = cache.dids || [];
+          } else {
+            this.knownGardenDids = cache.dids || [];
+          }
+        } else {
+          // Legacy format (array of strings) - migrate to new format
+          console.log('Migrating known gardens to versioned cache format');
+          this.knownGardenDids = Array.isArray(parsed) ? parsed : [];
+          this.saveKnownGardens(); // Save in new format
+        }
       }
     } catch (error) {
       console.warn('Failed to load known gardens:', error);
@@ -291,13 +332,30 @@ class ConstellationRecentGardensAPI implements RecentGardensAPI {
   }
 
   /**
-   * Save known gardens to localStorage
+   * Save known gardens to localStorage with versioning and timestamp
    */
   private saveKnownGardens() {
     try {
-      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(this.knownGardenDids));
+      const cache: KnownGardensCache = {
+        version: CACHE_VERSION,
+        lastUpdated: Date.now(),
+        dids: this.knownGardenDids
+      };
+      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
     } catch (error) {
       console.warn('Failed to save known gardens:', error);
+    }
+  }
+
+  /**
+   * Remove a garden DID from the known gardens list
+   * Called when a garden is confirmed to no longer exist
+   */
+  private removeKnownGarden(did: string) {
+    const index = this.knownGardenDids.indexOf(did);
+    if (index > -1) {
+      this.knownGardenDids.splice(index, 1);
+      this.saveKnownGardens();
     }
   }
 
@@ -310,6 +368,26 @@ class ConstellationRecentGardensAPI implements RecentGardensAPI {
       this.saveKnownGardens();
     }
   }
+
+  /**
+   * Check if cache needs refresh based on TTL
+   */
+  isCacheStale(): boolean {
+    try {
+      const stored = localStorage.getItem('spores.garden.knownGardens');
+      if (!stored) return true;
+      
+      const parsed = JSON.parse(stored);
+      if (typeof parsed === 'object' && parsed.version !== undefined) {
+        const cache = parsed as KnownGardensCache;
+        const age = Date.now() - cache.lastUpdated;
+        return age > CACHE_TTL_MS;
+      }
+      return true; // Legacy format is considered stale
+    } catch {
+      return true;
+    }
+  }
 }
 
 /**
@@ -319,10 +397,33 @@ class ConstellationRecentGardensAPI implements RecentGardensAPI {
 export function registerGarden(did: string) {
   try {
     const stored = localStorage.getItem('spores.garden.knownGardens');
-    const knownGardens: string[] = stored ? JSON.parse(stored) : [];
-    if (!knownGardens.includes(did)) {
-      knownGardens.push(did);
-      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(knownGardens));
+    let cache: KnownGardensCache;
+    
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Handle both new and legacy formats
+      if (typeof parsed === 'object' && parsed.version !== undefined) {
+        cache = parsed as KnownGardensCache;
+      } else {
+        // Migrate from legacy format
+        cache = {
+          version: CACHE_VERSION,
+          lastUpdated: Date.now(),
+          dids: Array.isArray(parsed) ? parsed : []
+        };
+      }
+    } else {
+      cache = {
+        version: CACHE_VERSION,
+        lastUpdated: Date.now(),
+        dids: []
+      };
+    }
+    
+    if (!cache.dids.includes(did)) {
+      cache.dids.push(did);
+      cache.lastUpdated = Date.now(); // Update timestamp when adding new garden
+      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
     }
   } catch (error) {
     console.warn('Failed to register garden:', error);
@@ -330,9 +431,11 @@ export function registerGarden(did: string) {
 }
 
 class RecentGardens extends HTMLElement {
-  private api: RecentGardensAPI;
+  private api: ConstellationRecentGardensAPI;
   private gardens: GardenMetadata[] = [];
   private loading = false;
+  private visibilityHandler: (() => void) | null = null;
+  private lastLoadTime = 0;
 
   constructor() {
     super();
@@ -346,6 +449,29 @@ class RecentGardens extends HTMLElement {
 
   connectedCallback() {
     this.loadGardens();
+    
+    // Set up visibility change listener to refresh stale data when tab becomes visible
+    this.visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        // Only refresh if cache is stale or it's been more than 5 minutes since last load
+        const timeSinceLastLoad = Date.now() - this.lastLoadTime;
+        const shouldRefresh = this.api.isCacheStale() || timeSinceLastLoad > 5 * 60 * 1000;
+        
+        if (shouldRefresh && !this.loading) {
+          console.log('Tab visible and cache stale, refreshing gardens...');
+          this.loadGardens();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+  }
+
+  disconnectedCallback() {
+    // Clean up visibility listener
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
   }
 
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
@@ -385,6 +511,9 @@ class RecentGardens extends HTMLElement {
       // Enrich garden data with profile information
       await this.enrichGardens();
 
+      // Track last successful load time
+      this.lastLoadTime = Date.now();
+
     } catch (error) {
       console.error('Failed to load recent gardens:', error);
       this.gardens = [];
@@ -401,21 +530,47 @@ class RecentGardens extends HTMLElement {
   private seedInitialGardens() {
     try {
       const stored = localStorage.getItem('spores.garden.knownGardens');
-      const knownGardens: string[] = stored ? JSON.parse(stored) : [];
+      let cache: KnownGardensCache;
+      
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Handle both new and legacy formats
+        if (typeof parsed === 'object' && parsed.version !== undefined) {
+          cache = parsed as KnownGardensCache;
+        } else {
+          // Migrate from legacy format
+          cache = {
+            version: CACHE_VERSION,
+            lastUpdated: Date.now(),
+            dids: Array.isArray(parsed) ? parsed : []
+          };
+        }
+      } else {
+        cache = {
+          version: CACHE_VERSION,
+          lastUpdated: Date.now(),
+          dids: []
+        };
+      }
 
       // Seed gardens if list is empty or very small
-      if (knownGardens.length < 3) {
+      if (cache.dids.length < 3) {
         const seedGardens = [
           'did:plc:y3lae7hmqiwyq7w2v3bcb2c2', // charlebois.info
         ];
 
+        let updated = false;
         for (const did of seedGardens) {
-          if (!knownGardens.includes(did)) {
-            knownGardens.push(did);
+          if (!cache.dids.includes(did)) {
+            cache.dids.push(did);
+            updated = true;
           }
         }
 
-        localStorage.setItem('spores.garden.knownGardens', JSON.stringify(knownGardens));
+        if (updated) {
+          cache.lastUpdated = Date.now();
+          localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
+        }
       }
     } catch (error) {
       console.warn('Failed to seed initial gardens:', error);
@@ -614,7 +769,13 @@ class RecentGardens extends HTMLElement {
     try {
       const stored = localStorage.getItem('spores.garden.knownGardens');
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Handle both new and legacy formats
+        if (typeof parsed === 'object' && parsed.version !== undefined) {
+          return (parsed as KnownGardensCache).dids || [];
+        }
+        // Legacy format
+        return Array.isArray(parsed) ? parsed : [];
       }
     } catch (error) {
       console.warn('Failed to load known gardens from storage:', error);
@@ -623,11 +784,16 @@ class RecentGardens extends HTMLElement {
   }
 
   /**
-   * Save known gardens to localStorage
+   * Save known gardens to localStorage with versioning
    */
   private saveKnownGardensToStorage(dids: string[]) {
     try {
-      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(dids));
+      const cache: KnownGardensCache = {
+        version: CACHE_VERSION,
+        lastUpdated: Date.now(),
+        dids
+      };
+      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
     } catch (error) {
       console.warn('Failed to save known gardens to storage:', error);
     }
