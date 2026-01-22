@@ -77,7 +77,8 @@ export async function getRecord(did, collection, rkey, options = {}) {
 
     const response = await fetch(url);
     if (!response.ok) {
-      if (response.status === 404) return null;
+      // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
+      if (response.status === 404 || response.status === 400) return null;
       throw new Error(`Failed to fetch record: ${response.status}`);
     }
 
@@ -96,7 +97,8 @@ export async function getRecord(did, collection, rkey, options = {}) {
 
     const response = await fetch(url);
     if (!response.ok) {
-      if (response.status === 404) return null;
+      // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
+      if (response.status === 404 || response.status === 400) return null;
       throw new Error(`Failed to fetch record: ${response.status}`);
     }
 
@@ -112,7 +114,8 @@ export async function getRecord(did, collection, rkey, options = {}) {
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      if (response.status === 404) return null;
+      // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
+      if (response.status === 404 || response.status === 400) return null;
       throw new Error(`Failed to fetch record: ${response.status}`);
     }
 
@@ -127,7 +130,8 @@ export async function getRecord(did, collection, rkey, options = {}) {
 
     const response = await fetch(fallbackUrl);
     if (!response.ok) {
-      if (response.status === 404) return null;
+      // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
+      if (response.status === 404 || response.status === 400) return null;
       throw new Error(`Failed to fetch record: ${response.status}`);
     }
 
@@ -443,6 +447,28 @@ export function parseAtUri(uri) {
  */
 export function buildAtUri(did, collection, rkey) {
   return `at://${did}/${collection}/${rkey}`;
+}
+
+/**
+ * Build a blob URL from a DID and blob reference
+ * Blobs are accessed via com.atproto.sync.getBlob endpoint
+ * 
+ * @param did - The DID of the repository that owns the blob
+ * @param blobRef - The blob reference object (with $link CID)
+ * @returns The URL to fetch the blob
+ */
+export async function getBlobUrl(did: string, blobRef: { ref?: { $link: string }, $link?: string }): Promise<string> {
+  // Handle both formats: { ref: { $link: "..." } } and { $link: "..." }
+  const cid = blobRef.ref?.$link || blobRef.$link;
+  if (!cid) {
+    throw new Error('Invalid blob reference: missing $link');
+  }
+
+  // Resolve the PDS endpoint for this DID
+  const pdsUrl = await resolvePdsEndpoint(did);
+  const serviceUrl = pdsUrl || 'https://bsky.social';
+  
+  return `${serviceUrl}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
 }
 
 /**

@@ -6,11 +6,12 @@
 
 import { getCollectionRecords, getRecordsByUris } from '../records/loader';
 import { getSiteOwnerDid, getConfig, updateSection, removeSection, moveSectionUp, moveSectionDown } from '../config';
-import { getProfile, getRecord } from '../at-client';
+import { getProfile, getRecord, getBlobUrl } from '../at-client';
 import { renderRecord, getAvailableLayouts } from '../layouts/index';
 import { renderFlowerBed } from '../layouts/flower-bed';
 import { renderCollectedFlowers } from '../layouts/collected-flowers';
 import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
+import { showConfirmModal } from '../utils/confirm-modal';
 import './create-profile'; // Register profile editor component
 
 class SectionBlock extends HTMLElement {
@@ -236,7 +237,15 @@ class SectionBlock extends HTMLElement {
     deleteBtn.className = 'button button-danger button-small';
     deleteBtn.textContent = 'Delete';
     deleteBtn.addEventListener('click', async () => {
-      if (confirm('Delete this section?')) {
+      const confirmed = await showConfirmModal({
+        title: 'Delete Section',
+        message: 'Are you sure you want to delete this section?',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        confirmDanger: true,
+      });
+      
+      if (confirmed) {
         // If this is a content/block with a PDS record, delete it
         if ((this.section.type === 'content' || this.section.type === 'block') && 
             this.section.collection === 'garden.spores.site.content' && 
@@ -412,16 +421,33 @@ class SectionBlock extends HTMLElement {
     try {
       // Try to load from profile record first
       let profileData = null;
+      let useSporesProfile = false;
+      
       if (this.section.collection === 'garden.spores.site.profile' && this.section.rkey) {
         try {
           const record = await getRecord(ownerDid, this.section.collection, this.section.rkey);
           if (record && record.value) {
+            // Convert blob references to URLs if present
+            let avatarUrl = null;
+            let bannerUrl = null;
+            
+            if (record.value.avatar && (record.value.avatar.ref || record.value.avatar.$link)) {
+              // Avatar is a blob reference - convert to URL
+              avatarUrl = await getBlobUrl(ownerDid, record.value.avatar);
+            }
+            
+            if (record.value.banner && (record.value.banner.ref || record.value.banner.$link)) {
+              // Banner is a blob reference - convert to URL
+              bannerUrl = await getBlobUrl(ownerDid, record.value.banner);
+            }
+            
             profileData = {
               displayName: record.value.displayName,
               description: record.value.description,
-              avatar: record.value.avatar,
-              banner: record.value.banner
+              avatar: avatarUrl,
+              banner: bannerUrl
             };
+            useSporesProfile = true;
           }
         } catch (error) {
           console.warn('Failed to load profile record, falling back to Bluesky profile:', error);
@@ -447,7 +473,8 @@ class SectionBlock extends HTMLElement {
         value: {
           title: profileData.displayName,
           content: profileData.description,
-          image: profileData.avatar
+          image: profileData.avatar,
+          banner: profileData.banner
         }
       };
 

@@ -433,11 +433,17 @@ site-app.theme-ready .header {
 
 .modal-content {
   background: var(--color-background);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-lg);
   border: var(--border-width-thick) var(--border-style, solid) var(--color-border-dark);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.login-modal-content {
+  padding: var(--spacing-xl);
   max-width: 400px;
-  width: 90%;
-  margin: var(--spacing-md);
 }
 
 .create-content-modal,
@@ -564,9 +570,34 @@ site-app.theme-ready .header {
   flex: 1;
 }
 
+/* Confirmation Modal */
+.confirm-modal-content {
+  max-width: 400px;
+  text-align: center;
+}
+
+.confirm-modal-content h2 {
+  margin-bottom: var(--spacing-md);
+}
+
+.confirm-modal-message {
+  margin: 0 0 var(--spacing-lg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.confirm-modal-content .modal-actions {
+  justify-content: center;
+}
+
+.confirm-modal-content .modal-actions .button {
+  flex: 0 1 auto;
+  min-width: 100px;
+}
+
 .section-types {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
 }
@@ -849,7 +880,7 @@ site-app.theme-ready .header {
   justify-content: center;
   background: rgba(0, 0, 0, 0.9);
   z-index: 2000;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-sm);
 }
 
 .welcome-content {
@@ -859,23 +890,23 @@ site-app.theme-ready .header {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-lg);
 }
 
 .welcome-header {
-  text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .welcome-title {
-  font-size: 2.5rem;
-  margin-bottom: var(--spacing-md);
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: var(--spacing-lg);
   text-transform: uppercase;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.05em;
 }
 
 .welcome-subtitle {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   color: var(--color-text-muted);
   margin: 0;
 }
@@ -1200,8 +1231,39 @@ site-app.theme-ready .header {
 
 .layout-profile {
   display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.profile-banner {
+  width: 100%;
+  height: 150px;
+  overflow: hidden;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-background-alt, var(--color-border));
+}
+
+.profile-banner-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-body {
+  display: flex;
   gap: var(--spacing-lg);
   align-items: flex-start;
+  padding: var(--spacing-md);
+}
+
+/* Pull avatar up to overlap banner when banner exists */
+.profile-banner + .profile-body {
+  margin-top: -40px;
+}
+
+.profile-banner + .profile-body .profile-avatar {
+  border: 3px solid var(--color-background);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .profile-avatar {
@@ -1211,10 +1273,17 @@ site-app.theme-ready .header {
   object-fit: cover;
   border: var(--border-width) var(--border-style, solid) var(--color-border-dark);
   flex-shrink: 0;
+  background: var(--color-background);
 }
 
 .profile-info {
   flex: 1;
+  padding-top: var(--spacing-sm);
+}
+
+/* When avatar overlaps banner, add padding to info to align text */
+.profile-banner + .profile-body .profile-info {
+  padding-top: calc(40px + var(--spacing-sm));
 }
 
 .profile-name {
@@ -1225,6 +1294,7 @@ site-app.theme-ready .header {
   margin: 0;
   color: var(--color-text-muted);
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 /* Post Layout */

@@ -7,8 +7,10 @@ import { renderLeaflet } from './leaflet';
 import { extractFields } from '../records/field-extractor';
 import { getConfig } from '../config';
 import { generateThemeFromDid } from '../themes/engine';
-import { buildAtUri } from '../at-client';
+import { buildAtUri, parseAtUri, getProfile } from '../at-client';
 import { getCurrentDid } from '../oauth';
+import { renderMarkdown, looksLikeMarkdown } from '../utils/markdown';
+import { sanitizeHtml, escapeHtml } from '../utils/sanitize';
 
 
 // Layout implementations
@@ -357,18 +359,36 @@ registerLayout('list', (fields) => {
 });
 
 /**
- * Profile Layout - about section display
+ * Profile Layout - about section display with optional banner
  */
 registerLayout('profile', (fields) => {
   const html = document.createElement('div');
   html.className = 'layout-profile';
+
+  // Banner image at the top (if present)
+  if (fields.banner) {
+    const bannerWrapper = document.createElement('div');
+    bannerWrapper.className = 'profile-banner';
+    
+    const banner = document.createElement('img');
+    banner.src = fields.banner;
+    banner.alt = '';
+    banner.className = 'profile-banner-image';
+    
+    bannerWrapper.appendChild(banner);
+    html.appendChild(bannerWrapper);
+  }
+
+  // Profile body (avatar + info)
+  const body = document.createElement('div');
+  body.className = 'profile-body';
 
   if (fields.image) {
     const avatar = document.createElement('img');
     avatar.src = fields.image;
     avatar.alt = fields.title || 'Avatar';
     avatar.className = 'profile-avatar';
-    html.appendChild(avatar);
+    body.appendChild(avatar);
   }
 
   const info = document.createElement('div');
@@ -388,7 +408,8 @@ registerLayout('profile', (fields) => {
     info.appendChild(bio);
   }
 
-  html.appendChild(info);
+  body.appendChild(info);
+  html.appendChild(body);
   return html;
 });
 

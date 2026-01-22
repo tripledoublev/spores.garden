@@ -19,14 +19,16 @@
             "description": "Profile description/bio"
           },
           "avatar": {
-            "type": "string",
-            "format": "uri",
-            "description": "Avatar image URL"
+            "type": "blob",
+            "accept": ["image/png", "image/jpeg", "image/webp", "image/gif"],
+            "maxSize": 1000000,
+            "description": "Avatar image blob"
           },
           "banner": {
-            "type": "string",
-            "format": "uri",
-            "description": "Banner image URL"
+            "type": "blob",
+            "accept": ["image/png", "image/jpeg", "image/webp", "image/gif"],
+            "maxSize": 2000000,
+            "description": "Banner image blob"
           },
           "createdAt": {
             "type": "string",
