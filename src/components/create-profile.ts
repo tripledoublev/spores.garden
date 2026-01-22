@@ -260,6 +260,43 @@ class CreateProfile extends HTMLElement {
       if (this.editSectionId && profileData.displayName) {
         updateSection(this.editSectionId, { title: profileData.displayName });
       }
+    } else {
+      // No rkey exists - create a new profile record and update section
+      const record: any = {
+        $type: 'garden.spores.site.profile',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      if (profileData.displayName) {
+        record.displayName = profileData.displayName;
+      }
+      if (profileData.description) {
+        record.description = profileData.description;
+      }
+      if (profileData.avatar) {
+        record.avatar = profileData.avatar;
+      }
+      if (profileData.banner) {
+        record.banner = profileData.banner;
+      }
+      
+      const response = await createRecord('garden.spores.site.profile', record);
+      
+      // Extract rkey from the response URI
+      const rkey = response.uri.split('/').pop();
+      
+      // Update the section to reference the new profile record
+      if (this.editSectionId) {
+        const updates: any = {
+          collection: 'garden.spores.site.profile',
+          rkey: rkey
+        };
+        if (profileData.displayName) {
+          updates.title = profileData.displayName;
+        }
+        updateSection(this.editSectionId, updates);
+      }
     }
     
     // Trigger re-render
