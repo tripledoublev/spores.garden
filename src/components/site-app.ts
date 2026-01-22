@@ -380,16 +380,6 @@ class SiteApp extends HTMLElement {
               heading.textContent = `Welcome back, ${displayName}!`;
             }
           });
-
-          const viewMyGardenBtn = document.createElement('button');
-          viewMyGardenBtn.className = 'button button-primary';
-          viewMyGardenBtn.style.marginTop = 'var(--spacing-md)';
-          viewMyGardenBtn.textContent = 'View My Garden';
-          viewMyGardenBtn.setAttribute('aria-label', 'Go to your garden');
-          viewMyGardenBtn.addEventListener('click', () => {
-            location.href = `/@${currentDid}`;
-          });
-          homepageView.appendChild(viewMyGardenBtn);
         }
       }
 

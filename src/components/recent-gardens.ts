@@ -650,11 +650,7 @@ class RecentGardens extends HTMLElement {
       if (showEmpty) {
         this.innerHTML = `
           <section class="recent-gardens">
-            <h2 class="recent-gardens-title">Recent Gardens</h2>
-            <div class="recent-gardens-empty">
-              <p>No gardens have been updated recently.</p>
-              <p class="recent-gardens-empty-note">Gardens are discovered through Constellation backlinks. Visit gardens to help build the discovery network.</p>
-            </div>
+            <h2 class="recent-gardens-title">No Recent Gardens Found</h2>
           </section>
         `;
       } else {

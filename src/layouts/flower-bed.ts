@@ -1,6 +1,7 @@
 import { getBacklinks, getProfile, listRecords, getRecord } from '../at-client';
 import { getSiteOwnerDid } from '../config';
 import { generateThemeFromDid, getThemePreset } from '../themes/engine';
+import { isLoggedIn, getCurrentDid } from '../oauth';
 
 const STYLE_COLLECTION = 'garden.spores.site.style';
 const CONFIG_RKEY = 'self';
@@ -130,7 +131,9 @@ export async function renderFlowerBed(section) {
     el.appendChild(grid);
 
     // Add a friendly hint if nobody else has planted here yet.
-    if (visitorFlowers.length === 0) {
+    // Hide this hint if the user is logged in and viewing their own garden.
+    const isViewingOwnGarden = isLoggedIn() && getCurrentDid() === ownerDid;
+    if (visitorFlowers.length === 0 && !isViewingOwnGarden) {
       const hint = document.createElement('p');
       hint.style.marginTop = '1rem';
       hint.style.color = 'var(--color-text-muted, #6b7280)';
@@ -294,7 +297,7 @@ async function showFlowerGardensModal(flowerDid: string) {
     const gardens = await findGardensWithFlower(flowerDid);
     
     if (gardens.length === 0) {
-      gardensList.innerHTML = '<p>This flower hasn\'t been planted in any gardens yet.</p>';
+      gardensList.innerHTML = '<p>This flower hasn\'t been planted in any other garden yet.</p>';
       return;
     }
     
