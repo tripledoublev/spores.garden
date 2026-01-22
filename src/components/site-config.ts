@@ -2,10 +2,8 @@
  * <site-config> - Garden configuration editor
  *
  * Displays a form for editing garden-level configuration:
- * - Title (h1)
- * - Subtitle (h2)
- * - Theme preset
- * - Theme colors
+ * - Title (H1)
+ * - Subtitle (H2)
  */
 
 import { getConfig, updateConfig, updateTheme } from '../config';
@@ -72,17 +70,6 @@ class SiteConfig extends HTMLElement {
             />
           </div>
 
-          <div class="site-config-section">
-            <label class="label">Description</label>
-            <textarea 
-              class="input textarea" 
-              id="config-description" 
-              placeholder="A short description of your garden"
-              rows="3"
-            >${(config.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
-          </div>
-
-
         </div>
       </div>
     `;
@@ -114,14 +101,6 @@ class SiteConfig extends HTMLElement {
         subtitleEl.textContent = value || 'A personal ATProto website';
       }
     });
-
-    // Description
-    const descriptionInput = this.querySelector('#config-description');
-    descriptionInput.addEventListener('input', (e) => {
-      const value = (e.target as HTMLInputElement).value;
-      updateConfig({ description: value });
-    });
-
 
   }
 }

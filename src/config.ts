@@ -1,10 +1,9 @@
 import { getRecord, resolveHandle } from './at-client';
 import { putRecord, getCurrentDid, isLoggedIn, deleteRecord } from './oauth';
-import { getThemePreset, generateThemeFromDid, hasCustomThemeOverrides } from './themes/engine';
+import { getThemePreset, generateThemeFromDid } from './themes/engine';
 import { registerGarden } from './components/recent-gardens';
 
 const CONFIG_COLLECTION = 'garden.spores.site.config';
-const STYLE_COLLECTION = 'garden.spores.site.style';
 const SECTIONS_COLLECTION = 'garden.spores.site.sections';
 const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
 const CONFIG_RKEY = 'self';
@@ -137,8 +136,6 @@ function getDefaultConfig() {
   return {
     title: 'spores.garden',
     subtitle: '',
-    description: '',
-    favicon: '',
     theme: {
       preset: 'minimal',
       colors: { ...defaultPreset.colors },
@@ -276,14 +273,12 @@ export async function loadUserConfig(did) {
   }
 
   try {
-    const [configRecord, styleRecord, sectionsRecord] = await Promise.all([
+    const [configRecord, sectionsRecord] = await Promise.all([
       getRecord(did, CONFIG_COLLECTION, CONFIG_RKEY),
-      getRecord(did, STYLE_COLLECTION, CONFIG_RKEY),
       getRecord(did, SECTIONS_COLLECTION, CONFIG_RKEY)
     ]);
 
     // Config record is required for onboarding check
-    // Style and sections are now optional (can be generated)
     if (!configRecord) {
       return null;
     }
@@ -291,30 +286,9 @@ export async function loadUserConfig(did) {
     const defaultConfig = getDefaultConfig();
     const config = configRecord.value;
 
-    // Generate theme from DID as the base
+    // Theme is 100% generated from DID - no PDS storage needed
     const { theme: generatedTheme } = generateThemeFromDid(did);
-
-    // Start with generated theme
-    let theme = { ...generatedTheme };
-
-    // Overlay custom style overrides from PDS if they exist
-    if (styleRecord) {
-      const styleConfig = styleRecord.value;
-
-      if (styleConfig.theme) {
-        // Merge custom theme overrides on top of generated theme
-        theme = {
-          ...theme,
-          colors: { ...theme.colors, ...styleConfig.theme.colors },
-          fonts: { ...theme.fonts, ...styleConfig.theme.fonts },
-          borderStyle: styleConfig.theme.borderStyle || theme.borderStyle,
-          borderWidth: styleConfig.theme.borderWidth || theme.borderWidth,
-          shadow: { ...theme.shadow, ...styleConfig.theme.shadow }
-        };
-      }
-
-
-    }
+    const theme = { ...generatedTheme };
 
     // Generate initial sections from DID as the base
     let sections = generateInitialSections(did);
@@ -410,8 +384,6 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
     $type: CONFIG_COLLECTION,
     title: currentConfig.title,
     subtitle: currentConfig.subtitle,
-    description: currentConfig.description,
-    favicon: currentConfig.favicon,
   };
 
   // Styles and sections are generated client-side from DID

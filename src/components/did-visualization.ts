@@ -1,4 +1,3 @@
-import { updateConfig } from "../config";
 import { generateThemeFromDid } from "../themes/engine";
 
 /**
@@ -623,7 +622,6 @@ class DidVisualization extends HTMLElement {
     }
 
     this.updateFavicon(svgString);
-    updateConfig({ favicon: svgString });
   }
 
   private updateFavicon(svgString: string) {
