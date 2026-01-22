@@ -93,7 +93,7 @@ class SiteApp extends HTMLElement {
             const hasCompletedOnboarding = this.hasCompletedOnboarding(detail.did);
             // Also check PDS as primary source of truth
             const hasConfig = await hasUserConfig(detail.did);
-            
+
             // Show welcome modal only for truly new users
             if (!this.hasShownWelcome && !hasCompletedOnboarding && !hasConfig) {
               this.showWelcome();
@@ -142,7 +142,7 @@ class SiteApp extends HTMLElement {
       // Apply theme and wait for it to be fully applied before rendering
       await applyTheme(config.theme);
       this.isThemeReady = true;
-      
+
       // Add theme-ready class for smooth content fade-in
       this.classList.add('theme-ready');
 
@@ -185,14 +185,18 @@ class SiteApp extends HTMLElement {
     const header = document.createElement('header');
     header.className = 'header';
 
-    // Home button with dandelion icon (left side of header)
+    // Left group: home button + title/subtitle
+    const leftGroup = document.createElement('div');
+    leftGroup.className = 'header-left';
+
+    // Home button with dandelion icon
     const homeButton = document.createElement('a');
     homeButton.href = '/';
     homeButton.className = 'home-button';
     homeButton.setAttribute('aria-label', 'Go to home page');
     homeButton.title = 'Go to home page';
     homeButton.innerHTML = this.getDandelionIcon();
-    header.appendChild(homeButton);
+    leftGroup.appendChild(homeButton);
 
     // Title and subtitle container
     const titleContainer = document.createElement('div');
@@ -210,7 +214,8 @@ class SiteApp extends HTMLElement {
     subtitle.textContent = displaySubtitle;
     titleContainer.appendChild(subtitle);
 
-    header.appendChild(titleContainer);
+    leftGroup.appendChild(titleContainer);
+    header.appendChild(leftGroup);
 
     // Controls
     const controls = document.createElement('div');
@@ -1096,7 +1101,7 @@ class SiteApp extends HTMLElement {
       btn.addEventListener('click', async () => {
         const eventType = (btn as HTMLElement).dataset.eventType;
         modal.remove();
-        
+
         if (eventType === 'organizing') {
           await this.loadSmokeSignalRecords('community.lexicon.calendar.event', 'Events I\'m Organizing');
         } else if (eventType === 'attending') {
@@ -1199,54 +1204,54 @@ class SiteApp extends HTMLElement {
 
   showSmokeSignalRecordSelector(modal: HTMLElement, records: any[], collection: string, sectionTitle: string) {
     const isEvent = collection === 'community.lexicon.calendar.event';
-    
+
     modal.innerHTML = `
       <div class="modal-content">
         <h2>Select ${isEvent ? 'Events' : 'RSVPs'}</h2>
         <p>Choose which ${isEvent ? 'events' : 'RSVPs'} to display on your garden</p>
         <div class="record-list" style="max-height: 400px; overflow-y: auto; margin: 1rem 0;">
           ${records.map((record, idx) => {
-            const rkey = record.uri?.split('/').pop() || idx.toString();
-            const value = record.value || {};
-            
-            // For events: show name and date
-            // For RSVPs: show status and event name (from enriched _eventDetails)
-            let title = '';
-            let subtitle = '';
-            
-            if (isEvent) {
-              title = value.name || 'Untitled Event';
-              if (value.startsAt) {
-                try {
-                  subtitle = new Date(value.startsAt).toLocaleDateString();
-                } catch {
-                  subtitle = value.startsAt;
-                }
-              }
-            } else {
-              // RSVP - show event name and status
-              const eventDetails = record._eventDetails;
-              const eventName = eventDetails?.name || 'Unknown Event';
-              
-              // Format RSVP status
-              const status = value.status || 'going';
-              const statusLabel = status.includes('#') ? status.split('#').pop() : status;
-              const statusEmoji = statusLabel === 'going' ? '✓' : statusLabel === 'interested' ? '?' : '✗';
-              
-              title = eventName;
-              subtitle = `${statusEmoji} ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}`;
-              
-              // Add event date if available
-              if (eventDetails?.startsAt) {
-                try {
-                  subtitle += ` · ${new Date(eventDetails.startsAt).toLocaleDateString()}`;
-                } catch {
-                  // ignore date parse error
-                }
-              }
-            }
-            
-            return `
+      const rkey = record.uri?.split('/').pop() || idx.toString();
+      const value = record.value || {};
+
+      // For events: show name and date
+      // For RSVPs: show status and event name (from enriched _eventDetails)
+      let title = '';
+      let subtitle = '';
+
+      if (isEvent) {
+        title = value.name || 'Untitled Event';
+        if (value.startsAt) {
+          try {
+            subtitle = new Date(value.startsAt).toLocaleDateString();
+          } catch {
+            subtitle = value.startsAt;
+          }
+        }
+      } else {
+        // RSVP - show event name and status
+        const eventDetails = record._eventDetails;
+        const eventName = eventDetails?.name || 'Unknown Event';
+
+        // Format RSVP status
+        const status = value.status || 'going';
+        const statusLabel = status.includes('#') ? status.split('#').pop() : status;
+        const statusEmoji = statusLabel === 'going' ? '✓' : statusLabel === 'interested' ? '?' : '✗';
+
+        title = eventName;
+        subtitle = `${statusEmoji} ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}`;
+
+        // Add event date if available
+        if (eventDetails?.startsAt) {
+          try {
+            subtitle += ` · ${new Date(eventDetails.startsAt).toLocaleDateString()}`;
+          } catch {
+            // ignore date parse error
+          }
+        }
+      }
+
+      return `
               <label class="record-item" style="display: flex; align-items: center; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; cursor: pointer;">
                 <input type="checkbox" value="${rkey}" data-uri="${record.uri || ''}" style="margin-right: 0.75rem;">
                 <div>
@@ -1255,7 +1260,7 @@ class SiteApp extends HTMLElement {
                 </div>
               </label>
             `;
-          }).join('')}
+    }).join('')}
         </div>
         <div class="modal-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
           <button class="button button-primary" data-action="add-selected">Add Selected</button>
@@ -1266,14 +1271,14 @@ class SiteApp extends HTMLElement {
 
     modal.querySelector('[data-action="add-selected"]')?.addEventListener('click', () => {
       const selected = Array.from(modal.querySelectorAll<HTMLInputElement>('.record-item input:checked'));
-      
+
       if (selected.length === 0) {
         alert('Please select at least one record.');
         return;
       }
 
       const uris = selected.map(input => input.getAttribute('data-uri')).filter(Boolean) as string[];
-      
+
       // Add section with selected records
       const config = getConfig();
       const id = `section-${Date.now()}`;
@@ -1285,7 +1290,7 @@ class SiteApp extends HTMLElement {
         records: uris
       };
       config.sections = [...(config.sections || []), section];
-      
+
       modal.remove();
       this.render();
     });

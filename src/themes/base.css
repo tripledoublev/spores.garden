@@ -153,6 +153,12 @@ site-app.theme-ready .header {
   gap: var(--spacing-md);
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
 /* Home Button with Dandelion Icon */
 .home-button {
   display: flex;
@@ -284,7 +290,7 @@ site-app.theme-ready .header {
   grid-template-columns: 1fr;
 }
 
-.record-grid > :only-child {
+.record-grid> :only-child {
   max-width: 700px;
 }
 
@@ -551,7 +557,7 @@ site-app.theme-ready .header {
   cursor: pointer;
 }
 
-.upload-label > span:first-child {
+.upload-label>span:first-child {
   font-weight: 600;
   text-transform: uppercase;
   font-size: 0.75rem;
@@ -1024,7 +1030,9 @@ site-app.theme-ready .header {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Share Modal Styles */
@@ -1292,11 +1300,11 @@ site-app.theme-ready .header {
 }
 
 /* Pull avatar up to overlap banner when banner exists */
-.profile-banner + .profile-body {
+.profile-banner+.profile-body {
   margin-top: -40px;
 }
 
-.profile-banner + .profile-body .profile-avatar {
+.profile-banner+.profile-body .profile-avatar {
   border: 3px solid var(--color-background);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -1317,7 +1325,7 @@ site-app.theme-ready .header {
 }
 
 /* When avatar overlaps banner, add padding to info to align text */
-.profile-banner + .profile-body .profile-info {
+.profile-banner+.profile-body .profile-info {
   padding-top: calc(40px + var(--spacing-sm));
 }
 
@@ -2014,7 +2022,8 @@ site-app.theme-ready .header {
 
 .notification {
   position: fixed;
-  bottom: calc(var(--spacing-lg) + 80px); /* Account for save bar when present */
+  bottom: calc(var(--spacing-lg) + 80px);
+  /* Account for save bar when present */
   right: var(--spacing-lg);
   z-index: 3000;
   max-width: 400px;
@@ -2093,7 +2102,8 @@ site-app.theme-ready .header {
   }
 
   .notification {
-    bottom: calc(var(--spacing-md) + 80px); /* Account for save bar when present */
+    bottom: calc(var(--spacing-md) + 80px);
+    /* Account for save bar when present */
     right: var(--spacing-md);
     left: var(--spacing-md);
     max-width: none;
@@ -2190,9 +2200,7 @@ site-app.theme-ready .header {
   padding: var(--spacing-lg);
   margin-top: var(--spacing-md);
   background: var(--flower-bed-background, var(--color-surface));
-  border: var(--flower-bed-border-width, var(--border-width-thick)) 
-          var(--flower-bed-border-style, var(--border-style, solid)) 
-          var(--flower-bed-border-color, var(--color-border-dark));
+  border: var(--flower-bed-border-width, var(--border-width-thick)) var(--flower-bed-border-style, var(--border-style, solid)) var(--flower-bed-border-color, var(--color-border-dark));
   box-shadow: var(--shadow-elevated);
 }
 
@@ -2201,9 +2209,7 @@ site-app.theme-ready .header {
   content: '';
   position: absolute;
   inset: calc(var(--flower-bed-border-width, var(--border-width-thick)) + var(--spacing-sm));
-  border: var(--border-width) 
-          var(--flower-bed-border-style, var(--border-style, solid)) 
-          var(--flower-bed-inset-color, var(--color-accent, var(--color-primary, var(--color-border-dark))));
+  border: var(--border-width) var(--flower-bed-border-style, var(--border-style, solid)) var(--flower-bed-inset-color, var(--color-accent, var(--color-primary, var(--color-border-dark))));
   opacity: 0.6;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -2363,11 +2369,11 @@ site-app.theme-ready .header {
   .recent-gardens-title {
     font-size: 1.25rem;
   }
-  
+
   .recent-garden-row-link {
     padding: var(--spacing-xs) var(--spacing-sm);
   }
-  
+
   .recent-garden-display-name {
     font-size: 0.85rem;
   }
