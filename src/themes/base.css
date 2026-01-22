@@ -132,6 +132,18 @@ site-app {
   min-height: 100vh;
 }
 
+/* Theme loading state: content fades in smoothly after theme is applied */
+site-app:not(.theme-ready) .main,
+site-app:not(.theme-ready) .header {
+  opacity: 0;
+}
+
+site-app.theme-ready .main,
+site-app.theme-ready .header {
+  opacity: 1;
+  transition: opacity 200ms ease-in-out;
+}
+
 .header {
   display: flex;
   justify-content: space-between;

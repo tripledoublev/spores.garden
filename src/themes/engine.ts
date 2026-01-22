@@ -173,60 +173,71 @@ export function generateThemeFromDid(did) {
 
 /**
  * Apply a theme to the document
+ * Returns a promise that resolves when the theme is fully applied and painted
  */
-export function applyTheme(themeConfig: any = {}) {
-  const preset = themeConfig.preset || 'minimal';
-  const presetTheme = THEME_PRESETS[preset] || THEME_PRESETS.minimal;
+export function applyTheme(themeConfig: any = {}): Promise<void> {
+  return new Promise((resolve) => {
+    const preset = themeConfig.preset || 'minimal';
+    const presetTheme = THEME_PRESETS[preset] || THEME_PRESETS.minimal;
 
-  // Merge preset with custom overrides
-  const colors = { ...presetTheme.colors, ...themeConfig.colors };
-  const fonts = { ...presetTheme.fonts, ...themeConfig.fonts };
-  const borderStyle = themeConfig.borderStyle || 'solid';
-  const borderWidth = themeConfig.borderWidth || '2px';
-  const shadow = themeConfig.shadow || {};
+    // Merge preset with custom overrides
+    const colors = { ...presetTheme.colors, ...themeConfig.colors };
+    const fonts = { ...presetTheme.fonts, ...themeConfig.fonts };
+    const borderStyle = themeConfig.borderStyle || 'solid';
+    const borderWidth = themeConfig.borderWidth || '2px';
+    const shadow = themeConfig.shadow || {};
 
-  // Apply CSS custom properties
-  const root = document.documentElement;
+    // Apply CSS custom properties
+    const root = document.documentElement;
 
-  // Colors
-  Object.entries(colors).forEach(([key, value]) => {
-    if (value) {
-      root.style.setProperty(`--color-${key}`, value as string);
-    }
+    // Colors
+    Object.entries(colors).forEach(([key, value]) => {
+      if (value) {
+        root.style.setProperty(`--color-${key}`, value as string);
+      }
+    });
+
+    // Set border-dark to be inverted for dark mode (use text color for borders in dark mode)
+    // In dark mode: dark background -> light borders (text color)
+    // In light mode: light background -> dark borders (text color)
+    const borderDark = colors.text || presetTheme.colors.text || '#000000';
+    root.style.setProperty('--color-border-dark', borderDark);
+
+    // Fonts
+    Object.entries(fonts).forEach(([key, value]) => {
+      if (value) {
+        root.style.setProperty(`--font-${key}`, value as string);
+      }
+    });
+
+    // Border style
+    root.style.setProperty('--border-style', borderStyle);
+    root.style.setProperty('--border-width', borderWidth);
+
+    // Drop shadows (all optional; safe defaults live in base.css)
+    if (shadow.type) root.style.setProperty('--shadow-type', String(shadow.type));
+    if (shadow.x) root.style.setProperty('--shadow-x', String(shadow.x));
+    if (shadow.y) root.style.setProperty('--shadow-y', String(shadow.y));
+    if (shadow.blur) root.style.setProperty('--shadow-blur', String(shadow.blur));
+    if (shadow.spread) root.style.setProperty('--shadow-spread', String(shadow.spread));
+    if (shadow.color) root.style.setProperty('--shadow-color', String(shadow.color));
+
+    // Add theme class to body
+    document.body.className = document.body.className
+      .replace(/theme-\w+/g, '')
+      .trim();
+    document.body.classList.add(`theme-${preset}`);
+
+    // Mark theme as ready after CSS properties have been applied and painted
+    // Use double requestAnimationFrame to ensure CSS has been applied and painted
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Add data attribute to signal theme is ready
+        root.setAttribute('data-theme-ready', 'true');
+        resolve();
+      });
+    });
   });
-
-  // Set border-dark to be inverted for dark mode (use text color for borders in dark mode)
-  // In dark mode: dark background -> light borders (text color)
-  // In light mode: light background -> dark borders (text color)
-  const borderDark = colors.text || presetTheme.colors.text || '#000000';
-  root.style.setProperty('--color-border-dark', borderDark);
-
-  // Fonts
-  Object.entries(fonts).forEach(([key, value]) => {
-    if (value) {
-      root.style.setProperty(`--font-${key}`, value as string);
-    }
-  });
-
-  // Border style
-  root.style.setProperty('--border-style', borderStyle);
-  root.style.setProperty('--border-width', borderWidth);
-
-  // Drop shadows (all optional; safe defaults live in base.css)
-  if (shadow.type) root.style.setProperty('--shadow-type', String(shadow.type));
-  if (shadow.x) root.style.setProperty('--shadow-x', String(shadow.x));
-  if (shadow.y) root.style.setProperty('--shadow-y', String(shadow.y));
-  if (shadow.blur) root.style.setProperty('--shadow-blur', String(shadow.blur));
-  if (shadow.spread) root.style.setProperty('--shadow-spread', String(shadow.spread));
-  if (shadow.color) root.style.setProperty('--shadow-color', String(shadow.color));
-
-
-
-  // Add theme class to body
-  document.body.className = document.body.className
-    .replace(/theme-\w+/g, '')
-    .trim();
-  document.body.classList.add(`theme-${preset}`);
 }
 
 /**
