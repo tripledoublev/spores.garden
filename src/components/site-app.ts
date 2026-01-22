@@ -71,7 +71,7 @@ class SiteApp extends HTMLElement {
       // Listen for auth changes - MUST be before initOAuth to catch events from OAuth callback
       window.addEventListener('auth-change', async (e: Event) => {
         const detail = (e as CustomEvent).detail;
-        // If user logged in and no site owner set, they become the owner
+        // If user logged in and no site owner set (home page), they become the owner
         if (detail?.loggedIn && detail?.did && !getSiteOwnerDid()) {
           // Try to load existing config for this user
           const existingConfig = await loadUserConfig(detail.did);
@@ -85,7 +85,7 @@ class SiteApp extends HTMLElement {
             }
           } else {
             // New user - set as owner and show welcome
-            setSiteOwnerDid(e.detail.did);
+            setSiteOwnerDid(detail.did);
             // Show welcome modal for first-time users
             if (!this.hasShownWelcome) {
               this.showWelcome();
