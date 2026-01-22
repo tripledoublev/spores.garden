@@ -274,8 +274,18 @@ site-app.theme-ready .header {
 
 .record-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  /* auto-fit allows single items to expand, minmax ensures reasonable sizing */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
   gap: var(--spacing-lg);
+}
+
+/* When there's only one item, let it take full width up to a max */
+.record-grid:has(> :only-child) {
+  grid-template-columns: 1fr;
+}
+
+.record-grid > :only-child {
+  max-width: 700px;
 }
 
 .record-error {
@@ -824,13 +834,29 @@ site-app.theme-ready .header {
 
 .save-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: var(--spacing-md);
-  background: var(--color-background);
-  border-top: var(--border-width-thick) var(--border-style, solid) var(--color-border-dark);
-  text-align: center;
+  bottom: var(--spacing-md);
+  right: var(--spacing-md);
+  z-index: 999;
+}
+
+.save-bar .save-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: all var(--transition);
+}
+
+.save-bar .save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
+}
+
+.save-bar .save-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================
@@ -1028,6 +1054,15 @@ site-app.theme-ready .header {
 .share-modal .share-preview img {
   display: block;
   max-width: 100%;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.share-modal .share-preview-hint {
+  margin-top: var(--spacing-md);
+  color: var(--color-text-muted);
+  font-size: 0.9em;
 }
 
 .share-modal .share-error,
@@ -1902,7 +1937,6 @@ site-app.theme-ready .header {
 }
 
 .site-config-content {
-  padding: var(--spacing-lg);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
@@ -2220,7 +2254,6 @@ site-app.theme-ready .header {
    ============================================ */
 
 .recent-gardens {
-  margin-bottom: var(--spacing-xl);
   padding: var(--spacing-lg) 0;
   border-bottom: var(--border-width) var(--border-style, solid) var(--color-border-dark);
 }

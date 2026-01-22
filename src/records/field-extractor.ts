@@ -186,6 +186,44 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     confidence: 'high'
   },
 
+  // Community Calendar Event (Smoke Signal)
+  'community.lexicon.calendar.event': {
+    title: 'name',
+    content: 'description',
+    date: 'startsAt',
+    url: (record) => {
+      // Try to extract URL from uris array
+      const uris = record.value?.uris;
+      if (Array.isArray(uris) && uris.length > 0) {
+        return uris[0]?.uri;
+      }
+      return undefined;
+    },
+    confidence: 'high',
+    preferredLayout: 'smoke-signal'
+  },
+
+  // Community Calendar RSVP (Smoke Signal - attending events)
+  'community.lexicon.calendar.rsvp': {
+    title: (record) => {
+      // Generate title from status
+      const status = record.value?.status || 'going';
+      const statusLabel = status.includes('#') ? status.split('#').pop() : status;
+      return `RSVP: ${statusLabel}`;
+    },
+    content: (record) => {
+      // Try to describe what event this is for
+      const subject = record.value?.subject;
+      if (subject?.uri) {
+        return `Event: ${subject.uri}`;
+      }
+      return undefined;
+    },
+    date: 'createdAt',
+    confidence: 'high',
+    preferredLayout: 'smoke-signal'
+  },
+
   // Leaflet.pub Document (long-form publishing)
   'pub.leaflet.document': {
     title: 'title',
@@ -233,7 +271,9 @@ const KNOWN_LEXICONS = new Set([
   'garden.spores.site.profile',
   'garden.spores.social.flower',
   'garden.spores.social.takenFlower',
-  'pub.leaflet.document'
+  'pub.leaflet.document',
+  'community.lexicon.calendar.event',
+  'community.lexicon.calendar.rsvp'
 ]);
 
 /**

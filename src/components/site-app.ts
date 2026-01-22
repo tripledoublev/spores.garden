@@ -5,10 +5,11 @@
 
 import { initConfig, getConfig, getSiteOwnerDid, isOwner, saveConfig, setSiteOwnerDid, loadUserConfig, hasUserConfig, updateTheme, hasGardenIdentifierInUrl } from '../config';
 import { initOAuth, isLoggedIn, getCurrentDid, login, logout, createRecord, uploadBlob, post, getAgent, deleteRecord } from '../oauth';
-import { getBacklinks, listRecords, describeRepo } from '../at-client';
+import { getBacklinks, listRecords, describeRepo, getRecord, getProfile } from '../at-client';
 import { applyTheme, generateThemeFromDid } from '../themes/engine';
 import { escapeHtml } from '../utils/sanitize';
 import { generateSocialCardImage } from '../utils/social-card';
+import { showConfirmModal } from '../utils/confirm-modal';
 import type { WelcomeModalElement, WelcomeAction } from '../types';
 import './section-block';
 import './welcome-modal';
@@ -238,15 +239,7 @@ class SiteApp extends HTMLElement {
         editBtn.addEventListener('click', () => this.editMode ? this.saveAndExitEdit() : this.toggleEditMode());
         controls.appendChild(editBtn);
 
-        // Preview Sharecard button
-        const previewSharecardBtn = document.createElement('button');
-        previewSharecardBtn.className = 'button button-secondary';
-        previewSharecardBtn.textContent = 'Preview Sharecard';
-        previewSharecardBtn.setAttribute('aria-label', 'Preview the social card image for your garden');
-        previewSharecardBtn.addEventListener('click', () => this.previewSharecard());
-        controls.appendChild(previewSharecardBtn);
-
-        // Share to Bluesky button
+        // Share to Bluesky button (opens preview modal with post option)
         const shareBtn = document.createElement('button');
         shareBtn.className = 'button button-secondary';
         shareBtn.textContent = 'Share to Bluesky';
@@ -373,13 +366,20 @@ class SiteApp extends HTMLElement {
         loginBtn.addEventListener('click', () => this.showLoginModal());
         homepageView.appendChild(loginBtn);
       } else {
-        // Logged in: show "View My Garden" button
+        // Logged in: show "View My Garden" button with personalized greeting
         const currentDid = getCurrentDid();
         if (currentDid) {
           const heading = document.createElement('h2');
           heading.style.textAlign = 'center';
           heading.textContent = 'Welcome back!';
           homepageView.appendChild(heading);
+
+          // Fetch display name asynchronously and update greeting
+          this.getDisplayNameForDid(currentDid).then(displayName => {
+            if (displayName && this.renderId === myRenderId) {
+              heading.textContent = `Welcome back, ${displayName}!`;
+            }
+          });
 
           const viewMyGardenBtn = document.createElement('button');
           viewMyGardenBtn.className = 'button button-primary';
@@ -492,7 +492,13 @@ class SiteApp extends HTMLElement {
   }
 
   async resetGardenData() {
-    const confirmReset = confirm('This will delete all garden.spores.* records from localStorage AND your PDS. Are you sure?');
+    const confirmReset = await showConfirmModal({
+      title: 'Reset Garden Data',
+      message: 'This will delete all garden.spores.* records from localStorage AND your PDS. Are you sure?',
+      confirmText: 'Delete All',
+      cancelText: 'Cancel',
+      confirmDanger: true,
+    });
     if (!confirmReset) return;
 
     const currentDid = getCurrentDid();
@@ -512,7 +518,7 @@ class SiteApp extends HTMLElement {
       const keysToDelete: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('garden.spores.')) {
+        if (key && key.startsWith('spores.garden.')) {
           keysToDelete.push(key);
         }
       }
@@ -611,7 +617,7 @@ class SiteApp extends HTMLElement {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
-      <div class="modal-content">
+      <div class="modal-content login-modal-content">
         <h2>Login with Bluesky</h2>
         <form class="login-form">
           <input type="text" placeholder="your.handle.com" class="input" required>
@@ -676,9 +682,13 @@ class SiteApp extends HTMLElement {
             <span class="icon">👤</span>
             <span>Profile</span>
           </button>
+          <button data-action="select-bsky-posts" class="section-type">
+            <span class="icon">🦋</span>
+            <span>Bluesky Posts</span>
+          </button>
           <button data-type="content" class="section-type">
             <span class="icon">📝</span>
-            <span>Content</span>
+            <span>Custom Content</span>
           </button>
           <button data-type="image" class="section-type">
             <span class="icon">🖼️</span>
@@ -707,13 +717,6 @@ class SiteApp extends HTMLElement {
           <button data-action="load-records" class="section-type">
             <span class="icon">📚</span>
             <span>Load Records</span>
-          </button>
-          <div class="section-type-helper">
-            Load Records (Advanced): Load any AT Protocol record type to display. Rendering may vary—experiment and see what works!
-          </div>
-          <button data-action="select-bsky-posts" class="section-type">
-            <span class="icon">🦋</span>
-            <span>Bluesky Posts</span>
           </button>
         </div>
         <button class="button button-secondary modal-close">Cancel</button>
@@ -770,19 +773,9 @@ class SiteApp extends HTMLElement {
       return;
     }
 
-    // If it's smoke-signal, create a records section with smoke-signal layout
+    // If it's smoke-signal, show the smoke signal selection flow
     if (type === 'smoke-signal') {
-      const config = getConfig();
-      const id = `section-${Date.now()}`;
-      const section = {
-        id,
-        type: 'records',
-        layout: 'smoke-signal',
-        title: 'Events',
-        records: [] // User can add event records via Load Records or section editing
-      };
-      config.sections = [...(config.sections || []), section];
-      this.render();
+      this.showSmokeSignalSelector();
       return;
     }
 
@@ -984,8 +977,8 @@ class SiteApp extends HTMLElement {
       // Show preview
       modalBody.innerHTML = `
         <div class="share-preview">
-          <img src="${dataUrl}" alt="Social card preview" style="width: 100%; border-radius: var(--border-radius); border: 1px solid var(--border-color);">
-          <p style="margin-top: var(--spacing-md); color: var(--text-secondary); font-size: 0.9em;">
+          <img src="${dataUrl}" alt="Social card preview">
+          <p class="share-preview-hint">
             This card will be shared to your Bluesky feed along with a link to your garden.
           </p>
         </div>
@@ -1080,52 +1073,248 @@ class SiteApp extends HTMLElement {
     });
   }
 
-  async previewSharecard() {
-    // Preview sharecard now uses the same flow as share, but without posting
-    // This allows users to see the preview before deciding to share
-    if (!isLoggedIn()) {
-      this.showNotification('You must be logged in to preview the sharecard.', 'error');
+  async showSmokeSignalSelector() {
+    const currentDid = getCurrentDid();
+    if (!currentDid) {
+      alert('Please log in to add Smoke Signal events.');
       return;
     }
 
+    // Step 1: Show organizing vs attending selector
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h2>Add Smoke Signal Events</h2>
+        <p>What type of events would you like to display?</p>
+        <div class="smoke-signal-type-selector" style="display: flex; flex-direction: row; gap: 1rem; margin: 1.5rem 0;">
+          <button data-event-type="organizing" class="section-type" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem 1rem; min-height: 100px;">
+            <span class="icon" style="font-size: 2rem; margin-bottom: 0.5rem;">📅</span>
+            <span style="font-weight: 500;">Organizing</span>
+            <span style="font-size: 0.85em; color: var(--text-muted); margin-top: 0.25rem;">Events I'm hosting</span>
+          </button>
+          <button data-event-type="attending" class="section-type" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem 1rem; min-height: 100px;">
+            <span class="icon" style="font-size: 2rem; margin-bottom: 0.5rem;">🎟️</span>
+            <span style="font-weight: 500;">Attending</span>
+            <span style="font-size: 0.85em; color: var(--text-muted); margin-top: 0.25rem;">Events I've RSVP'd to</span>
+          </button>
+        </div>
+        <button class="button button-secondary modal-close" style="width: 100%;">Cancel</button>
+      </div>
+    `;
+
+    modal.querySelectorAll('[data-event-type]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const eventType = (btn as HTMLElement).dataset.eventType;
+        modal.remove();
+        
+        if (eventType === 'organizing') {
+          await this.loadSmokeSignalRecords('community.lexicon.calendar.event', 'Events I\'m Organizing');
+        } else if (eventType === 'attending') {
+          await this.loadSmokeSignalRecords('community.lexicon.calendar.rsvp', 'Events I\'m Attending');
+        }
+      });
+    });
+
+    modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+
+    document.body.appendChild(modal);
+  }
+
+  async loadSmokeSignalRecords(collection: string, sectionTitle: string) {
+    const currentDid = getCurrentDid();
+    if (!currentDid) return;
+
+    // Show loading modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="welcome-loading">
+          <div class="spinner"></div>
+          <p>Loading ${collection === 'community.lexicon.calendar.event' ? 'events' : 'RSVPs'}...</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
     try {
-      this.showNotification('Generating social card preview...', 'success');
-      const imageBlob = await generateSocialCardImage();
+      const { getCollectionRecords, getRecordByUri } = await import('../records/loader');
+      const records = await getCollectionRecords(currentDid, collection, { limit: 50 });
 
-      // Convert blob to data URL for preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-
-        // Create modal to display the preview
-        const modal = document.createElement('div');
-        modal.className = 'modal';
+      if (records.length === 0) {
         modal.innerHTML = `
-          <div class="modal-content" style="max-width: 800px;">
-            <h2>Social Card Preview</h2>
-            <div style="margin: var(--spacing-md) 0;">
-              <img src="${dataUrl}" alt="Social card preview" style="width: 100%; border-radius: var(--border-radius); border: 1px solid var(--border-color);">
-            </div>
-            <div class="modal-actions">
-              <button class="button button-primary modal-close">Close</button>
+          <div class="modal-content">
+            <h2>No Records Found</h2>
+            <p>You don't have any ${collection === 'community.lexicon.calendar.event' ? 'events' : 'RSVPs'} in your repository.</p>
+            <p style="font-size: 0.9em; color: var(--text-muted);">
+              Collection: <code>${collection}</code>
+            </p>
+            <button class="button button-secondary modal-close">Close</button>
+          </div>
+        `;
+        modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+        return;
+      }
+
+      // For RSVPs, we need to fetch the event details to show meaningful names
+      const isRsvp = collection === 'community.lexicon.calendar.rsvp';
+      let enrichedRecords = records;
+
+      if (isRsvp) {
+        modal.innerHTML = `
+          <div class="modal-content">
+            <div class="welcome-loading">
+              <div class="spinner"></div>
+              <p>Loading event details...</p>
             </div>
           </div>
         `;
 
-        modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) modal.remove();
-        });
+        // Fetch event details for each RSVP
+        enrichedRecords = await Promise.all(records.map(async (record) => {
+          const subjectUri = record.value?.subject?.uri;
+          if (subjectUri) {
+            try {
+              const eventRecord = await getRecordByUri(subjectUri);
+              return {
+                ...record,
+                _eventDetails: eventRecord?.value || null
+              };
+            } catch (e) {
+              console.warn('Failed to fetch event for RSVP:', subjectUri, e);
+              return { ...record, _eventDetails: null };
+            }
+          }
+          return { ...record, _eventDetails: null };
+        }));
+      }
 
-        document.body.appendChild(modal);
-      };
-      reader.readAsDataURL(imageBlob);
+      // Show record selector
+      this.showSmokeSignalRecordSelector(modal, enrichedRecords, collection, sectionTitle);
     } catch (error) {
-      console.error('Failed to generate social card preview:', error);
-      this.showNotification(`Failed to generate preview: ${error.message}`, 'error');
+      console.error('Failed to load smoke signal records:', error);
+      modal.innerHTML = `
+        <div class="modal-content">
+          <h2>Error</h2>
+          <p>Failed to load records: ${error instanceof Error ? error.message : 'Unknown error'}</p>
+          <button class="button button-secondary modal-close">Close</button>
+        </div>
+      `;
+      modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
     }
   }
 
+  showSmokeSignalRecordSelector(modal: HTMLElement, records: any[], collection: string, sectionTitle: string) {
+    const isEvent = collection === 'community.lexicon.calendar.event';
+    
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h2>Select ${isEvent ? 'Events' : 'RSVPs'}</h2>
+        <p>Choose which ${isEvent ? 'events' : 'RSVPs'} to display on your garden</p>
+        <div class="record-list" style="max-height: 400px; overflow-y: auto; margin: 1rem 0;">
+          ${records.map((record, idx) => {
+            const rkey = record.uri?.split('/').pop() || idx.toString();
+            const value = record.value || {};
+            
+            // For events: show name and date
+            // For RSVPs: show status and event name (from enriched _eventDetails)
+            let title = '';
+            let subtitle = '';
+            
+            if (isEvent) {
+              title = value.name || 'Untitled Event';
+              if (value.startsAt) {
+                try {
+                  subtitle = new Date(value.startsAt).toLocaleDateString();
+                } catch {
+                  subtitle = value.startsAt;
+                }
+              }
+            } else {
+              // RSVP - show event name and status
+              const eventDetails = record._eventDetails;
+              const eventName = eventDetails?.name || 'Unknown Event';
+              
+              // Format RSVP status
+              const status = value.status || 'going';
+              const statusLabel = status.includes('#') ? status.split('#').pop() : status;
+              const statusEmoji = statusLabel === 'going' ? '✓' : statusLabel === 'interested' ? '?' : '✗';
+              
+              title = eventName;
+              subtitle = `${statusEmoji} ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}`;
+              
+              // Add event date if available
+              if (eventDetails?.startsAt) {
+                try {
+                  subtitle += ` · ${new Date(eventDetails.startsAt).toLocaleDateString()}`;
+                } catch {
+                  // ignore date parse error
+                }
+              }
+            }
+            
+            return `
+              <label class="record-item" style="display: flex; align-items: center; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; cursor: pointer;">
+                <input type="checkbox" value="${rkey}" data-uri="${record.uri || ''}" style="margin-right: 0.75rem;">
+                <div>
+                  <div style="font-weight: 500;">${this.escapeHtmlAttr(title)}</div>
+                  ${subtitle ? `<div style="font-size: 0.85em; color: var(--text-muted);">${this.escapeHtmlAttr(subtitle)}</div>` : ''}
+                </div>
+              </label>
+            `;
+          }).join('')}
+        </div>
+        <div class="modal-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button class="button button-primary" data-action="add-selected">Add Selected</button>
+          <button class="button button-secondary modal-close">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    modal.querySelector('[data-action="add-selected"]')?.addEventListener('click', () => {
+      const selected = Array.from(modal.querySelectorAll<HTMLInputElement>('.record-item input:checked'));
+      
+      if (selected.length === 0) {
+        alert('Please select at least one record.');
+        return;
+      }
+
+      const uris = selected.map(input => input.getAttribute('data-uri')).filter(Boolean) as string[];
+      
+      // Add section with selected records
+      const config = getConfig();
+      const id = `section-${Date.now()}`;
+      const section = {
+        id,
+        type: 'records',
+        layout: 'smoke-signal',
+        title: sectionTitle,
+        records: uris
+      };
+      config.sections = [...(config.sections || []), section];
+      
+      modal.remove();
+      this.render();
+    });
+
+    modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+
+  private escapeHtmlAttr(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
 
   showCreateImageModal() {
     // Check if modal already exists
@@ -1377,6 +1566,31 @@ class SiteApp extends HTMLElement {
     } catch (error) {
       console.error('Failed to check taken seeds:', error);
       return false;
+    }
+  }
+
+  /**
+   * Get display name for a DID
+   * First checks for custom spores.garden profile, then falls back to Bluesky profile
+   */
+  async getDisplayNameForDid(did: string): Promise<string | null> {
+    try {
+      // First, check for custom garden.spores.site.profile record with rkey 'self'
+      const customProfile = await getRecord(did, 'garden.spores.site.profile', 'self');
+      if (customProfile?.value?.displayName) {
+        return customProfile.value.displayName;
+      }
+
+      // Fall back to Bluesky profile
+      const bskyProfile = await getProfile(did);
+      if (bskyProfile?.displayName) {
+        return bskyProfile.displayName;
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('Failed to get display name for DID:', error);
+      return null;
     }
   }
 

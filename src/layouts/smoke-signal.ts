@@ -1,24 +1,98 @@
 import { extractFields } from '../records/field-extractor';
-import { createErrorMessage } from '../utils/loading-states';
+import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
 
 /**
  * Smoke Signal Events Layout
  * 
  * Displays Smoke Signal events (hosting and attending).
  * Uses generic field extraction to work with various event record structures.
+ * For RSVPs, fetches the referenced event to display meaningful information.
  */
 
 /**
  * Render a smoke signal event record
  * 
  * @param fields - Extracted fields from the record
- * @param record - Optional original record reference (not used, but matches layout signature)
+ * @param record - Optional original record reference
  */
 export function renderSmokeSignal(fields: ReturnType<typeof extractFields>, record?: any): HTMLElement {
   const el = document.createElement('article');
   el.className = 'layout-smoke-signal';
   el.setAttribute('aria-label', 'Event');
 
+  const $type = fields.$type || '';
+  const $raw = fields.$raw || {};
+
+  // Check if this is an RSVP that needs event data fetched
+  const isRsvp = $type === 'community.lexicon.calendar.rsvp' || $type.includes('calendar.rsvp');
+  
+  if (isRsvp && $raw.subject?.uri) {
+    // Show loading state while we fetch the event
+    const loadingEl = createLoadingSpinner('Loading event...');
+    el.appendChild(loadingEl);
+    
+    // Fetch event data asynchronously
+    fetchAndRenderRsvp(el, fields, $raw).catch(error => {
+      console.error('Failed to fetch RSVP event:', error);
+      el.innerHTML = '';
+      el.appendChild(createErrorMessage('Failed to load event details'));
+    });
+    
+    return el;
+  }
+
+  // Regular event rendering
+  renderEventContent(el, fields, record);
+  return el;
+}
+
+/**
+ * Fetch event data for an RSVP and render it
+ */
+async function fetchAndRenderRsvp(el: HTMLElement, fields: ReturnType<typeof extractFields>, $raw: any): Promise<void> {
+  const subjectUri = $raw.subject?.uri;
+  
+  try {
+    const { getRecordByUri } = await import('../records/loader');
+    const eventRecord = await getRecordByUri(subjectUri);
+    
+    if (eventRecord?.value) {
+      // Extract fields from the event record
+      const eventFields = extractFields(eventRecord);
+      
+      // Merge RSVP status into event fields for display
+      const mergedFields = {
+        ...eventFields,
+        // Keep the RSVP's $type and $raw for status badge
+        $type: fields.$type,
+        $raw: fields.$raw,
+        // Use event's content if RSVP doesn't have its own
+        title: eventFields.title || fields.title,
+        content: eventFields.content || fields.content,
+        date: eventFields.date || fields.date,
+        url: eventFields.url || fields.url,
+        image: eventFields.image || fields.image,
+      };
+      
+      el.innerHTML = '';
+      renderEventContent(el, mergedFields, eventRecord);
+    } else {
+      // Couldn't fetch event, render with what we have
+      el.innerHTML = '';
+      renderEventContent(el, fields, null);
+    }
+  } catch (error) {
+    console.warn('Failed to fetch event for RSVP:', error);
+    // Render with what we have
+    el.innerHTML = '';
+    renderEventContent(el, fields, null);
+  }
+}
+
+/**
+ * Render the event content (used for both events and RSVPs after event fetch)
+ */
+function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFields>, record?: any): void {
   try {
     // Extract event fields using generic extractor
     const title = fields.title || 'Untitled Event';
@@ -29,28 +103,49 @@ export function renderSmokeSignal(fields: ReturnType<typeof extractFields>, reco
     const $type = fields.$type || '';
     const $raw = fields.$raw || {};
 
-  // Determine event type (hosting vs attending)
-  // Look for common field names that might indicate event type
-  const isHosting = 
+  // Determine event type (organizing vs attending)
+  // Check the lexicon $type to determine the record type
+  const isOrganizing = 
+    $type === 'community.lexicon.calendar.event' ||
+    $type.includes('calendar.event') ||
     $raw.isHosting === true ||
     $raw.hosting === true ||
     $raw.role === 'host' ||
-    $raw.eventType === 'hosting' ||
-    $type.includes('host');
+    $raw.eventType === 'hosting';
+  
+  const isAttending = 
+    $type === 'community.lexicon.calendar.rsvp' ||
+    $type.includes('calendar.rsvp') ||
+    $raw.status?.includes('going') ||
+    $raw.status?.includes('interested');
 
-  const eventTypeLabel = isHosting ? 'Hosting' : 'Attending';
-  const eventTypeClass = isHosting ? 'event-hosting' : 'event-attending';
+  // Default to organizing if we can't determine (for backwards compatibility)
+  const eventTypeClass = isAttending ? 'event-attending' : 'event-hosting';
+
+  // For RSVPs, get the specific status (going, interested, notgoing)
+  let eventTypeLabel = isAttending ? 'Attending' : 'Organizing';
+  if (isAttending && $raw.status) {
+    const status = $raw.status;
+    if (status.includes('going') && !status.includes('notgoing')) {
+      eventTypeLabel = 'Going';
+    } else if (status.includes('interested')) {
+      eventTypeLabel = 'Interested';
+    } else if (status.includes('notgoing')) {
+      eventTypeLabel = 'Not Going';
+    }
+  }
 
   // Container
   const container = document.createElement('div');
   container.className = `smoke-signal-event ${eventTypeClass}`;
 
-  // Event type badge
+  // Event type badge - for organizing show "Organizing", for attending just show "RSVP"
   const badge = document.createElement('div');
   badge.className = 'event-type-badge';
   badge.setAttribute('role', 'status');
-  badge.setAttribute('aria-label', `Event type: ${eventTypeLabel.toLowerCase()}`);
-  badge.textContent = eventTypeLabel;
+  const badgeLabel = isAttending ? 'RSVP' : 'Organizing';
+  badge.setAttribute('aria-label', `Event type: ${badgeLabel.toLowerCase()}`);
+  badge.textContent = badgeLabel;
   container.appendChild(badge);
 
     // Image (if available)
@@ -121,7 +216,7 @@ export function renderSmokeSignal(fields: ReturnType<typeof extractFields>, reco
   const contentWrapper = document.createElement('div');
   contentWrapper.className = 'event-content';
 
-  // Title
+  // Title (Event name)
   const titleEl = document.createElement('h2');
   titleEl.className = 'event-title';
   if (url) {
@@ -136,6 +231,19 @@ export function renderSmokeSignal(fields: ReturnType<typeof extractFields>, reco
     titleEl.textContent = title;
   }
   contentWrapper.appendChild(titleEl);
+
+  // For RSVPs, show the RSVP status line below the title
+  if (isAttending) {
+    const rsvpStatusEl = document.createElement('div');
+    rsvpStatusEl.className = 'event-rsvp-status';
+    rsvpStatusEl.style.fontSize = '0.9em';
+    rsvpStatusEl.style.color = 'var(--text-muted)';
+    rsvpStatusEl.style.marginBottom = '0.5rem';
+    
+    const statusEmoji = eventTypeLabel === 'Going' ? '✓' : eventTypeLabel === 'Interested' ? '?' : eventTypeLabel === 'Not Going' ? '✗' : '';
+    rsvpStatusEl.textContent = `RSVP: ${statusEmoji} ${eventTypeLabel}`;
+    contentWrapper.appendChild(rsvpStatusEl);
+  }
 
   // Date/time
   if (date) {
