@@ -56,21 +56,32 @@ export function isValidSpore(originGardenDid: string): boolean {
 }
 
 /**
- * Generate initial sections for a new user based on their DID
- * Uses seed-based randomness for deterministic generation
+ * Generate initial sections for a new user
+ * Creates a fixed set of sections in a consistent order
  */
 function generateInitialSections(did: string): any[] {
-  const rng = seededRandom(did);
   const sections: any[] = [];
   let sectionId = 0;
 
-  // Always include these sections (100%)
+  // 1. Profile
   sections.push({
     id: `section-${sectionId++}`,
     type: 'profile',
+    collection: 'garden.spores.site.profile',
+    rkey: 'self',
     layout: 'profile'
   });
 
+  // 2. Welcome
+  sections.push({
+    id: `section-${sectionId++}`,
+    type: 'content',
+    collection: 'garden.spores.site.content',
+    format: 'markdown',
+    title: 'Welcome'
+  });
+
+  // 3. Flower Bed
   sections.push({
     id: `section-${sectionId++}`,
     type: 'flower-bed',
@@ -78,6 +89,7 @@ function generateInitialSections(did: string): any[] {
     title: 'Flower Bed'
   });
 
+  // 4. Collected Flowers
   sections.push({
     id: `section-${sectionId++}`,
     type: 'collected-flowers',
@@ -85,45 +97,12 @@ function generateInitialSections(did: string): any[] {
     title: 'Collected Flowers'
   });
 
+  // 5. Share to Bluesky
   sections.push({
     id: `section-${sectionId++}`,
     type: 'share-to-bluesky',
-    title: 'Share to Bluesky'
+    title: 'Share on Bluesky'
   });
-
-  // Randomly include optional sections (seed-based)
-
-  // One Bluesky post section (70% chance)
-  if (rng() < 0.7) {
-    sections.push({
-      id: `section-${sectionId++}`,
-      type: 'records',
-      collection: 'app.bsky.feed.post',
-      layout: 'post',
-      title: 'My Bluesky Posts'
-    });
-  }
-
-  // One text/markdown content block (60% chance)
-  if (rng() < 0.6) {
-    sections.push({
-      id: `section-${sectionId++}`,
-      type: 'content',
-      collection: 'garden.spores.site.content',
-      format: 'markdown',
-      title: 'Welcome'
-    });
-  }
-
-  // One image section (40% chance)
-  if (rng() < 0.4) {
-    sections.push({
-      id: `section-${sectionId++}`,
-      type: 'records',
-      layout: 'image',
-      title: 'Images'
-    });
-  }
 
   return sections;
 }
