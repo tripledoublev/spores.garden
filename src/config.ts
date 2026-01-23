@@ -396,6 +396,39 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
         history: [{ did: did, timestamp: new Date().toISOString() }]
       }));
     }
+
+    // Clone Bluesky profile to garden.spores.site.profile
+    // Fetches the raw app.bsky.actor.profile record to get blob refs (not CDN URLs)
+    try {
+      const bskyProfileRecord = await getRecord(did, 'app.bsky.actor.profile', 'self');
+      if (bskyProfileRecord?.value) {
+        const bskyProfile = bskyProfileRecord.value;
+        const profileRecord: any = {
+          $type: 'garden.spores.site.profile',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        if (bskyProfile.displayName) {
+          profileRecord.displayName = bskyProfile.displayName;
+        }
+        if (bskyProfile.description) {
+          profileRecord.description = bskyProfile.description;
+        }
+        // Copy blob refs directly - they reference blobs on the same PDS
+        if (bskyProfile.avatar) {
+          profileRecord.avatar = bskyProfile.avatar;
+        }
+        if (bskyProfile.banner) {
+          profileRecord.banner = bskyProfile.banner;
+        }
+
+        promises.push(putRecord('garden.spores.site.profile', 'self', profileRecord));
+      }
+    } catch (error) {
+      console.warn('Failed to clone Bluesky profile to garden.spores.site.profile:', error);
+      // Don't fail the entire onboarding if profile cloning fails
+    }
   }
 
   await Promise.all(promises);
