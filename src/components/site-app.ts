@@ -723,11 +723,14 @@ class SiteApp extends HTMLElement {
         const type = (btn as HTMLElement).dataset.type;
         const action = (btn as HTMLElement).dataset.action;
 
-        if (action) {
-          modal.remove();
-          this.handleWelcomeAction(action as WelcomeAction);
+        modal.remove();
+
+        // Route actions to dedicated methods - NO welcome-modal
+        if (action === 'select-bsky-posts') {
+          this.showBskyPostSelector();
+        } else if (action === 'load-records') {
+          this.showRecordsLoader();
         } else if (type) {
-          modal.remove();
           this.addSection(type);
         }
       });
@@ -757,6 +760,239 @@ class SiteApp extends HTMLElement {
     setTimeout(() => {
       welcome.triggerAction(action);
     }, 10);
+  }
+
+  async showBskyPostSelector() {
+    const did = getCurrentDid();
+    if (!did) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="welcome-loading"><div class="spinner"></div><p>Loading your Bluesky posts...</p></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Close handlers
+    const closeModal = () => modal.remove();
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    try {
+      const { getCollectionRecords } = await import('../records/loader');
+      const posts = await getCollectionRecords(did, 'app.bsky.feed.post', { limit: 50 });
+
+      if (posts.length === 0) {
+        modal.querySelector('.modal-content')!.innerHTML = `
+          <p>No posts found in your Bluesky feed.</p>
+          <button class="button modal-close">Close</button>
+        `;
+        modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+        return;
+      }
+
+      this.renderPostSelector(modal, posts, closeModal);
+    } catch (error) {
+      modal.querySelector('.modal-content')!.innerHTML = `
+        <p>Failed to load posts. Please try again.</p>
+        <button class="button modal-close">Close</button>
+      `;
+      modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+    }
+  }
+
+  private renderPostSelector(modal: HTMLElement, posts: any[], closeModal: () => void) {
+    const escapeHtml = (text: string) => {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    };
+
+    modal.querySelector('.modal-content')!.innerHTML = `
+      <div class="welcome-selector">
+        <h2>Select Bluesky Post</h2>
+        <p>Choose a post to add to your garden</p>
+        <div class="post-list">
+          ${posts.map((post) => {
+            const uri = post.uri || '';
+            const val = post.value as any;
+            const text = val?.text?.slice(0, 200) || 'Post';
+            const createdAt = val?.createdAt ? new Date(val.createdAt).toLocaleDateString() : '';
+            return `
+              <button class="post-item-selectable" data-uri="${uri}">
+                <div class="post-content">
+                  <p class="post-text">${escapeHtml(text)}${text.length >= 200 ? '...' : ''}</p>
+                  ${createdAt ? `<time class="post-date">${createdAt}</time>` : ''}
+                </div>
+              </button>
+            `;
+          }).join('')}
+        </div>
+        <button class="button button-secondary modal-close">Cancel</button>
+      </div>
+    `;
+
+    modal.querySelectorAll('.post-item-selectable').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const uri = btn.getAttribute('data-uri');
+        if (uri) {
+          const { addSection } = await import('../config');
+          addSection({ type: 'records', records: [uri], layout: 'post' });
+          closeModal();
+          this.render();
+        }
+      });
+    });
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+  }
+
+  async showRecordsLoader() {
+    const did = getCurrentDid();
+    if (!did) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="welcome-loading"><div class="spinner"></div><p>Loading your collections...</p></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    try {
+      const { getCollections } = await import('../records/loader');
+      const collections = await getCollections(did);
+
+      if (collections.length === 0) {
+        modal.querySelector('.modal-content')!.innerHTML = `
+          <p>No collections found in your repository.</p>
+          <button class="button modal-close">Close</button>
+        `;
+        modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+        return;
+      }
+
+      this.renderCollectionSelector(modal, collections, did, closeModal);
+    } catch (error) {
+      modal.querySelector('.modal-content')!.innerHTML = `
+        <p>Failed to load collections. Please try again.</p>
+        <button class="button modal-close">Close</button>
+      `;
+      modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+    }
+  }
+
+  private renderCollectionSelector(modal: HTMLElement, collections: string[], did: string, closeModal: () => void) {
+    modal.querySelector('.modal-content')!.innerHTML = `
+      <div class="welcome-selector">
+        <h2>Select Collection</h2>
+        <p>Choose a collection to load records from</p>
+        <div class="collection-list">
+          ${collections.map(coll => `
+            <button class="collection-item" data-collection="${coll}">
+              <span class="collection-name">${coll}</span>
+              <span class="collection-arrow">→</span>
+            </button>
+          `).join('')}
+        </div>
+        <button class="button button-secondary modal-close">Cancel</button>
+      </div>
+    `;
+
+    modal.querySelectorAll('.collection-item').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const collection = btn.getAttribute('data-collection');
+        if (!collection) return;
+
+        modal.querySelector('.modal-content')!.innerHTML = `
+          <div class="welcome-loading"><div class="spinner"></div><p>Loading records from ${collection}...</p></div>
+        `;
+
+        try {
+          const { getCollectionRecords } = await import('../records/loader');
+          const records = await getCollectionRecords(did, collection, { limit: 20 });
+
+          if (records.length === 0) {
+            modal.querySelector('.modal-content')!.innerHTML = `
+              <p>No records found in ${collection}.</p>
+              <button class="button modal-close">Close</button>
+            `;
+            modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+            return;
+          }
+
+          this.renderRecordSelector(modal, collection, records, closeModal);
+        } catch (error) {
+          modal.querySelector('.modal-content')!.innerHTML = `
+            <p>Failed to load records from ${collection}. Please try again.</p>
+            <button class="button modal-close">Close</button>
+          `;
+          modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+        }
+      });
+    });
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+  }
+
+  private renderRecordSelector(modal: HTMLElement, collection: string, records: any[], closeModal: () => void) {
+    modal.querySelector('.modal-content')!.innerHTML = `
+      <div class="welcome-selector">
+        <h2>Select Records to Add</h2>
+        <p>Choose records from ${collection} to add to your site</p>
+        <div class="record-list">
+          ${records.map((record, idx) => {
+            const rkey = record.uri?.split('/').pop() || idx.toString();
+            const val = record.value as any;
+            const title = val?.text?.slice(0, 50) ||
+              val?.title ||
+              val?.name ||
+              rkey;
+            return `
+              <label class="record-item">
+                <input type="checkbox" value="${rkey}" data-uri="${record.uri || ''}">
+                <span class="record-title">${this.escapeHtml(title)}</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+        <div class="selector-actions">
+          <button class="button" data-action="add-records">Add Selected</button>
+          <button class="button button-secondary modal-close">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    modal.querySelector('[data-action="add-records"]')?.addEventListener('click', async () => {
+      const selected = Array.from(modal.querySelectorAll<HTMLInputElement>('.record-item input:checked'));
+
+      if (selected.length === 0) {
+        alert('Please select at least one record.');
+        return;
+      }
+
+      const { addSection } = await import('../config');
+      for (const input of selected) {
+        const uri = input.getAttribute('data-uri');
+        if (!uri) continue;
+
+        addSection({
+          type: 'records',
+          records: [uri],
+          layout: 'card'
+        });
+      }
+
+      closeModal();
+      this.render();
+    });
+
+    modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
   }
 
   addSection(type) {
