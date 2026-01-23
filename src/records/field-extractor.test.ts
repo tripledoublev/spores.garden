@@ -9,34 +9,127 @@ import {
 
 describe('Field Extractor', () => {
   describe('Known Lexicons', () => {
-    it('should extract fields from Bluesky post', () => {
+    it('should extract fields from Bluesky post with view URLs', () => {
       const record = {
         uri: 'at://did:plc:test/app.bsky.feed.post/rkey123',
         value: {
           $type: 'app.bsky.feed.post',
           text: 'Hello, world!',
           createdAt: '2024-12-20T10:00:00Z',
-          embeds: [{
+          embed: {
             $type: 'app.bsky.embed.images',
             images: [{
               alt: 'Test image',
-              image: {
-                ref: { $link: 'cid123' }
-              },
               fullsize: 'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:test/cid123@jpeg'
             }]
-          }]
+          }
         }
       };
 
       const fields = extractFields(record);
-      
+
       expect(fields.content).toBe('Hello, world!');
       expect(fields.date).toBeInstanceOf(Date);
       expect(fields.images).toBeTruthy();
-      expect(fields.images?.length).toBeGreaterThan(0);
+      expect(fields.images?.length).toBe(1);
       expect(fields.$type).toBe('app.bsky.feed.post');
       expect(fields.uri).toBe('at://did:plc:test/app.bsky.feed.post/rkey123');
+    });
+
+    it('should extract fields from Bluesky post with raw blob refs', () => {
+      const record = {
+        uri: 'at://did:plc:test/app.bsky.feed.post/rkey123',
+        value: {
+          $type: 'app.bsky.feed.post',
+          text: 'Hello with raw blobs!',
+          createdAt: '2024-12-20T10:00:00Z',
+          embed: {
+            $type: 'app.bsky.embed.images',
+            images: [{
+              alt: 'Raw image',
+              image: {
+                ref: { $link: 'bafyreiexample123' }
+              }
+            }]
+          }
+        }
+      };
+
+      const fields = extractFields(record);
+
+      expect(fields.content).toBe('Hello with raw blobs!');
+      expect(fields.images).toBeTruthy();
+      expect(fields.images?.length).toBe(1);
+      // Should construct CDN URL from blob ref
+      const firstImage = fields.images?.[0];
+      expect(firstImage).toBeTruthy();
+      if (typeof firstImage === 'object' && firstImage.url) {
+        expect(firstImage.url).toContain('cdn.bsky.app');
+        expect(firstImage.url).toContain('did:plc:test');
+        expect(firstImage.url).toContain('bafyreiexample123');
+        expect(firstImage.alt).toBe('Raw image');
+      }
+    });
+
+    it('should extract multiple images with alt text', () => {
+      const record = {
+        uri: 'at://did:plc:test/app.bsky.feed.post/rkey123',
+        value: {
+          $type: 'app.bsky.feed.post',
+          text: 'Multiple images!',
+          createdAt: '2024-12-20T10:00:00Z',
+          embed: {
+            $type: 'app.bsky.embed.images',
+            images: [
+              { alt: 'First image', fullsize: 'https://example.com/img1.jpg' },
+              { alt: 'Second image', fullsize: 'https://example.com/img2.jpg' },
+              { alt: '', fullsize: 'https://example.com/img3.jpg' }
+            ]
+          }
+        }
+      };
+
+      const fields = extractFields(record);
+
+      expect(fields.images?.length).toBe(3);
+
+      // Check that alt text is preserved
+      const images = fields.images as Array<{ url: string; alt?: string }>;
+      expect(images[0].alt).toBe('First image');
+      expect(images[1].alt).toBe('Second image');
+      expect(images[2].alt).toBe(''); // Empty alt should be preserved
+    });
+
+    it('should handle recordWithMedia embed type', () => {
+      const record = {
+        uri: 'at://did:plc:test/app.bsky.feed.post/rkey123',
+        value: {
+          $type: 'app.bsky.feed.post',
+          text: 'Quote with images!',
+          createdAt: '2024-12-20T10:00:00Z',
+          embed: {
+            $type: 'app.bsky.embed.recordWithMedia',
+            record: {
+              // Quote post reference
+            },
+            media: {
+              $type: 'app.bsky.embed.images',
+              images: [
+                { alt: 'Attached image', fullsize: 'https://example.com/img.jpg' }
+              ]
+            }
+          }
+        }
+      };
+
+      const fields = extractFields(record);
+
+      expect(fields.images?.length).toBe(1);
+      const firstImage = fields.images?.[0];
+      if (typeof firstImage === 'object' && firstImage.url) {
+        expect(firstImage.url).toBe('https://example.com/img.jpg');
+        expect(firstImage.alt).toBe('Attached image');
+      }
     });
 
     it('should extract fields from Bluesky profile', () => {
@@ -87,6 +180,33 @@ describe('Field Extractor', () => {
       expect(fields.tags).toEqual(['tech', 'web']);
       expect(fields.url).toContain('leaflet.pub');
       expect(fields.content).toBeTruthy(); // Should contain the document value
+    });
+
+    it('should extract fields from site standard leaflet document', () => {
+      const record = {
+        uri: 'at://did:plc:test/site.standard.document/rkey123',
+        value: {
+          $type: 'site.standard.document',
+          title: 'Standard Article',
+          publishedAt: '2026-01-22T10:00:00Z',
+          tags: ['notes'],
+          content: {
+            $type: 'pub.leaflet.content',
+            pages: []
+          },
+          postRef: {
+            uri: 'at://did:plc:test/app.bsky.feed.post/rkey123'
+          }
+        }
+      };
+
+      const fields = extractFields(record);
+
+      expect(fields.title).toBe('Standard Article');
+      expect(fields.date).toBeInstanceOf(Date);
+      expect(fields.tags).toEqual(['notes']);
+      expect(fields.url).toContain('leaflet.pub');
+      expect(fields.content).toBeTruthy();
     });
 
     it('should extract fields from spores.garden content', () => {

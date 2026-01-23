@@ -270,7 +270,7 @@ site-app.theme-ready .header {
   background: var(--color-surface);
   border: 2px var(--border-style, solid) var(--color-border);
   font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-size: 0.55rem;
   color: var(--color-text-muted);
   white-space: nowrap;
   max-width: 300px;
@@ -1397,6 +1397,53 @@ site-app.theme-ready .header {
   height: auto;
   margin: var(--spacing-md) 0;
   border: var(--border-width) var(--border-style, solid) var(--color-border-dark);
+}
+
+/* Multi-image grid layouts for posts */
+.post-images {
+  display: grid;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
+}
+
+.post-images-single {
+  grid-template-columns: 1fr;
+}
+
+.post-images-two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.post-images-three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.post-images-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.post-images .post-image {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  object-fit: cover;
+  aspect-ratio: 1;
+}
+
+.post-images-single .post-image {
+  aspect-ratio: auto;
+  max-height: 500px;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .post-images-three {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .post-images-three .post-image:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
 }
 
 .layout-post .post-content {

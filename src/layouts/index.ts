@@ -209,7 +209,35 @@ registerLayout('post', async (fields) => {
     html.appendChild(meta);
   }
 
-  if (fields.image) {
+  // Render multiple images if available, otherwise fall back to single image
+  if (fields.images && fields.images.length > 0) {
+    const imageContainer = document.createElement('div');
+    imageContainer.className = 'post-images';
+
+    // Add count-based class for grid layout
+    const count = fields.images.length;
+    imageContainer.classList.add(
+      count === 1 ? 'post-images-single' :
+      count === 2 ? 'post-images-two' :
+      count === 3 ? 'post-images-three' : 'post-images-grid'
+    );
+
+    fields.images.forEach((imgData: string | { url: string; alt?: string }, index: number) => {
+      const img = document.createElement('img');
+      if (typeof imgData === 'object' && imgData.url) {
+        img.src = imgData.url;
+        img.alt = imgData.alt || `Image ${index + 1}`;
+      } else {
+        img.src = imgData as string;
+        img.alt = `Image ${index + 1}`;
+      }
+      img.className = 'post-image';
+      img.loading = 'lazy';
+      imageContainer.appendChild(img);
+    });
+
+    html.appendChild(imageContainer);
+  } else if (fields.image) {
     const img = document.createElement('img');
     img.src = fields.image;
     img.alt = fields.title || '';

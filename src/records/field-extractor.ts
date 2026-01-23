@@ -83,16 +83,42 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     title: 'displayName', // Usually empty, but fallback
     content: 'text',
     images: (record) => {
-      const embeds = record.value?.embeds || [];
-      const images: string[] = [];
-      for (const embed of embeds) {
-        if (embed.images) {
-          for (const img of embed.images) {
-            if (img.fullsize) images.push(img.fullsize);
-            else if (img.thumb) images.push(img.thumb);
+      const embed = record.value?.embed;  // singular, not embeds
+      if (!embed) return undefined;
+
+      const images: Array<{ url: string; alt?: string }> = [];
+
+      // Helper to extract images from an embed
+      const extractFromEmbed = (embedData: any) => {
+        if (embedData?.$type === 'app.bsky.embed.images' && embedData.images) {
+          for (const img of embedData.images) {
+            let url: string | null = null;
+
+            // View records have fullsize/thumb URLs
+            if (img.fullsize) url = img.fullsize;
+            else if (img.thumb) url = img.thumb;
+            // Raw records have img.image as blob reference
+            else if (img.image) {
+              const cid = img.image.ref?.$link || img.image.ref || img.image.cid;
+              const did = record.uri?.split('/')[2] || record.did;
+              if (cid && did) {
+                url = `https://cdn.bsky.app/img/feed_thumbnail/plain/${did}/${cid}@jpeg`;
+              }
+            }
+
+            if (url) images.push({ url, alt: img.alt || '' });
           }
         }
+      };
+
+      // Handle app.bsky.embed.images directly
+      extractFromEmbed(embed);
+
+      // Handle app.bsky.embed.recordWithMedia (quote post + images)
+      if (embed.$type === 'app.bsky.embed.recordWithMedia' && embed.media) {
+        extractFromEmbed(embed.media);
       }
+
       return images.length > 0 ? images : undefined;
     },
     date: 'createdAt',
@@ -252,6 +278,33 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     },
     confidence: 'high',
     preferredLayout: 'leaflet'
+  },
+
+  // Leaflet.pub Document (site standard)
+  'site.standard.document': {
+    title: 'title',
+    date: 'publishedAt',
+    tags: 'tags',
+    image: (record) => {
+      const coverImage = record.value?.coverImage;
+      if (coverImage?.$type === 'blob' && coverImage.ref?.$link) {
+        return coverImage;
+      }
+      return undefined;
+    },
+    content: (record) => record.value?.content || record.value,
+    url: (record) => {
+      const postRef = record.value?.postRef;
+      if (postRef?.uri) {
+        const match = postRef.uri.match(/at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+        if (match) {
+          return `https://leaflet.pub/@${match[1]}/${match[2]}`;
+        }
+      }
+      return undefined;
+    },
+    confidence: 'high',
+    preferredLayout: 'leaflet'
   }
 };
 
@@ -272,6 +325,7 @@ const KNOWN_LEXICONS = new Set([
   'garden.spores.social.flower',
   'garden.spores.social.takenFlower',
   'pub.leaflet.document',
+  'site.standard.document',
   'community.lexicon.calendar.event',
   'community.lexicon.calendar.rsvp'
 ]);
@@ -465,7 +519,12 @@ function extractImage(record, lexiconType?: string) {
   // Check first image in images array
   const images = extractImages(record, lexiconType);
   if (images && images.length > 0) {
-    return images[0];
+    const firstImage = images[0];
+    // Handle { url, alt } objects from schema extractors
+    if (typeof firstImage === 'object' && firstImage.url) {
+      return firstImage.url;
+    }
+    return firstImage;
   }
 
   return undefined;
@@ -512,22 +571,26 @@ function extractBanner(record, lexiconType?: string) {
 /**
  * Extract images array, handling various formats
  * Uses schema registry when available
+ * Returns array of strings (URLs) or objects with { url, alt } for accessibility
  */
-function extractImages(record, lexiconType?: string) {
+function extractImages(record, lexiconType?: string): Array<string | { url: string; alt?: string }> {
   // Try schema-based extraction first
   const schemaImages = extractField(record, 'images', lexiconType);
   if (schemaImages) {
     if (Array.isArray(schemaImages) && schemaImages.length > 0) {
       return schemaImages.map(img => {
         if (typeof img === 'string') return img;
-        if (img.url) return img.url;
+        // Preserve { url, alt } objects from schema extractors
+        if (img.url && typeof img.url === 'string') {
+          return { url: img.url, alt: img.alt || '' };
+        }
         if (img.thumb) return img.thumb;
         if (img.fullsize) return img.fullsize;
         if (img.$type === 'blob' || img.ref) {
           return formatBlobUrl(record, img);
         }
         return null;
-      }).filter(Boolean);
+      }).filter(Boolean) as Array<string | { url: string; alt?: string }>;
     }
   }
 
@@ -547,7 +610,7 @@ function extractImages(record, lexiconType?: string) {
         return formatBlobUrl(record, img);
       }
       return null;
-    }).filter(Boolean);
+    }).filter(Boolean) as Array<string | { url: string; alt?: string }>;
   }
 
   return [];
