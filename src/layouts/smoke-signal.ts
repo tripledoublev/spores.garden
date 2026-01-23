@@ -25,19 +25,19 @@ export function renderSmokeSignal(fields: ReturnType<typeof extractFields>, reco
 
   // Check if this is an RSVP that needs event data fetched
   const isRsvp = $type === 'community.lexicon.calendar.rsvp' || $type.includes('calendar.rsvp');
-  
+
   if (isRsvp && $raw.subject?.uri) {
     // Show loading state while we fetch the event
     const loadingEl = createLoadingSpinner('Loading event...');
     el.appendChild(loadingEl);
-    
+
     // Fetch event data asynchronously
     fetchAndRenderRsvp(el, fields, $raw).catch(error => {
       console.error('Failed to fetch RSVP event:', error);
       el.innerHTML = '';
       el.appendChild(createErrorMessage('Failed to load event details'));
     });
-    
+
     return el;
   }
 
@@ -51,15 +51,15 @@ export function renderSmokeSignal(fields: ReturnType<typeof extractFields>, reco
  */
 async function fetchAndRenderRsvp(el: HTMLElement, fields: ReturnType<typeof extractFields>, $raw: any): Promise<void> {
   const subjectUri = $raw.subject?.uri;
-  
+
   try {
     const { getRecordByUri } = await import('../records/loader');
     const eventRecord = await getRecordByUri(subjectUri);
-    
+
     if (eventRecord?.value) {
       // Extract fields from the event record
       const eventFields = extractFields(eventRecord);
-      
+
       // Merge RSVP status into event fields for display
       const mergedFields = {
         ...eventFields,
@@ -73,7 +73,7 @@ async function fetchAndRenderRsvp(el: HTMLElement, fields: ReturnType<typeof ext
         url: eventFields.url || fields.url,
         image: eventFields.image || fields.image,
       };
-      
+
       el.innerHTML = '';
       renderEventContent(el, mergedFields, eventRecord);
     } else {
@@ -103,57 +103,51 @@ function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFi
     const $type = fields.$type || '';
     const $raw = fields.$raw || {};
 
-  // Determine event type (organizing vs attending)
-  // Check the lexicon $type to determine the record type
-  const isOrganizing = 
-    $type === 'community.lexicon.calendar.event' ||
-    $type.includes('calendar.event') ||
-    $raw.isHosting === true ||
-    $raw.hosting === true ||
-    $raw.role === 'host' ||
-    $raw.eventType === 'hosting';
-  
-  const isAttending = 
-    $type === 'community.lexicon.calendar.rsvp' ||
-    $type.includes('calendar.rsvp') ||
-    $raw.status?.includes('going') ||
-    $raw.status?.includes('interested');
+    // Determine event type (organizing vs attending)
+    // Check the lexicon $type to determine the record type
+    // Check the lexicon $type to determine the record type
 
-  // Default to organizing if we can't determine (for backwards compatibility)
-  const eventTypeClass = isAttending ? 'event-attending' : 'event-hosting';
+    const isAttending =
+      $type === 'community.lexicon.calendar.rsvp' ||
+      $type.includes('calendar.rsvp') ||
+      $raw.status?.includes('going') ||
+      $raw.status?.includes('interested');
 
-  // For RSVPs, get the specific status (going, interested, notgoing)
-  let eventTypeLabel = isAttending ? 'Attending' : 'Organizing';
-  if (isAttending && $raw.status) {
-    const status = $raw.status;
-    if (status.includes('going') && !status.includes('notgoing')) {
-      eventTypeLabel = 'Going';
-    } else if (status.includes('interested')) {
-      eventTypeLabel = 'Interested';
-    } else if (status.includes('notgoing')) {
-      eventTypeLabel = 'Not Going';
+    // Default to organizing if we can't determine (for backwards compatibility)
+    const eventTypeClass = isAttending ? 'event-attending' : 'event-hosting';
+
+    // For RSVPs, get the specific status (going, interested, notgoing)
+    let eventTypeLabel = isAttending ? 'Attending' : 'Organizing';
+    if (isAttending && $raw.status) {
+      const status = $raw.status;
+      if (status.includes('going') && !status.includes('notgoing')) {
+        eventTypeLabel = 'Going';
+      } else if (status.includes('interested')) {
+        eventTypeLabel = 'Interested';
+      } else if (status.includes('notgoing')) {
+        eventTypeLabel = 'Not Going';
+      }
     }
-  }
 
-  // Container
-  const container = document.createElement('div');
-  container.className = `smoke-signal-event ${eventTypeClass}`;
+    // Container
+    const container = document.createElement('div');
+    container.className = `smoke-signal-event ${eventTypeClass}`;
 
-  // Event type badge - for organizing show "Organizing", for attending just show "RSVP"
-  const badge = document.createElement('div');
-  badge.className = 'event-type-badge';
-  badge.setAttribute('role', 'status');
-  const badgeLabel = isAttending ? 'RSVP' : 'Organizing';
-  badge.setAttribute('aria-label', `Event type: ${badgeLabel.toLowerCase()}`);
-  badge.textContent = badgeLabel;
-  container.appendChild(badge);
+    // Event type badge - for organizing show "Organizing", for attending just show "RSVP"
+    const badge = document.createElement('div');
+    badge.className = 'event-type-badge';
+    badge.setAttribute('role', 'status');
+    const badgeLabel = isAttending ? 'RSVP' : 'Organizing';
+    badge.setAttribute('aria-label', `Event type: ${badgeLabel.toLowerCase()}`);
+    badge.textContent = badgeLabel;
+    container.appendChild(badge);
 
     // Image (if available)
     if (image) {
       const imgContainer = document.createElement('div');
       imgContainer.className = 'event-image';
       imgContainer.style.position = 'relative';
-      
+
       // Add loading spinner overlay
       const loadingOverlay = document.createElement('div');
       loadingOverlay.className = 'image-loading-overlay';
@@ -167,14 +161,14 @@ function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFi
       loadingOverlay.style.justifyContent = 'center';
       loadingOverlay.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
       loadingOverlay.style.zIndex = '1';
-      
+
       const spinner = document.createElement('div');
       spinner.className = 'spinner';
       spinner.style.width = '32px';
       spinner.style.height = '32px';
       loadingOverlay.appendChild(spinner);
       imgContainer.appendChild(loadingOverlay);
-      
+
       const img = document.createElement('img');
       const imageUrl = typeof image === 'string' ? image : (image.url || image.href || '');
       img.src = imageUrl;
@@ -182,12 +176,12 @@ function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFi
       img.loading = 'lazy';
       img.style.opacity = '0';
       img.style.transition = 'opacity 0.3s ease';
-      
+
       img.addEventListener('load', () => {
         img.style.opacity = '1';
         loadingOverlay.style.display = 'none';
       });
-      
+
       img.addEventListener('error', () => {
         loadingOverlay.style.display = 'none';
         img.style.display = 'none';
@@ -207,103 +201,103 @@ function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFi
         );
         imgContainer.appendChild(errorMsg);
       });
-      
+
       imgContainer.appendChild(img);
       container.appendChild(imgContainer);
     }
 
-  // Content wrapper
-  const contentWrapper = document.createElement('div');
-  contentWrapper.className = 'event-content';
+    // Content wrapper
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'event-content';
 
-  // Title (Event name)
-  const titleEl = document.createElement('h2');
-  titleEl.className = 'event-title';
-  if (url) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.textContent = title;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.setAttribute('aria-label', `${title} - Opens in new tab`);
-    titleEl.appendChild(link);
-  } else {
-    titleEl.textContent = title;
-  }
-  contentWrapper.appendChild(titleEl);
+    // Title (Event name)
+    const titleEl = document.createElement('h2');
+    titleEl.className = 'event-title';
+    if (url) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.textContent = title;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.setAttribute('aria-label', `${title} - Opens in new tab`);
+      titleEl.appendChild(link);
+    } else {
+      titleEl.textContent = title;
+    }
+    contentWrapper.appendChild(titleEl);
 
-  // For RSVPs, show the RSVP status line below the title
-  if (isAttending) {
-    const rsvpStatusEl = document.createElement('div');
-    rsvpStatusEl.className = 'event-rsvp-status';
-    rsvpStatusEl.style.fontSize = '0.9em';
-    rsvpStatusEl.style.color = 'var(--text-muted)';
-    rsvpStatusEl.style.marginBottom = '0.5rem';
-    
-    const statusEmoji = eventTypeLabel === 'Going' ? '✓' : eventTypeLabel === 'Interested' ? '?' : eventTypeLabel === 'Not Going' ? '✗' : '';
-    rsvpStatusEl.textContent = `RSVP: ${statusEmoji} ${eventTypeLabel}`;
-    contentWrapper.appendChild(rsvpStatusEl);
-  }
+    // For RSVPs, show the RSVP status line below the title
+    if (isAttending) {
+      const rsvpStatusEl = document.createElement('div');
+      rsvpStatusEl.className = 'event-rsvp-status';
+      rsvpStatusEl.style.fontSize = '0.9em';
+      rsvpStatusEl.style.color = 'var(--text-muted)';
+      rsvpStatusEl.style.marginBottom = '0.5rem';
 
-  // Date/time
-  if (date) {
-    const dateEl = document.createElement('time');
-    dateEl.className = 'event-date';
-    const dateObj = date instanceof Date ? date : new Date(date);
-    if (!isNaN(dateObj.getTime())) {
-      dateEl.dateTime = dateObj.toISOString();
-      // Format date nicely
-      const formattedDate = dateObj.toLocaleDateString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
-      });
-      dateEl.textContent = formattedDate;
-      dateEl.setAttribute('aria-label', `Event date: ${formattedDate}`);
-      
-      // Add relative time
-      const relativeTime = getRelativeTime(dateObj);
-      if (relativeTime) {
-        const relativeEl = document.createElement('span');
-        relativeEl.className = 'event-date-relative';
-        relativeEl.setAttribute('aria-label', `Relative time: ${relativeTime}`);
-        relativeEl.textContent = ` (${relativeTime})`;
-        dateEl.appendChild(relativeEl);
+      const statusEmoji = eventTypeLabel === 'Going' ? '✓' : eventTypeLabel === 'Interested' ? '?' : eventTypeLabel === 'Not Going' ? '✗' : '';
+      rsvpStatusEl.textContent = `RSVP: ${statusEmoji} ${eventTypeLabel}`;
+      contentWrapper.appendChild(rsvpStatusEl);
+    }
+
+    // Date/time
+    if (date) {
+      const dateEl = document.createElement('time');
+      dateEl.className = 'event-date';
+      const dateObj = date instanceof Date ? date : new Date(date);
+      if (!isNaN(dateObj.getTime())) {
+        dateEl.dateTime = dateObj.toISOString();
+        // Format date nicely
+        const formattedDate = dateObj.toLocaleDateString('en-US', {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+        dateEl.textContent = formattedDate;
+        dateEl.setAttribute('aria-label', `Event date: ${formattedDate}`);
+
+        // Add relative time
+        const relativeTime = getRelativeTime(dateObj);
+        if (relativeTime) {
+          const relativeEl = document.createElement('span');
+          relativeEl.className = 'event-date-relative';
+          relativeEl.setAttribute('aria-label', `Relative time: ${relativeTime}`);
+          relativeEl.textContent = ` (${relativeTime})`;
+          dateEl.appendChild(relativeEl);
+        }
+      } else {
+        dateEl.textContent = String(date);
+        dateEl.setAttribute('datetime', String(date));
       }
-    } else {
-      dateEl.textContent = String(date);
-      dateEl.setAttribute('datetime', String(date));
+      contentWrapper.appendChild(dateEl);
     }
-    contentWrapper.appendChild(dateEl);
-  }
 
-  // Location (look for location field in raw data)
-  const location = $raw.location || $raw.venue || $raw.where || $raw.address;
-  if (location) {
-    const locationEl = document.createElement('div');
-    locationEl.className = 'event-location';
-    locationEl.setAttribute('aria-label', 'Event location');
-    const locationText = typeof location === 'string' ? location : (location.name || location.address || JSON.stringify(location));
-    locationEl.innerHTML = `<span aria-hidden="true">📍</span> <span>${locationText}</span>`;
-    contentWrapper.appendChild(locationEl);
-  }
-
-  // Description/content
-  if (content) {
-    const descEl = document.createElement('div');
-    descEl.className = 'event-description';
-    descEl.setAttribute('role', 'article');
-    // Handle markdown or plain text
-    if (typeof content === 'string') {
-      descEl.textContent = content;
-    } else {
-      descEl.textContent = String(content);
+    // Location (look for location field in raw data)
+    const location = $raw.location || $raw.venue || $raw.where || $raw.address;
+    if (location) {
+      const locationEl = document.createElement('div');
+      locationEl.className = 'event-location';
+      locationEl.setAttribute('aria-label', 'Event location');
+      const locationText = typeof location === 'string' ? location : (location.name || location.address || JSON.stringify(location));
+      locationEl.innerHTML = `<span aria-hidden="true">📍</span> <span>${locationText}</span>`;
+      contentWrapper.appendChild(locationEl);
     }
-    contentWrapper.appendChild(descEl);
-  }
+
+    // Description/content
+    if (content) {
+      const descEl = document.createElement('div');
+      descEl.className = 'event-description';
+      descEl.setAttribute('role', 'article');
+      // Handle markdown or plain text
+      if (typeof content === 'string') {
+        descEl.textContent = content;
+      } else {
+        descEl.textContent = String(content);
+      }
+      contentWrapper.appendChild(descEl);
+    }
 
     container.appendChild(contentWrapper);
     el.appendChild(container);
@@ -316,8 +310,6 @@ function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFi
     );
     el.appendChild(errorEl);
   }
-
-  return el;
 }
 
 /**

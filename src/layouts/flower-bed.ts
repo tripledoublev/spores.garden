@@ -18,7 +18,7 @@ async function loadOwnerStyle(ownerDid: string) {
   } catch (error) {
     // If style record doesn't exist, fall back to generated theme
   }
-  
+
   // Fallback: generate theme from DID
   const generated = generateThemeFromDid(ownerDid);
   return generated.theme;
@@ -36,20 +36,20 @@ export async function renderFlowerBed(section) {
 
   // Load owner's unique style
   const ownerTheme = await loadOwnerStyle(ownerDid);
-  
+
   // Get theme colors, border style, and border width
   const preset = ownerTheme?.preset || 'minimal';
   const presetTheme = getThemePreset(preset) || { colors: {}, fonts: {} };
   const colors = { ...presetTheme.colors, ...ownerTheme?.colors };
   const borderStyle = ownerTheme?.borderStyle || 'solid';
   const borderWidth = ownerTheme?.borderWidth || '4px';
-  
+
   // Use accent or primary color for the inset border to show uniqueness
   const insetBorderColor = colors.accent || colors.primary || colors.border || colors.text || '#000000';
   const borderColor = colors.text || colors.border || '#000000';
   // Use background color, but lighten it slightly for surface effect
   const backgroundColor = colors.background || '#f8f9fa';
-  
+
   // Apply owner's unique styling to the flower bed via CSS custom properties
   el.style.setProperty('--flower-bed-border-style', borderStyle);
   el.style.setProperty('--flower-bed-border-width', borderWidth);
@@ -64,28 +64,53 @@ export async function renderFlowerBed(section) {
 
     // Always show the owner's flower in their own garden, even if nobody else has planted here yet.
     // Backlinks only represent *other* people planting into this garden.
-    const visitorFlowers = plantedFlowers
+    let visitorFlowers = plantedFlowers
       .filter((f) => f?.did && typeof f.did === 'string')
       .filter((f) => f.did !== ownerDid);
+
+    // Optimistically check if the current user has planted a flower (bypass indexer latency)
+    if (isLoggedIn()) {
+      const currentUserDid = getCurrentDid();
+      if (currentUserDid && currentUserDid !== ownerDid) {
+        // Check if we already see the user's flower in backlinks
+        const alreadyListed = visitorFlowers.some(f => f.did === currentUserDid);
+
+        if (!alreadyListed) {
+          try {
+            // Fetch user's flowers directly from their PDS
+            const userFlowers = await listRecords(currentUserDid, 'garden.spores.social.flower', { limit: 50 });
+            // Check if any flower points to this garden
+            const hasPlanted = userFlowers?.records?.some(r => r.value?.subject === ownerDid);
+
+            if (hasPlanted) {
+              // Manually add their flower to the list
+              visitorFlowers.push({ did: currentUserDid });
+            }
+          } catch (e) {
+            console.warn('Failed to check user flowers:', e);
+          }
+        }
+      }
+    }
 
     const flowersToRender = [{ did: ownerDid }, ...visitorFlowers];
 
     const grid = document.createElement('div');
     grid.className = 'flower-grid';
-    
+
     // Render flowers with async handle resolution
     const flowerPromises = flowersToRender.map(async (flower) => {
       const flowerEl = document.createElement('div');
       flowerEl.className = 'flower-grid-item';
-      
+
       const container = document.createElement('div');
       container.style.position = 'relative';
       container.style.cursor = 'pointer';
-      
+
       const viz = document.createElement('did-visualization');
       viz.setAttribute('did', flower.did);
       container.appendChild(viz);
-      
+
       const caption = document.createElement('p');
       caption.style.fontSize = '0.875rem';
       caption.style.color = 'var(--color-text-muted, #6b7280)';
@@ -96,7 +121,7 @@ export async function renderFlowerBed(section) {
       } else {
         caption.textContent = `A flower from ${flower.did.substring(0, 20)}...'s garden`;
       }
-      
+
       // Try to get handle for better display
       try {
         const profile = await getProfile(flower.did);
@@ -110,24 +135,24 @@ export async function renderFlowerBed(section) {
       } catch (error) {
         // Keep DID fallback if profile fetch fails
       }
-      
+
       container.appendChild(caption);
-      
+
       // Add click handler to show all gardens where this flower was planted
       container.addEventListener('click', async (e) => {
         e.preventDefault();
         await showFlowerGardensModal(flower.did);
       });
-      
+
       flowerEl.appendChild(container);
       return flowerEl;
     });
-    
+
     const flowerElements = await Promise.all(flowerPromises);
     for (const flowerEl of flowerElements) {
       grid.appendChild(flowerEl);
     }
-    
+
     el.appendChild(grid);
 
     // Add a friendly hint if nobody else has planted here yet.
@@ -157,7 +182,7 @@ async function findGardensWithFlower(flowerDid: string): Promise<Array<{ gardenD
     // List all flower records created by this DID
     const response = await listRecords(flowerDid, 'garden.spores.social.flower', { limit: 100 });
     const flowerRecords = response.records || [];
-    
+
     // Extract unique garden DIDs from the subject field
     const gardenDids = new Set<string>();
     for (const record of flowerRecords) {
@@ -165,7 +190,7 @@ async function findGardensWithFlower(flowerDid: string): Promise<Array<{ gardenD
         gardenDids.add(record.value.subject);
       }
     }
-    
+
     // Fetch profiles for each garden
     const gardenPromises = Array.from(gardenDids).map(async (gardenDid) => {
       try {
@@ -176,7 +201,7 @@ async function findGardensWithFlower(flowerDid: string): Promise<Array<{ gardenD
         return { gardenDid, profile: null };
       }
     });
-    
+
     return await Promise.all(gardenPromises);
   } catch (error) {
     console.error('Failed to find gardens with flower:', error);
@@ -195,10 +220,10 @@ async function showFlowerGardensModal(flowerDid: string) {
   } catch (error) {
     flowerProfile = null;
   }
-  
+
   const flowerHandle = flowerProfile?.handle || flowerDid.substring(0, 20) + '...';
   const flowerName = flowerProfile?.displayName || flowerHandle;
-  
+
   // Create modal
   const modal = document.createElement('div');
   modal.className = 'modal';
@@ -219,7 +244,7 @@ async function showFlowerGardensModal(flowerDid: string) {
       </div>
     </div>
   `;
-  
+
   document.body.appendChild(modal);
 
   // Add "Visit @flower garden" button directly under the heading
@@ -282,27 +307,27 @@ async function showFlowerGardensModal(flowerDid: string) {
     visitSelfLink.appendChild(textWrap);
     selfCta.appendChild(visitSelfLink);
   }
-  
+
   // Close handlers
   const closeBtn = modal.querySelector('.modal-close');
   closeBtn.addEventListener('click', () => modal.remove());
-  
+
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.remove();
   });
-  
+
   // Load gardens
   const gardensList = modal.querySelector('#flower-gardens-list');
   try {
     const gardens = await findGardensWithFlower(flowerDid);
-    
+
     if (gardens.length === 0) {
       gardensList.innerHTML = '<p>This flower hasn\'t been planted in any other garden yet.</p>';
       return;
     }
-    
+
     gardensList.innerHTML = '';
-    
+
     // Create list of gardens
     for (const { gardenDid, profile } of gardens) {
       const gardenHandle = profile?.handle ? `@${profile.handle}` : `${gardenDid.substring(0, 20)}...`;

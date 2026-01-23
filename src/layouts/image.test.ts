@@ -24,11 +24,11 @@ describe('Image Layout', () => {
         content: 'Check out this image!'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
 
       expect(result).toBeInstanceOf(HTMLElement);
       expect(result.className).toBe('layout-image');
-      
+
       const img = result.querySelector('img.image-main');
       expect(img).toBeTruthy();
       expect(img?.getAttribute('src')).toBe('https://example.com/image.jpg');
@@ -43,7 +43,7 @@ describe('Image Layout', () => {
         content: 'Some content'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const img = result.querySelector('img');
       expect(img?.getAttribute('alt')).toBe('My Image Title');
     });
@@ -54,7 +54,7 @@ describe('Image Layout', () => {
         content: 'Image description'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const img = result.querySelector('img');
       expect(img?.getAttribute('alt')).toBe('Image description');
     });
@@ -65,9 +65,9 @@ describe('Image Layout', () => {
         title: 'Test Image'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const img = result.querySelector('img');
-      
+
       expect(img?.getAttribute('role')).toBe('button');
       expect(img?.getAttribute('tabindex')).toBe('0');
       expect(img?.getAttribute('aria-label')).toContain('View larger image');
@@ -79,9 +79,9 @@ describe('Image Layout', () => {
         title: 'Test Image'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const img = result.querySelector('img');
-      
+
       // Simulate image error
       if (img) {
         const errorEvent = new Event('error');
@@ -106,12 +106,12 @@ describe('Image Layout', () => {
         title: 'Gallery Title'
       };
 
-      const result = renderImage(fields);
-      
+      const result = renderImage(fields as any);
+
       expect(result.className).toBe('layout-image');
       const gallery = result.querySelector('.image-gallery');
       expect(gallery).toBeTruthy();
-      
+
       const galleryItems = gallery?.querySelectorAll('.image-gallery-item');
       expect(galleryItems?.length).toBe(3);
     });
@@ -128,9 +128,9 @@ describe('Image Layout', () => {
         ]
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const galleryItems = result.querySelectorAll('.image-gallery-item');
-      
+
       expect(galleryItems.length).toBe(4);
     });
 
@@ -145,9 +145,9 @@ describe('Image Layout', () => {
         ]
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const moreButton = result.querySelector('.image-gallery-more');
-      
+
       expect(moreButton).toBeTruthy();
       expect(moreButton?.textContent).toBe('+1 more');
     });
@@ -158,9 +158,9 @@ describe('Image Layout', () => {
         title: 'Gallery'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const images = result.querySelectorAll('.image-gallery-item img');
-      
+
       images.forEach((img, index) => {
         expect(img.getAttribute('role')).toBe('button');
         expect(img.getAttribute('tabindex')).toBe('0');
@@ -176,9 +176,9 @@ describe('Image Layout', () => {
         content: 'Some content'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const emptyMsg = result.querySelector('.image-empty');
-      
+
       expect(emptyMsg).toBeTruthy();
       expect(emptyMsg?.textContent).toBe('No image found in record');
       expect(emptyMsg?.getAttribute('role')).toBe('status');
@@ -186,8 +186,8 @@ describe('Image Layout', () => {
 
     it('should not render image when fields are empty', () => {
       const fields = {};
-      const result = renderImage(fields);
-      
+      const result = renderImage(fields as any);
+
       expect(result.querySelector('img')).toBeFalsy();
       expect(result.querySelector('.image-empty')).toBeTruthy();
     });
@@ -200,9 +200,9 @@ describe('Image Layout', () => {
         title: 'Image Title'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const caption = result.querySelector('figcaption.image-caption');
-      
+
       expect(caption).toBeTruthy();
       expect(caption?.textContent).toBe('Image Title');
     });
@@ -213,9 +213,9 @@ describe('Image Layout', () => {
         content: 'Image description'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const caption = result.querySelector('figcaption.image-caption');
-      
+
       expect(caption).toBeTruthy();
       expect(caption?.textContent).toBe('Image description');
     });
@@ -225,9 +225,9 @@ describe('Image Layout', () => {
         image: 'https://example.com/image.jpg'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const caption = result.querySelector('figcaption');
-      
+
       expect(caption).toBeFalsy();
     });
   });
@@ -239,12 +239,12 @@ describe('Image Layout', () => {
         title: 'Test Image'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const img = result.querySelector('img');
-      
+
       if (img) {
-        img.click();
-        
+        (img as HTMLElement).click();
+
         // Check if modal was created
         const modal = document.querySelector('.image-modal');
         expect(modal).toBeTruthy();
@@ -260,15 +260,15 @@ describe('Image Layout', () => {
         ]
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const firstImg = result.querySelector('.image-gallery-item img');
-      
+
       if (firstImg) {
-        firstImg.click();
-        
+        (firstImg as HTMLElement).click();
+
         const modal = document.querySelector('.image-modal');
         expect(modal).toBeTruthy();
-        
+
         const modalImage = modal?.querySelector('.image-modal-image');
         expect(modalImage).toBeTruthy();
       }
@@ -279,19 +279,19 @@ describe('Image Layout', () => {
         image: 'https://example.com/image.jpg'
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const img = result.querySelector('img');
-      
+
       if (img) {
-        img.click();
-        
+        (img as HTMLElement).click();
+
         const modal = document.querySelector('.image-modal');
         expect(modal).toBeTruthy();
-        
+
         const closeButton = modal?.querySelector('.image-modal-close');
         if (closeButton) {
-          closeButton.click();
-          
+          (closeButton as HTMLElement).click();
+
           // Modal should be removed
           const remainingModal = document.querySelector('.image-modal');
           expect(remainingModal).toBeFalsy();
@@ -304,19 +304,19 @@ describe('Image Layout', () => {
         images: ['https://example.com/img1.jpg', 'https://example.com/img2.jpg']
       };
 
-      const result = renderImage(fields);
+      const result = renderImage(fields as any);
       const firstImg = result.querySelector('.image-gallery-item img');
-      
+
       if (firstImg) {
-        firstImg.click();
-        
+        (firstImg as HTMLElement).click();
+
         const modal = document.querySelector('.image-modal');
         expect(modal).toBeTruthy();
-        
+
         // Test Escape key
         const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
         document.dispatchEvent(escapeEvent);
-        
+
         // Modal should be closed
         const remainingModal = document.querySelector('.image-modal');
         expect(remainingModal).toBeFalsy();
@@ -345,8 +345,8 @@ describe('Image Layout', () => {
       };
 
       const fields = extractFields(record);
-      const result = renderImage(fields, record);
-      
+      const result = renderImage(fields as any, record);
+
       expect(result).toBeTruthy();
       // Images may not be extracted if embed structure doesn't match schema exactly
       // Test that layout handles missing images gracefully
@@ -370,8 +370,8 @@ describe('Image Layout', () => {
       };
 
       const fields = extractFields(record);
-      const result = renderImage(fields, record);
-      
+      const result = renderImage(fields as any, record);
+
       expect(result).toBeTruthy();
       const img = result.querySelector('img');
       expect(img).toBeTruthy();

@@ -22,7 +22,8 @@ import {
   defaultIdentityResolver,
   createAuthorizationUrl,
   finalizeAuthorization,
-  OAuthUserAgent
+  OAuthUserAgent,
+  Session
 } from '@atcute/oauth-browser-client';
 import {
   XrpcHandleResolver,
@@ -37,7 +38,7 @@ const SESSION_STORAGE_KEY = 'spores_garden_oauth_session';
 
 let oauthConfig: OAuthConfig | null = null;
 let currentAgent: OAuthUserAgent | null = null;
-let currentSession: OAuthSession | null = null;
+let currentSession: Session | null = null;
 let identityResolver: ReturnType<typeof defaultIdentityResolver> | null = null;
 
 /**
@@ -117,10 +118,10 @@ async function handleOAuthCallback() {
   try {
     // Don't clean up URL until after successful authorization
     // This ensures state validation can access the URL if needed
-    const result = await finalizeAuthorization(params) as { session: OAuthSession };
-    const session = result.session as OAuthSession;
+    const result = await finalizeAuthorization(params) as { session: Session };
+    const session = result.session;
     currentSession = session;
-    currentAgent = new OAuthUserAgent(session as unknown as OAuthSession);
+    currentAgent = new OAuthUserAgent(session);
 
     // Save session to sessionStorage for persistence across page refreshes
     saveSessionToStorage(session);
@@ -160,7 +161,7 @@ export async function login(handle: string) {
   }
 
   const authUrl = await createAuthorizationUrl({
-    target: { type: 'account', identifier: handle },
+    target: { type: 'account', identifier: handle as any },
     scope: oauthConfig.oauth.scope || 'atproto transition:generic'
   });
 
@@ -174,7 +175,7 @@ export async function login(handle: string) {
 /**
  * Save session to sessionStorage
  */
-function saveSessionToStorage(session: OAuthSession) {
+function saveSessionToStorage(session: Session) {
   try {
     // Store session data in sessionStorage (clears when tab closes)
     // Serialize the session object - the atcute session should be JSON serializable
@@ -232,15 +233,11 @@ async function restoreSession() {
     }
 
     // Reconstruct session object - cast to any to include all properties
-    const restoredSession = sessionData as OAuthSession & {
-      accessToken?: string;
-      refreshToken?: string;
-      expiresAt?: string | number;
-    };
+    const restoredSession = sessionData as unknown as Session;
 
     // Recreate agent from restored session
     currentSession = restoredSession;
-    currentAgent = new OAuthUserAgent(restoredSession as unknown as OAuthSession);
+    currentAgent = new OAuthUserAgent(restoredSession);
 
     // Dispatch event to notify UI
     window.dispatchEvent(new CustomEvent('auth-change', {
@@ -321,7 +318,7 @@ export async function createRecord(collection: string, record: unknown) {
   let pdsUrl: string | undefined;
   try {
     if (identityResolver) {
-      const resolved = await identityResolver.resolve(currentSession.info.sub);
+      const resolved = await identityResolver.resolve(currentSession.info.sub as any);
       if (resolved?.pds) {
         // Ensure URL is properly formatted (remove trailing slash if present)
         pdsUrl = resolved.pds.replace(/\/$/, '');
@@ -341,7 +338,7 @@ export async function createRecord(collection: string, record: unknown) {
 
   try {
     // Use post() for procedures (createRecord is a procedure)
-    const response = await client.post('com.atproto.repo.createRecord', {
+    const response = await (client as any).post('com.atproto.repo.createRecord', {
       input: {
         repo: currentSession.info.sub,
         collection,
@@ -376,7 +373,7 @@ export async function putRecord(collection: string, rkey: string, record: unknow
   let pdsUrl: string | undefined;
   try {
     if (identityResolver) {
-      const resolved = await identityResolver.resolve(currentSession.info.sub);
+      const resolved = await identityResolver.resolve(currentSession.info.sub as any);
       if (resolved?.pds) {
         pdsUrl = resolved.pds;
       }
@@ -394,7 +391,7 @@ export async function putRecord(collection: string, rkey: string, record: unknow
   const client = new Client(clientOptions);
 
   // Use post() for procedures (putRecord is a procedure)
-  const response = await client.post('com.atproto.repo.putRecord', {
+  const response = await (client as any).post('com.atproto.repo.putRecord', {
     input: {
       repo: currentSession.info.sub,
       collection,
@@ -426,7 +423,7 @@ export async function deleteRecord(collection: string, rkey: string) {
   let pdsUrl: string | undefined;
   try {
     if (identityResolver) {
-      const resolved = await identityResolver.resolve(currentSession.info.sub);
+      const resolved = await identityResolver.resolve(currentSession.info.sub as any);
       if (resolved?.pds) {
         pdsUrl = resolved.pds;
       }
@@ -444,7 +441,7 @@ export async function deleteRecord(collection: string, rkey: string) {
   const client = new Client(clientOptions);
 
   // Use post() for procedures (deleteRecord is a procedure)
-  const response = await client.post('com.atproto.repo.deleteRecord', {
+  const response = await (client as any).post('com.atproto.repo.deleteRecord', {
     input: {
       repo: currentSession.info.sub,
       collection,
@@ -477,7 +474,7 @@ export async function post(record: unknown) {
   let pdsUrl: string | undefined;
   try {
     if (identityResolver) {
-      const resolved = await identityResolver.resolve(currentSession.info.sub);
+      const resolved = await identityResolver.resolve(currentSession.info.sub as any);
       if (resolved?.pds) {
         pdsUrl = resolved.pds;
       }
@@ -495,7 +492,7 @@ export async function post(record: unknown) {
   const client = new Client(clientOptions);
 
   // Use post() for procedures (com.atproto.repo.createRecord is a procedure)
-  const response = await client.post('com.atproto.repo.createRecord', {
+  const response = await (client as any).post('com.atproto.repo.createRecord', {
     input: {
       repo: currentSession.info.sub,
       collection: 'app.bsky.feed.post',

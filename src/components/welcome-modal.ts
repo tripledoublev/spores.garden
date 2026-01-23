@@ -25,6 +25,7 @@ type WelcomeAction =
 class WelcomeModal extends HTMLElement {
   private did: string | null = null;
   private onClose: (() => void) | null = null;
+  private onBack: (() => void) | null = null;
   private collections: string[] = [];
   private profile: any = null;
 
@@ -65,6 +66,10 @@ class WelcomeModal extends HTMLElement {
 
   setOnClose(callback: () => void) {
     this.onClose = callback;
+  }
+
+  setOnBack(callback: () => void) {
+    this.onBack = callback;
   }
 
   private async render() {
@@ -235,7 +240,11 @@ class WelcomeModal extends HTMLElement {
     `;
 
     content.querySelector('[data-action="back-main"]')?.addEventListener('click', () => {
-      this.render();
+      if (this.onBack) {
+        this.onBack();
+      } else {
+        this.render();
+      }
     });
   }
 
@@ -261,7 +270,11 @@ class WelcomeModal extends HTMLElement {
 
     // Attach back button listener
     content.querySelector('[data-action="back-main"]')?.addEventListener('click', () => {
-      this.render();
+      if (this.onBack) {
+        this.onBack();
+      } else {
+        this.render();
+      }
     });
 
     content.querySelectorAll('.collection-item').forEach(btn => {
@@ -301,9 +314,10 @@ class WelcomeModal extends HTMLElement {
         <div class="record-list">
           ${records.map((record, idx) => {
       const rkey = record.uri?.split('/').pop() || idx.toString();
-      const title = record.value?.text?.slice(0, 50) ||
-        record.value?.title ||
-        record.value?.name ||
+      const val = record.value as any;
+      const title = val?.text?.slice(0, 50) ||
+        val?.title ||
+        val?.name ||
         rkey;
       return `
               <label class="record-item">
@@ -371,9 +385,10 @@ class WelcomeModal extends HTMLElement {
           ${posts.map((post, idx) => {
       const rkey = post.uri?.split('/').pop() || idx.toString();
       const uri = post.uri || '';
-      const text = post.value?.text?.slice(0, 200) || 'Post';
-      const createdAt = post.value?.createdAt
-        ? new Date(post.value.createdAt).toLocaleDateString()
+      const val = post.value as any;
+      const text = val?.text?.slice(0, 200) || 'Post';
+      const createdAt = val?.createdAt
+        ? new Date(val.createdAt).toLocaleDateString()
         : '';
       return `
               <button class="post-item-selectable" data-uri="${uri}" data-rkey="${rkey}">
@@ -402,7 +417,11 @@ class WelcomeModal extends HTMLElement {
     });
 
     content.querySelector('[data-action="back-main"]')?.addEventListener('click', () => {
-      this.render();
+      if (this.onBack) {
+        this.onBack();
+      } else {
+        this.render();
+      }
     });
   }
 

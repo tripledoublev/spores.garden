@@ -11,12 +11,12 @@ describe('Smoke Signal Layout', () => {
         date: new Date('2024-12-20T10:00:00Z')
       };
 
-      const result = renderSmokeSignal(fields);
-      
+      const result = renderSmokeSignal(fields as any);
+
       expect(result).toBeInstanceOf(HTMLElement);
       expect(result.className).toBe('layout-smoke-signal');
       expect(result.getAttribute('aria-label')).toBe('Event');
-      
+
       const title = result.querySelector('.event-title');
       expect(title).toBeTruthy();
       expect(title?.textContent).toBe('Test Event');
@@ -27,9 +27,9 @@ describe('Smoke Signal Layout', () => {
         content: 'Event description'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const title = result.querySelector('.event-title');
-      
+
       expect(title).toBeTruthy();
       expect(title?.textContent).toBe('Untitled Event');
     });
@@ -44,11 +44,11 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const badge = result.querySelector('.event-type-badge');
       const container = result.querySelector('.smoke-signal-event');
-      
-      expect(badge?.textContent).toBe('Hosting');
+
+      expect(badge?.textContent).toBe('Organizing');
       expect(container?.classList.contains('event-hosting')).toBe(true);
     });
 
@@ -60,11 +60,11 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const badge = result.querySelector('.event-type-badge');
       const container = result.querySelector('.smoke-signal-event');
-      
-      expect(badge?.textContent).toBe('Attending');
+
+      expect(badge?.textContent).toBe('RSVP');
       expect(container?.classList.contains('event-attending')).toBe(true);
     });
 
@@ -76,10 +76,10 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const badge = result.querySelector('.event-type-badge');
-      
-      expect(badge?.textContent).toBe('Hosting');
+
+      expect(badge?.textContent).toBe('Organizing');
     });
 
     it('should detect hosting from role field', () => {
@@ -90,10 +90,10 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const badge = result.querySelector('.event-type-badge');
-      
-      expect(badge?.textContent).toBe('Hosting');
+
+      expect(badge?.textContent).toBe('Organizing');
     });
 
     it('should detect hosting from eventType field', () => {
@@ -104,10 +104,10 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const badge = result.querySelector('.event-type-badge');
-      
-      expect(badge?.textContent).toBe('Hosting');
+
+      expect(badge?.textContent).toBe('Organizing');
     });
 
     it('should detect hosting from $type containing "host"', () => {
@@ -116,21 +116,21 @@ describe('Smoke Signal Layout', () => {
         $type: 'com.example.event.hosting'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const badge = result.querySelector('.event-type-badge');
-      
-      expect(badge?.textContent).toBe('Hosting');
+
+      expect(badge?.textContent).toBe('Organizing');
     });
 
-    it('should default to attending when no hosting indicators', () => {
+    it('should default to organizing when no specific indicators', () => {
       const fields = {
         title: 'My Event'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const badge = result.querySelector('.event-type-badge');
-      
-      expect(badge?.textContent).toBe('Attending');
+
+      expect(badge?.textContent).toBe('Organizing');
     });
   });
 
@@ -142,9 +142,9 @@ describe('Smoke Signal Layout', () => {
         date: date
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const dateEl = result.querySelector('.event-date');
-      
+
       expect(dateEl).toBeTruthy();
       expect(dateEl?.tagName).toBe('TIME');
       expect(dateEl?.getAttribute('datetime')).toBe(date.toISOString());
@@ -158,9 +158,9 @@ describe('Smoke Signal Layout', () => {
         date: dateStr
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const dateEl = result.querySelector('.event-date');
-      
+
       expect(dateEl).toBeTruthy();
       const dateObj = new Date(dateStr);
       expect(dateEl?.getAttribute('datetime')).toBe(dateObj.toISOString());
@@ -172,9 +172,9 @@ describe('Smoke Signal Layout', () => {
         date: 'invalid-date'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const dateEl = result.querySelector('.event-date');
-      
+
       expect(dateEl).toBeTruthy();
       expect(dateEl?.getAttribute('datetime')).toBe('invalid-date');
     });
@@ -182,32 +182,32 @@ describe('Smoke Signal Layout', () => {
     it('should show relative time for recent dates', () => {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      
+
       const fields = {
         title: 'Test Event',
         date: oneHourAgo
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const dateEl = result.querySelector('.event-date');
       const relativeTime = dateEl?.querySelector('.event-date-relative');
-      
+
       expect(relativeTime).toBeTruthy();
       expect(relativeTime?.textContent).toContain('ago');
     });
 
     it('should not show relative time for dates more than a week away', () => {
       const twoWeeksAgo = new Date('2024-01-01T10:00:00Z');
-      
+
       const fields = {
         title: 'Test Event',
         date: twoWeeksAgo
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const dateEl = result.querySelector('.event-date');
       const relativeTime = dateEl?.querySelector('.event-date-relative');
-      
+
       expect(relativeTime).toBeFalsy();
     });
   });
@@ -221,9 +221,9 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const locationEl = result.querySelector('.event-location');
-      
+
       expect(locationEl).toBeTruthy();
       expect(locationEl?.textContent).toContain('San Francisco, CA');
     });
@@ -236,9 +236,9 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const locationEl = result.querySelector('.event-location');
-      
+
       expect(locationEl).toBeTruthy();
       expect(locationEl?.textContent).toContain('Convention Center');
     });
@@ -251,9 +251,9 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const locationEl = result.querySelector('.event-location');
-      
+
       expect(locationEl).toBeTruthy();
       expect(locationEl?.textContent).toContain('Online');
     });
@@ -269,9 +269,9 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const locationEl = result.querySelector('.event-location');
-      
+
       expect(locationEl).toBeTruthy();
       expect(locationEl?.textContent).toContain('Event Venue');
     });
@@ -284,10 +284,10 @@ describe('Smoke Signal Layout', () => {
         image: 'https://example.com/event-image.jpg'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const imgContainer = result.querySelector('.event-image');
       const img = imgContainer?.querySelector('img');
-      
+
       expect(imgContainer).toBeTruthy();
       expect(img).toBeTruthy();
       expect(img?.getAttribute('src')).toBe('https://example.com/event-image.jpg');
@@ -304,9 +304,9 @@ describe('Smoke Signal Layout', () => {
         }
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const img = result.querySelector('.event-image img');
-      
+
       expect(img).toBeTruthy();
       expect(img?.getAttribute('src')).toBe('https://example.com/image.jpg');
     });
@@ -316,9 +316,9 @@ describe('Smoke Signal Layout', () => {
         title: 'Test Event'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const imgContainer = result.querySelector('.event-image');
-      
+
       expect(imgContainer).toBeFalsy();
     });
   });
@@ -330,9 +330,9 @@ describe('Smoke Signal Layout', () => {
         content: 'This is a detailed event description.'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const desc = result.querySelector('.event-description');
-      
+
       expect(desc).toBeTruthy();
       expect(desc?.textContent).toBe('This is a detailed event description.');
       expect(desc?.getAttribute('role')).toBe('article');
@@ -344,9 +344,9 @@ describe('Smoke Signal Layout', () => {
         content: 12345
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const desc = result.querySelector('.event-description');
-      
+
       expect(desc).toBeTruthy();
       expect(desc?.textContent).toBe('12345');
     });
@@ -359,9 +359,9 @@ describe('Smoke Signal Layout', () => {
         url: 'https://example.com/event'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const titleLink = result.querySelector('.event-title a');
-      
+
       expect(titleLink).toBeTruthy();
       expect(titleLink?.getAttribute('href')).toBe('https://example.com/event');
       expect(titleLink?.getAttribute('target')).toBe('_blank');
@@ -374,10 +374,10 @@ describe('Smoke Signal Layout', () => {
         title: 'Test Event'
       };
 
-      const result = renderSmokeSignal(fields);
+      const result = renderSmokeSignal(fields as any);
       const titleLink = result.querySelector('.event-title a');
       const titleText = result.querySelector('.event-title');
-      
+
       expect(titleLink).toBeFalsy();
       expect(titleText?.textContent).toBe('Test Event');
     });
@@ -390,14 +390,14 @@ describe('Smoke Signal Layout', () => {
         date: new Date()
       };
 
-      const result = renderSmokeSignal(fields);
-      
+      const result = renderSmokeSignal(fields as any);
+
       expect(result.getAttribute('aria-label')).toBe('Event');
-      
+
       const badge = result.querySelector('.event-type-badge');
       expect(badge?.getAttribute('role')).toBe('status');
       expect(badge?.getAttribute('aria-label')).toContain('Event type');
-      
+
       const dateEl = result.querySelector('.event-date');
       expect(dateEl?.getAttribute('aria-label')).toBeTruthy();
     });
@@ -418,7 +418,7 @@ describe('Smoke Signal Layout', () => {
 
       const fields = extractFields(record);
       const result = renderSmokeSignal(fields, record);
-      
+
       expect(result).toBeTruthy();
       const title = result.querySelector('.event-title');
       expect(title?.textContent).toBe('Test Event');
@@ -436,7 +436,7 @@ describe('Smoke Signal Layout', () => {
 
       const fields = extractFields(record);
       const result = renderSmokeSignal(fields, record);
-      
+
       expect(result).toBeTruthy();
       const title = result.querySelector('.event-title');
       expect(title).toBeTruthy();

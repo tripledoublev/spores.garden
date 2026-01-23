@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/publish-lexicons.js && vite build",
     "preview": "vite preview",
     "start": "vite",
+    "publish-lexicons": "node scripts/publish-lexicons.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run"

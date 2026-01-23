@@ -15,6 +15,9 @@ import { showConfirmModal } from '../utils/confirm-modal';
 import './create-profile'; // Register profile editor component
 
 class SectionBlock extends HTMLElement {
+  section: any;
+  editMode: boolean;
+  renderToken: number;
   constructor() {
     super();
     this.section = null;
@@ -61,19 +64,26 @@ class SectionBlock extends HTMLElement {
         this.section.records.some(uri => uri.includes('app.bsky.feed.post')));
 
     // Section header (title + edit controls)
-    // Hide title in view mode for Bluesky posts or if hideHeader is set, but always show in edit mode
+    // Hide title if hideHeader is set, even in edit mode (so we can preview it hidden)
+    // editMode will still ensure the header container exists to hold the controls
     const shouldShowTitle = this.section.title &&
-      (this.editMode || (!isBlueskyPostSection && !this.section.hideHeader));
+      (!isBlueskyPostSection && !this.section.hideHeader);
     if (shouldShowTitle || this.editMode) {
       const header = document.createElement('div');
       header.className = 'section-header';
+
+      // Always add a left-side container (even if empty) to keep controls on the right
+      const titleContainer = document.createElement('div');
+      titleContainer.className = 'section-title-wrapper';
 
       if (shouldShowTitle) {
         const title = document.createElement('h2');
         title.className = 'section-title';
         title.textContent = this.section.title;
-        header.appendChild(title);
+        titleContainer.appendChild(title);
       }
+
+      header.appendChild(titleContainer);
 
       if (this.editMode) {
         const controls = this.createEditControls();
@@ -205,8 +215,14 @@ class SectionBlock extends HTMLElement {
         ? 'Show header in preview mode'
         : 'Hide header in preview mode';
       toggleHeaderBtn.addEventListener('click', () => {
-        updateSection(this.section.id, { hideHeader: !this.section.hideHeader });
-        window.dispatchEvent(new CustomEvent('config-updated'));
+        const newValue = !this.section.hideHeader;
+
+        // Update global config
+        updateSection(this.section.id, { hideHeader: newValue });
+
+        // Update local state and re-render this block immediately (avoids global flicker)
+        this.section.hideHeader = newValue;
+        this.render();
       });
       controls.appendChild(toggleHeaderBtn);
     }
@@ -630,7 +646,7 @@ class SectionBlock extends HTMLElement {
 
       // In edit mode, make it editable (only for inline content, not records)
       if (this.editMode && !this.section.rkey) {
-        contentDiv.contentEditable = true;
+        contentDiv.contentEditable = 'true';
         contentDiv.addEventListener('blur', () => {
           updateSection(this.section.id, { content: contentDiv.innerText });
         });

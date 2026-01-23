@@ -103,6 +103,7 @@ export type WelcomeAction = 'load-records' | 'create-content' | 'select-bsky-pos
 
 export interface WelcomeModalElement extends HTMLElement {
   setOnClose: (callback: () => void) => void;
+  setOnBack: (callback: () => void) => void;
   triggerAction: (action: WelcomeAction) => void;
 }
 

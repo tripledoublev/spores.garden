@@ -288,7 +288,7 @@ class SiteApp extends HTMLElement {
 
         // "Plant a flower" button for visitors
         const plantFlowerBtn = document.createElement('button');
-        plantFlowerBtn.className = 'button button-primary';
+        plantFlowerBtn.className = 'button button-primary plant-flower-btn';
         if (hasPlantedFlower) {
           plantFlowerBtn.textContent = 'Already planted';
           plantFlowerBtn.disabled = true;
@@ -747,6 +747,10 @@ class SiteApp extends HTMLElement {
     welcome.setOnClose(() => {
       this.render();
     });
+    welcome.setOnBack(() => {
+      welcome.remove();
+      this.showAddSectionModal();
+    });
     document.body.appendChild(welcome);
 
     // Trigger the action after component is connected
@@ -812,8 +816,25 @@ class SiteApp extends HTMLElement {
         createdAt: new Date().toISOString()
       });
       this.showNotification('You planted a flower! It will appear in the Flower Bed section.', 'success');
-      // Refresh to show the new flower
-      this.render();
+
+      // Update button state directly without re-rendering the whole page (to avoid flicker)
+      const btn = this.querySelector('.plant-flower-btn') as HTMLButtonElement;
+      if (btn) {
+        btn.textContent = 'Already planted';
+        btn.disabled = true;
+        btn.setAttribute('aria-label', 'You have already planted a flower in this garden');
+        btn.title = 'You have already planted a flower in this garden';
+      }
+
+      // Refresh only the flower bed sections
+      const sections = this.querySelectorAll('section-block');
+      sections.forEach(section => {
+        // Access existing section type - need to check if we can access the data
+        if (section.getAttribute('data-type') === 'flower-bed') {
+          // Force re-render of just this section
+          (section as any).render();
+        }
+      });
     } catch (error) {
       console.error('Failed to plant flower:', error);
       this.showNotification(`Failed to plant flower: ${error.message}`, 'error');
@@ -1674,9 +1695,16 @@ class SiteApp extends HTMLElement {
     if (!currentDid) return false;
 
     try {
+      // 1. Check backlinks (cached/faster usually)
       const response = await getBacklinks(ownerDid, 'garden.spores.social.flower:subject', { limit: 100 });
       const plantedFlowers = response.records || response.links || [];
-      return plantedFlowers.some(flower => flower.did === currentDid);
+      const foundInBacklinks = plantedFlowers.some(flower => flower.did === currentDid);
+
+      if (foundInBacklinks) return true;
+
+      // 2. Check PDS directly (authoritative, handles indexer lag)
+      const userFlowers = await listRecords(currentDid, 'garden.spores.social.flower', { limit: 50 });
+      return userFlowers?.records?.some(r => r.value?.subject === ownerDid);
     } catch (error) {
       console.error('Failed to check planted flowers:', error);
       return false;

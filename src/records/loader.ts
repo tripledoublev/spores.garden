@@ -27,9 +27,9 @@ export async function getCollections(did) {
     if (!repo) {
       throw new Error('No repository data returned');
     }
-    
+
     const collections = repo.collections || [];
-    
+
     if (!Array.isArray(collections)) {
       console.warn('Collections is not an array:', collections);
       return [];
@@ -51,7 +51,7 @@ export async function getCollections(did) {
  * By default, only loads a single page of records to avoid loading everything.
  * Set options.loadAll = true to paginate through all records.
  */
-export async function getCollectionRecords(did, collection, options = {}) {
+export async function getCollectionRecords(did: string, collection: string, options: { refresh?: boolean; loadAll?: boolean; limit?: number; maxRecords?: number } = {}) {
   if (!did) {
     throw new Error('DID is required');
   }
@@ -74,7 +74,7 @@ export async function getCollectionRecords(did, collection, options = {}) {
 
     // Default to single page unless explicitly requested to load all
     const shouldPaginate = options.loadAll === true;
-    
+
     do {
       const response = await listRecords(did, collection, {
         limit: options.limit || 100,
@@ -150,7 +150,7 @@ export async function getRecordsByUris(uris) {
 /**
  * Get all records across all collections for a DID
  */
-export async function getAllRecords(did, options = {}) {
+export async function getAllRecords(did: string, options: { includeSystem?: boolean; refresh?: boolean; loadAll?: boolean; limit?: number; maxRecords?: number } = {}) {
   const collections = await getCollections(did);
   const allRecords = [];
 

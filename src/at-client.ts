@@ -65,7 +65,7 @@ async function resolvePdsEndpoint(did: string): Promise<string | null> {
  * @param options - Optional configuration
  * @param options.useSlingshot - If true, use Slingshot directly (useful for backlinks from many DIDs)
  */
-export async function getRecord(did, collection, rkey, options = {}) {
+export async function getRecord(did: string, collection: string, rkey: string, options: { useSlingshot?: boolean } = {}) {
   if (!did) {
     throw new Error('DID is required');
   }
@@ -152,7 +152,7 @@ export async function getRecord(did, collection, rkey, options = {}) {
 /**
  * List records in a collection
  */
-export async function listRecords(did, collection, options = {}, agent = null) {
+export async function listRecords(did: string, collection: string, options: { limit?: number; cursor?: string } = {}, agent: any = null) {
   if (!did) {
     throw new Error('DID is required');
   }
@@ -182,7 +182,7 @@ export async function listRecords(did, collection, options = {}, agent = null) {
       const client = new Client(clientOptions);
 
       // Use get() for queries (listRecords is a query)
-      const response = await client.get('com.atproto.repo.listRecords', {
+      const response = await (client as any).get('com.atproto.repo.listRecords', {
         params: {
           repo: did,
           collection,
@@ -270,7 +270,7 @@ export async function listRecords(did, collection, options = {}, agent = null) {
 /**
  * Describe a repo to get all collections
  */
-export async function describeRepo(did, agent = null) {
+export async function describeRepo(did: string, agent: any = null) {
   if (!did) {
     throw new Error('DID is required');
   }
@@ -295,7 +295,7 @@ export async function describeRepo(did, agent = null) {
       const client = new Client(clientOptions);
 
       // Use get() for queries
-      const response = await client.get('com.atproto.repo.describeRepo', {
+      const response = await (client as any).get('com.atproto.repo.describeRepo', {
         params: { repo: did }
       });
 
@@ -377,7 +377,7 @@ export async function describeRepo(did, agent = null) {
 /**
  * Get backlinks from Constellation (for flower interactions, etc.)
  */
-export async function getBacklinks(subject, source, options = {}) {
+export async function getBacklinks(subject: string, source: string, options: { limit?: number; cursor?: string } = {}) {
   const { limit = 50, cursor } = options;
 
   const url = new URL('/xrpc/blue.microcosm.links.getBacklinks', ENDPOINTS.CONSTELLATION_URL);
