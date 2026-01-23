@@ -13,6 +13,7 @@ import { renderCollectedFlowers } from '../layouts/collected-flowers';
 import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
 import { showConfirmModal } from '../utils/confirm-modal';
 import './create-profile'; // Register profile editor component
+import './create-image'; // Register image editor component
 
 class SectionBlock extends HTMLElement {
   section: any;
@@ -228,10 +229,16 @@ class SectionBlock extends HTMLElement {
     }
 
     // Edit button only for section types that support editing
+    const recordUri = this.section.records?.[0];
+    const isImageRecord =
+      this.section.collection === 'garden.spores.content.image' ||
+      (typeof recordUri === 'string' && recordUri.includes('/garden.spores.content.image/'));
+
     const supportsEditing =
       this.section.type === 'content' ||
       this.section.type === 'block' ||
-      this.section.type === 'profile';
+      this.section.type === 'profile' ||
+      (this.section.type === 'records' && isImageRecord);
     // share-to-bluesky doesn't need editing - it's just a button
 
     if (supportsEditing) {
@@ -243,6 +250,8 @@ class SectionBlock extends HTMLElement {
           this.editBlock();
         } else if (this.section.type === 'profile') {
           this.editProfile();
+        } else if (this.section.type === 'records') {
+          this.editRecords();
         }
       });
       controls.appendChild(editBtn);
@@ -272,6 +281,31 @@ class SectionBlock extends HTMLElement {
           } catch (error) {
             console.error('Failed to delete content record from PDS:', error);
             // Continue with section removal even if PDS delete fails
+          }
+        }
+
+        // If this is an image record section, delete the PDS record too
+        if (this.section.type === 'records') {
+          let collection = this.section.collection as string | undefined;
+          let rkey = this.section.rkey as string | undefined;
+
+          if ((!collection || !rkey) && this.section.records?.[0]) {
+            const uri = this.section.records[0];
+            const parts = uri.split('/');
+            if (parts.length >= 5) {
+              collection = parts[3];
+              rkey = parts[4];
+            }
+          }
+
+          if (collection === 'garden.spores.content.image' && rkey) {
+            try {
+              const { deleteRecord } = await import('../oauth');
+              await deleteRecord(collection, rkey);
+            } catch (error) {
+              console.error('Failed to delete image record from PDS:', error);
+              // Continue with section removal even if PDS delete fails
+            }
           }
         }
         removeSection(this.section.id);
@@ -421,6 +455,69 @@ class SectionBlock extends HTMLElement {
         avatar: '',
         banner: ''
       });
+    }
+
+    modal.setOnClose(() => {
+      this.render();
+      window.dispatchEvent(new CustomEvent('config-updated'));
+    });
+
+    modal.show();
+  }
+
+  async editRecords() {
+    if (!this.section.records || this.section.records.length === 0) {
+      return;
+    }
+
+    let collection = this.section.collection as string | undefined;
+    let rkey = this.section.rkey as string | undefined;
+
+    if ((!collection || !rkey) && this.section.records?.[0]) {
+      const uri = this.section.records[0];
+      const parts = uri.split('/');
+      if (parts.length >= 5) {
+        collection = parts[3];
+        rkey = parts[4];
+      }
+    }
+
+    if (collection !== 'garden.spores.content.image' || !rkey) {
+      return;
+    }
+
+    const ownerDid = getSiteOwnerDid();
+    if (!ownerDid) {
+      return;
+    }
+
+    let modal = document.querySelector('create-image') as any;
+    if (!modal) {
+      modal = document.createElement('create-image');
+      document.body.appendChild(modal);
+    }
+
+    try {
+      const record = await getRecord(ownerDid, collection, rkey);
+      if (record && record.value) {
+        let imageUrl = null;
+        if (record.value.image && (record.value.image.ref || record.value.image.$link)) {
+          imageUrl = await getBlobUrl(ownerDid, record.value.image);
+        }
+
+        modal.editImage({
+          rkey,
+          sectionId: this.section.id,
+          title: record.value.title || this.section.title || '',
+          imageUrl,
+          imageBlob: record.value.image || null,
+          createdAt: record.value.createdAt || null
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load image record for editing:', error);
+      alert('Failed to load image record for editing');
+      return;
     }
 
     modal.setOnClose(() => {

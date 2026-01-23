@@ -3,13 +3,22 @@
  * Supports drag & drop and file selection.
  */
 
-import { createRecord, uploadBlob } from '../oauth';
-import { addSection, getSiteOwnerDid } from '../config';
+import { createRecord, putRecord, uploadBlob } from '../oauth';
+import { addSection, getSiteOwnerDid, updateSection } from '../config';
+import { clearCache } from '../records/loader';
 
 class CreateImage extends HTMLElement {
     private onClose: (() => void) | null = null;
     private imageTitle: string = '';
     private selectedFile: File | null = null;
+    private selectedFileUrl: string | null = null;
+    private editMode: boolean = false;
+    private editRkey: string | null = null;
+    private editSectionId: string | null = null;
+    private existingImageUrl: string | null = null;
+    private existingImageBlob: any | null = null;
+    private existingCreatedAt: string | null = null;
+    private imageCleared: boolean = false;
 
     connectedCallback() {
         this.render();
@@ -24,6 +33,25 @@ class CreateImage extends HTMLElement {
         this.render();
     }
 
+    editImage(imageData: {
+        rkey: string;
+        sectionId?: string;
+        title?: string;
+        imageUrl?: string | null;
+        imageBlob?: any | null;
+        createdAt?: string | null;
+    }) {
+        this.editMode = true;
+        this.editRkey = imageData.rkey;
+        this.editSectionId = imageData.sectionId || null;
+        this.imageTitle = imageData.title || '';
+        this.existingImageUrl = imageData.imageUrl || null;
+        this.existingImageBlob = imageData.imageBlob || null;
+        this.existingCreatedAt = imageData.createdAt || null;
+        this.imageCleared = false;
+        this.show();
+    }
+
     hide() {
         this.style.display = 'none';
     }
@@ -31,9 +59,29 @@ class CreateImage extends HTMLElement {
     private render() {
         this.className = 'modal';
         this.style.display = 'flex';
+        const canSave = this.editMode
+            ? !!(this.selectedFile || (!this.imageCleared && this.existingImageBlob))
+            : !!this.selectedFile;
+
+        const currentPreview = this.selectedFileUrl || this.existingImageUrl;
+
         this.innerHTML = `
       <div class="modal-content create-image-modal">
-        <h2>Add Image</h2>
+        <h2>${this.editMode ? 'Edit Image' : 'Add Image'}</h2>
+
+        ${this.editMode ? `
+        <div class="form-group">
+          <label>Current Image</label>
+          <div class="image-preview">
+            ${currentPreview && !this.imageCleared
+                ? `<img src="${currentPreview}" alt="Current image" />`
+                : '<div class="image-preview-empty">No image selected</div>'}
+          </div>
+          <div class="image-preview-actions">
+            <button class="button button-secondary button-small" id="clear-image-btn" ${!currentPreview || this.imageCleared ? 'disabled' : ''}>Clear Image</button>
+          </div>
+        </div>
+        ` : ''}
         
         <div class="form-group">
           <label for="image-title">Title (optional)</label>
@@ -54,7 +102,7 @@ class CreateImage extends HTMLElement {
         </div>
         
         <div class="modal-actions">
-          <button class="button button-primary" id="create-image-btn" ${!this.selectedFile ? 'disabled' : ''}>Upload & Add</button>
+          <button class="button button-primary" id="create-image-btn" ${!canSave ? 'disabled' : ''}>${this.editMode ? 'Save Changes' : 'Upload & Add'}</button>
           <button class="button button-secondary modal-close">Cancel</button>
         </div>
       </div>
@@ -93,6 +141,29 @@ class CreateImage extends HTMLElement {
         font-weight: bold;
         color: var(--primary-color);
       }
+      .image-preview {
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        background: var(--bg-color-alt);
+        text-align: center;
+      }
+      .image-preview img {
+        max-width: 100%;
+        max-height: 240px;
+        border-radius: var(--radius-sm);
+        display: block;
+        margin: 0 auto;
+      }
+      .image-preview-empty {
+        color: var(--text-muted);
+        font-size: 0.9em;
+      }
+      .image-preview-actions {
+        margin-top: var(--spacing-sm);
+        display: flex;
+        gap: var(--spacing-sm);
+      }
     `;
         this.appendChild(style);
 
@@ -105,6 +176,7 @@ class CreateImage extends HTMLElement {
         const fileInput = this.querySelector('#image-input') as HTMLInputElement;
         const createBtn = this.querySelector('#create-image-btn') as HTMLButtonElement;
         const cancelBtn = this.querySelector('.modal-close') as HTMLButtonElement;
+        const clearBtn = this.querySelector('#clear-image-btn') as HTMLButtonElement | null;
 
         // Handle title input
         titleInput?.addEventListener('input', (e) => {
@@ -148,23 +220,29 @@ class CreateImage extends HTMLElement {
 
         // Handle create button
         createBtn?.addEventListener('click', async () => {
-            if (!this.selectedFile) {
-                alert('Please select an image file.');
-                return;
-            }
-
             createBtn.disabled = true;
-            createBtn.textContent = 'Uploading...';
+            createBtn.textContent = this.editMode ? 'Saving...' : 'Uploading...';
 
             try {
-                await this.createImageRecord();
+                if (this.editMode) {
+                    await this.updateImageRecord();
+                } else {
+                    await this.createImageRecord();
+                }
                 this.close();
             } catch (error) {
                 console.error('Failed to upload image:', error);
-                alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                alert(`Failed to ${this.editMode ? 'update' : 'upload'} image: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 createBtn.disabled = false;
-                createBtn.textContent = 'Upload & Add';
+                createBtn.textContent = this.editMode ? 'Save Changes' : 'Upload & Add';
             }
+        });
+
+        clearBtn?.addEventListener('click', () => {
+            this.imageCleared = true;
+            this.existingImageUrl = null;
+            this.existingImageBlob = null;
+            this.render();
         });
 
         // Handle cancel button
@@ -179,7 +257,12 @@ class CreateImage extends HTMLElement {
     }
 
     private handleFileSelection(file: File) {
+        if (this.selectedFileUrl) {
+            URL.revokeObjectURL(this.selectedFileUrl);
+        }
         this.selectedFile = file;
+        this.selectedFileUrl = URL.createObjectURL(file);
+        this.imageCleared = false;
         // Re-render to show selected file
         this.render();
     }
@@ -223,12 +306,59 @@ class CreateImage extends HTMLElement {
             type: 'records',
             layout: 'image',
             title: this.imageTitle || 'Image',
-            records: [response.uri]
+            records: [response.uri],
+            collection: 'garden.spores.content.image',
+            rkey
         };
 
         addSection(section);
 
         // Trigger re-render
+        window.dispatchEvent(new CustomEvent('config-updated'));
+    }
+
+    private async updateImageRecord() {
+        const ownerDid = getSiteOwnerDid();
+        if (!ownerDid) {
+            throw new Error('Not logged in');
+        }
+
+        if (!this.editRkey) {
+            throw new Error('Missing image record key');
+        }
+
+        let blobRef = null;
+        if (this.selectedFile) {
+            const uploadResult = await uploadBlob(this.selectedFile, this.selectedFile.type);
+            blobRef = uploadResult.data?.blob;
+        } else if (!this.imageCleared && this.existingImageBlob) {
+            blobRef = this.existingImageBlob;
+        }
+
+        if (!blobRef) {
+            throw new Error('Please select an image file.');
+        }
+
+        const record: any = {
+            $type: 'garden.spores.content.image',
+            image: blobRef,
+            createdAt: this.existingCreatedAt || new Date().toISOString()
+        };
+
+        if (this.imageTitle) {
+            record.title = this.imageTitle;
+        }
+
+        await putRecord('garden.spores.content.image', this.editRkey, record);
+
+        clearCache(ownerDid);
+
+        if (this.editSectionId) {
+            updateSection(this.editSectionId, {
+                title: this.imageTitle || ''
+            });
+        }
+
         window.dispatchEvent(new CustomEvent('config-updated'));
     }
 
@@ -238,8 +368,19 @@ class CreateImage extends HTMLElement {
             this.onClose();
         }
         // Reset state
+        if (this.selectedFileUrl) {
+            URL.revokeObjectURL(this.selectedFileUrl);
+        }
+        this.selectedFileUrl = null;
         this.imageTitle = '';
         this.selectedFile = null;
+        this.editMode = false;
+        this.editRkey = null;
+        this.editSectionId = null;
+        this.existingImageUrl = null;
+        this.existingImageBlob = null;
+        this.existingCreatedAt = null;
+        this.imageCleared = false;
     }
 }
 
