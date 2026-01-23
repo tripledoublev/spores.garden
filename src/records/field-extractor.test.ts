@@ -89,6 +89,33 @@ describe('Field Extractor', () => {
       expect(fields.content).toBeTruthy(); // Should contain the document value
     });
 
+    it('should extract fields from site standard leaflet document', () => {
+      const record = {
+        uri: 'at://did:plc:test/site.standard.document/rkey123',
+        value: {
+          $type: 'site.standard.document',
+          title: 'Standard Article',
+          publishedAt: '2026-01-22T10:00:00Z',
+          tags: ['notes'],
+          content: {
+            $type: 'pub.leaflet.content',
+            pages: []
+          },
+          postRef: {
+            uri: 'at://did:plc:test/app.bsky.feed.post/rkey123'
+          }
+        }
+      };
+
+      const fields = extractFields(record);
+
+      expect(fields.title).toBe('Standard Article');
+      expect(fields.date).toBeInstanceOf(Date);
+      expect(fields.tags).toEqual(['notes']);
+      expect(fields.url).toContain('leaflet.pub');
+      expect(fields.content).toBeTruthy();
+    });
+
     it('should extract fields from spores.garden content', () => {
       const record = {
         value: {

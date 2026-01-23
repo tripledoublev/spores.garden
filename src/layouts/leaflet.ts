@@ -304,8 +304,10 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
     const authorDid = record?.value?.author || record?.uri?.split('/')[2] || '';
     
     // Get the raw document structure for blocks
-    const documentValue = record?.value || fields.content;
-    const pages = documentValue?.pages || [];
+    const documentValue = record?.value?.pages
+      ? record.value
+      : record?.value?.content || fields.content;
+    const pages = documentValue?.pages || documentValue?.content?.pages || [];
 
     // Container for the article
     const container = document.createElement('div');

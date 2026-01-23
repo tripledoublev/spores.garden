@@ -252,6 +252,33 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     },
     confidence: 'high',
     preferredLayout: 'leaflet'
+  },
+
+  // Leaflet.pub Document (site standard)
+  'site.standard.document': {
+    title: 'title',
+    date: 'publishedAt',
+    tags: 'tags',
+    image: (record) => {
+      const coverImage = record.value?.coverImage;
+      if (coverImage?.$type === 'blob' && coverImage.ref?.$link) {
+        return coverImage;
+      }
+      return undefined;
+    },
+    content: (record) => record.value?.content || record.value,
+    url: (record) => {
+      const postRef = record.value?.postRef;
+      if (postRef?.uri) {
+        const match = postRef.uri.match(/at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+        if (match) {
+          return `https://leaflet.pub/@${match[1]}/${match[2]}`;
+        }
+      }
+      return undefined;
+    },
+    confidence: 'high',
+    preferredLayout: 'leaflet'
   }
 };
 
@@ -272,6 +299,7 @@ const KNOWN_LEXICONS = new Set([
   'garden.spores.social.flower',
   'garden.spores.social.takenFlower',
   'pub.leaflet.document',
+  'site.standard.document',
   'community.lexicon.calendar.event',
   'community.lexicon.calendar.rsvp'
 ]);
