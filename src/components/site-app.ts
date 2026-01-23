@@ -4,7 +4,7 @@
  */
 
 import { initConfig, getConfig, getSiteOwnerDid, isOwner, saveConfig, setSiteOwnerDid, loadUserConfig, hasUserConfig, updateTheme, hasGardenIdentifierInUrl } from '../config';
-import { initOAuth, isLoggedIn, getCurrentDid, login, logout, createRecord, uploadBlob, post, getAgent, deleteRecord } from '../oauth';
+import { initOAuth, isLoggedIn, getCurrentDid, login, logout, createRecord, uploadBlob, post, getAgent, deleteRecord, putRecord } from '../oauth';
 import { getBacklinks, listRecords, describeRepo, getRecord, getProfile } from '../at-client';
 import { applyTheme, generateThemeFromDid } from '../themes/engine';
 import { escapeHtml } from '../utils/sanitize';
@@ -784,6 +784,12 @@ class SiteApp extends HTMLElement {
       return;
     }
 
+    // If it's profile, check for existing or clone from Bluesky
+    if (type === 'profile') {
+      this.addProfileSection();
+      return;
+    }
+
     const config = getConfig();
     const id = `section-${Date.now()}`;
 
@@ -793,6 +799,132 @@ class SiteApp extends HTMLElement {
       layout: type === 'profile' ? 'profile' : type === 'flower-bed' ? 'flower-bed' : type === 'collected-flowers' ? 'collected-flowers' : type === 'special-spore-display' ? 'special-spore-display' : 'card',
       title: type === 'flower-bed' ? 'Flower Bed' : type === 'collected-flowers' ? 'Collected Flowers' : type === 'special-spore-display' ? 'Special Spore' : ''
     };
+
+    config.sections = [...(config.sections || []), section];
+    this.render();
+  }
+
+  async addProfileSection() {
+    const ownerDid = getSiteOwnerDid();
+    if (!ownerDid) {
+      this.showNotification('You must be logged in to add a profile.', 'error');
+      return;
+    }
+
+    this.showNotification('Checking for existing profile...', 'success');
+
+    try {
+      // 1. Check if profile record already exists
+      try {
+        const existing = await getRecord(ownerDid, 'garden.spores.site.profile', 'self');
+        if (existing && existing.value) {
+          this.showNotification('Found existing profile.', 'success');
+          this.addSectionToConfig({
+            type: 'profile',
+            collection: 'garden.spores.site.profile',
+            rkey: 'self'
+          });
+          return;
+        }
+      } catch (e) {
+        // Ignore error, proceed to creation
+      }
+
+      // 2. Clone from Bluesky
+      this.showNotification('Importing profile from Bluesky...', 'success');
+      const bskyProfile = await getProfile(ownerDid);
+
+      if (!bskyProfile) {
+        throw new Error('Could not fetch Bluesky profile');
+      }
+
+      const record: any = {
+        $type: 'garden.spores.site.profile',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        displayName: bskyProfile.displayName,
+        description: bskyProfile.description
+      };
+
+      // Handle Avatar (clone blob)
+      if (bskyProfile.avatar) {
+        try {
+          const response = await fetch(bskyProfile.avatar);
+          if (response.ok) {
+            const blob = await response.blob();
+            const upload = await uploadBlob(blob, blob.type);
+            if (upload && upload.data && upload.data.blob) {
+              record.avatar = upload.data.blob;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to clone avatar:', e);
+        }
+      }
+
+      // Handle Banner (clone blob)
+      if (bskyProfile.banner) {
+        try {
+          const response = await fetch(bskyProfile.banner);
+          if (response.ok) {
+            const blob = await response.blob();
+            const upload = await uploadBlob(blob, blob.type);
+            if (upload && upload.data && upload.data.blob) {
+              record.banner = upload.data.blob;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to clone banner:', e);
+        }
+      }
+
+      // 3. Create the record
+      await putRecord('garden.spores.site.profile', 'self', record);
+
+      this.showNotification('Profile imported successfully!', 'success');
+
+      // 4. Add the section
+      this.addSectionToConfig({
+        type: 'profile',
+        collection: 'garden.spores.site.profile',
+        rkey: 'self'
+      });
+
+    } catch (error) {
+      console.error('Failed to add profile section:', error);
+      this.showNotification('Failed to import profile. Using default view.', 'error');
+
+      // Fallback: Add section without specific record binding
+      this.addSectionToConfig({
+        type: 'profile'
+      });
+    }
+  }
+
+  addSectionToConfig(params: { type: string, collection?: string, rkey?: string, title?: string }) {
+    const config = getConfig();
+    const id = `section-${Date.now()}`;
+
+    const section: any = {
+      id,
+      type: params.type,
+      layout: params.type === 'profile' ? 'profile' : 'card',
+    };
+
+    if (params.type === 'flower-bed') {
+      section.layout = 'flower-bed';
+      section.title = 'Flower Bed';
+    } else if (params.type === 'collected-flowers') {
+      section.layout = 'collected-flowers';
+      section.title = 'Collected Flowers';
+    } else if (params.type === 'special-spore-display') {
+      section.layout = 'special-spore-display';
+      section.title = 'Special Spore';
+    }
+
+    if (params.collection) section.collection = params.collection;
+    if (params.rkey) section.rkey = params.rkey;
+    if (params.title) section.title = params.title;
 
     config.sections = [...(config.sections || []), section];
     this.render();
