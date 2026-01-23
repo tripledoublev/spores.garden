@@ -1402,7 +1402,7 @@ class SiteApp extends HTMLElement {
         <div class="share-preview">
           <img src="${dataUrl}" alt="Social card preview">
           <p class="share-preview-hint">
-            This card will be shared to your Bluesky feed along with a link to your garden.
+            This card will be posted to your Bluesky feed along with a link to your garden.
           </p>
         </div>
       `;

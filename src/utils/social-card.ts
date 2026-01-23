@@ -1,6 +1,5 @@
-import { getConfig } from '../config';
+import { getConfig, getSiteOwnerDid } from '../config';
 import { generateThemeFromDid } from '../themes/engine';
-import { getCurrentDid } from '../oauth';
 import { generateFlowerSVGString } from './flower-svg';
 
 const SOCIAL_CARD_WIDTH = 1200;
@@ -9,10 +8,12 @@ const SOCIAL_CARD_HEIGHT = 630;
 /**
  * Renders the social card to a canvas and returns it.
  * Uses the same SVG flower generation as did-visualization.ts for consistency.
+ * Uses the site owner's DID (the garden being viewed) for theme and flower generation.
  */
 async function renderSocialCardToCanvas(): Promise<HTMLCanvasElement> {
   const config = getConfig();
-  const currentDid = getCurrentDid() || 'did:example:default';
+  // Use the site owner's DID (garden being viewed), not the logged-in user's DID
+  const siteOwnerDid = getSiteOwnerDid() || 'did:example:default';
 
   const canvas = document.createElement('canvas');
   canvas.width = SOCIAL_CARD_WIDTH;
@@ -23,8 +24,8 @@ async function renderSocialCardToCanvas(): Promise<HTMLCanvasElement> {
     throw new Error('Could not get canvas context');
   }
 
-  // Use the theme to get colors
-  const { theme } = generateThemeFromDid(currentDid);
+  // Use the theme to get colors based on the garden owner's DID
+  const { theme } = generateThemeFromDid(siteOwnerDid);
   const { colors } = theme;
 
   // Layout: Split into left (text) and right (flower) sections, 50% each
@@ -36,7 +37,7 @@ async function renderSocialCardToCanvas(): Promise<HTMLCanvasElement> {
 
   // === RIGHT SECTION: Flower (centered in right half) ===
   const flowerSize = 400;
-  const flowerSVG = generateFlowerSVGString(currentDid, flowerSize);
+  const flowerSVG = generateFlowerSVGString(siteOwnerDid, flowerSize);
   const flowerImage = await svgToImage(flowerSVG, flowerSize, flowerSize);
   
   // Center flower in the right half
@@ -149,7 +150,7 @@ export async function previewSocialCard(): Promise<void> {
         <body>
           <h1>Social Card Preview</h1>
           <img src="${dataUrl}" alt="Social card preview" />
-          <p>This is how your garden will appear when shared to Bluesky.</p>
+          <p>This is how your garden will appear when posted to Bluesky.</p>
         </body>
       </html>
     `);

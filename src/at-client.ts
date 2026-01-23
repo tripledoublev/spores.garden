@@ -78,6 +78,13 @@ export async function getRecord(did: string, collection: string, rkey: string, o
 
   const { useSlingshot = false } = options;
 
+  // Cache-busting headers to prevent stale data
+  const fetchOptions: RequestInit = {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  };
+
   // If explicitly requested, use Slingshot (useful for backlinks from many DIDs)
   if (useSlingshot) {
     const url = new URL('/xrpc/com.atproto.repo.getRecord', ENDPOINTS.SLINGSHOT_URL);
@@ -85,7 +92,7 @@ export async function getRecord(did: string, collection: string, rkey: string, o
     url.searchParams.set('collection', collection);
     url.searchParams.set('rkey', rkey);
 
-    const response = await fetch(url);
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
       if (response.status === 404 || response.status === 400) return null;
@@ -105,7 +112,7 @@ export async function getRecord(did: string, collection: string, rkey: string, o
     url.searchParams.set('collection', collection);
     url.searchParams.set('rkey', rkey);
 
-    const response = await fetch(url);
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
       if (response.status === 404 || response.status === 400) return null;
@@ -122,7 +129,7 @@ export async function getRecord(did: string, collection: string, rkey: string, o
   url.searchParams.set('rkey', rkey);
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
       if (response.status === 404 || response.status === 400) return null;
@@ -138,7 +145,7 @@ export async function getRecord(did: string, collection: string, rkey: string, o
     fallbackUrl.searchParams.set('collection', collection);
     fallbackUrl.searchParams.set('rkey', rkey);
 
-    const response = await fetch(fallbackUrl);
+    const response = await fetch(fallbackUrl, fetchOptions);
     if (!response.ok) {
       // Treat 404 (not found) and 400 (bad request / unknown collection) as record not existing
       if (response.status === 404 || response.status === 400) return null;
@@ -216,6 +223,13 @@ export async function listRecords(did: string, collection: string, options: { li
     console.warn(`Could not resolve PDS for ${did}, falling back to Slingshot`);
   }
 
+  // Cache-busting headers to prevent stale data
+  const fetchOptions: RequestInit = {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  };
+
   const url = new URL('/xrpc/com.atproto.repo.listRecords', serviceUrl);
   url.searchParams.set('repo', did);
   url.searchParams.set('collection', collection);
@@ -223,7 +237,7 @@ export async function listRecords(did: string, collection: string, options: { li
   if (cursor) url.searchParams.set('cursor', cursor);
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, fetchOptions);
 
     if (!response.ok) {
       // If PDS fails and we haven't tried Slingshot yet, try it
@@ -235,7 +249,7 @@ export async function listRecords(did: string, collection: string, options: { li
         fallbackUrl.searchParams.set('limit', limit.toString());
         if (cursor) fallbackUrl.searchParams.set('cursor', cursor);
 
-        const fallbackResponse = await fetch(fallbackUrl);
+        const fallbackResponse = await fetch(fallbackUrl, fetchOptions);
         if (!fallbackResponse.ok) {
           const errorText = await fallbackResponse.text().catch(() => 'Unknown error');
           throw new Error(`Failed to list records: ${fallbackResponse.status} ${fallbackResponse.statusText}. ${errorText}`);
@@ -329,11 +343,18 @@ export async function describeRepo(did: string, agent: any = null) {
     console.warn(`Could not resolve PDS for ${did}, falling back to Slingshot`);
   }
 
+  // Cache-busting headers to prevent stale data
+  const fetchOptions: RequestInit = {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  };
+
   const url = new URL('/xrpc/com.atproto.repo.describeRepo', serviceUrl);
   url.searchParams.set('repo', did);
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, fetchOptions);
 
     if (!response.ok) {
       // If PDS fails and we haven't tried Slingshot yet, try it
@@ -342,7 +363,7 @@ export async function describeRepo(did: string, agent: any = null) {
         const fallbackUrl = new URL('/xrpc/com.atproto.repo.describeRepo', ENDPOINTS.SLINGSHOT_URL);
         fallbackUrl.searchParams.set('repo', did);
 
-        const fallbackResponse = await fetch(fallbackUrl);
+        const fallbackResponse = await fetch(fallbackUrl, fetchOptions);
         if (!fallbackResponse.ok) {
           const errorText = await fallbackResponse.text().catch(() => 'Unknown error');
           throw new Error(`Failed to describe repo: ${fallbackResponse.status} ${fallbackResponse.statusText}. ${errorText}`);
@@ -380,6 +401,13 @@ export async function describeRepo(did: string, agent: any = null) {
 export async function getBacklinks(subject: string, source: string, options: { limit?: number; cursor?: string } = {}) {
   const { limit = 50, cursor } = options;
 
+  // Cache-busting headers to prevent stale data
+  const fetchOptions: RequestInit = {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  };
+
   const url = new URL('/xrpc/blue.microcosm.links.getBacklinks', ENDPOINTS.CONSTELLATION_URL);
   url.searchParams.set('subject', subject);
   url.searchParams.set('source', source);
@@ -387,7 +415,7 @@ export async function getBacklinks(subject: string, source: string, options: { l
   if (cursor) url.searchParams.set('cursor', cursor);
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
       throw new Error(
@@ -410,10 +438,17 @@ export async function getBacklinks(subject: string, source: string, options: { l
  * Resolve a handle to DID
  */
 export async function resolveHandle(handle) {
+  // Cache-busting headers to prevent stale data
+  const fetchOptions: RequestInit = {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  };
+
   const url = new URL('/xrpc/com.atproto.identity.resolveHandle', 'https://public.api.bsky.app');
   url.searchParams.set('handle', handle);
 
-  const response = await fetch(url);
+  const response = await fetch(url, fetchOptions);
   if (!response.ok) {
     throw new Error(`Failed to resolve handle: ${response.status}`);
   }
@@ -426,10 +461,17 @@ export async function resolveHandle(handle) {
  * Get profile from Bluesky API
  */
 export async function getProfile(did) {
+  // Cache-busting headers to prevent stale data
+  const fetchOptions: RequestInit = {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  };
+
   const url = new URL('/xrpc/app.bsky.actor.getProfile', 'https://public.api.bsky.app');
   url.searchParams.set('actor', did);
 
-  const response = await fetch(url);
+  const response = await fetch(url, fetchOptions);
   if (!response.ok) {
     if (response.status === 404) return null;
     throw new Error(`Failed to get profile: ${response.status}`);

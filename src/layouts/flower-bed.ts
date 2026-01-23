@@ -111,33 +111,6 @@ export async function renderFlowerBed(section) {
       viz.setAttribute('did', flower.did);
       container.appendChild(viz);
 
-      const caption = document.createElement('p');
-      caption.style.fontSize = '0.875rem';
-      caption.style.color = 'var(--color-text-muted, #6b7280)';
-      caption.style.marginTop = '0.5rem';
-      caption.style.textAlign = 'center';
-      if (flower.did === ownerDid) {
-        caption.textContent = 'Garden owner';
-      } else {
-        caption.textContent = `A flower from ${flower.did.substring(0, 20)}...'s garden`;
-      }
-
-      // Try to get handle for better display
-      try {
-        const profile = await getProfile(flower.did);
-        if (profile?.handle) {
-          if (flower.did === ownerDid) {
-            caption.textContent = `Garden owner (@${profile.handle})`;
-          } else {
-            caption.textContent = `A flower from @${profile.handle}'s garden`;
-          }
-        }
-      } catch (error) {
-        // Keep DID fallback if profile fetch fails
-      }
-
-      container.appendChild(caption);
-
       // Add click handler to show all gardens where this flower was planted
       container.addEventListener('click', async (e) => {
         e.preventDefault();

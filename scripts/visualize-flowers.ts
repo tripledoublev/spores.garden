@@ -1,9 +1,11 @@
 /**
  * Flower Grid Visualization Script
  *
- * Generates a 16x16 grid of 256 unique flowers and saves as a 2000x2000 PNG.
+ * Generates flower visualizations as PNG images.
  *
- * Usage: npx tsx scripts/visualize-flowers.ts
+ * Usage: 
+ *   npx tsx scripts/visualize-flowers.ts <count>           # Generate <count> grids of 256 flowers
+ *   npx tsx scripts/visualize-flowers.ts <did>             # Generate single flower from specific DID
  */
 
 import sharp from 'sharp';
@@ -88,9 +90,36 @@ async function generateGrid(gridIndex: number): Promise<string> {
   return outputPath;
 }
 
+async function generateSingleFlower(did: string): Promise<string> {
+  const flowerSize = 500;
+  const flowerSVG = generateFlowerSVGString(did, flowerSize);
+
+  // Create output filename from DID (sanitize for filesystem)
+  const sanitizedDid = did.replace(/:/g, '-');
+  const outputPath = `flower-${sanitizedDid}.png`;
+
+  await sharp(Buffer.from(flowerSVG))
+    .resize(flowerSize, flowerSize)
+    .png()
+    .toFile(outputPath);
+
+  return outputPath;
+}
+
 async function main() {
-  // Parse count from command line args (default: 1)
-  const count = parseInt(process.argv[2] || '1', 10);
+  const firstArg = process.argv[2];
+
+  // Check if first argument is a DID
+  if (firstArg && firstArg.startsWith('did:')) {
+    console.log(`Generating single flower for DID: ${firstArg}...`);
+    const outputPath = await generateSingleFlower(firstArg);
+    console.log(`Saved to ${outputPath}`);
+    console.log('\nDone!');
+    return;
+  }
+
+  // Otherwise, generate grids
+  const count = parseInt(firstArg || '1', 10);
 
   console.log(`Generating ${count} grid(s), each with ${TOTAL_FLOWERS} flowers (${GRID_SIZE}x${GRID_SIZE})...`);
 
