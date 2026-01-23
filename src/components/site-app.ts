@@ -342,6 +342,55 @@ class SiteApp extends HTMLElement {
       controls.appendChild(loginBtn);
     }
 
+    // Mobile menu toggle button (hamburger)
+    const menuToggle = document.createElement('button');
+    menuToggle.className = 'mobile-menu-toggle';
+    menuToggle.setAttribute('aria-label', 'Toggle menu');
+    menuToggle.setAttribute('aria-expanded', 'false');
+    menuToggle.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    `;
+
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = controls.classList.toggle('open');
+      menuToggle.setAttribute('aria-expanded', isOpen.toString());
+      // Toggle between hamburger and X icon
+      menuToggle.innerHTML = isOpen ? `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="6" y1="6" x2="18" y2="18"/>
+          <line x1="6" y1="18" x2="18" y2="6"/>
+        </svg>
+      ` : `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      `;
+    });
+
+    // Close menu when clicking outside
+    const closeMenuOnClickOutside = (e: Event) => {
+      if (!header.contains(e.target as Node) && controls.classList.contains('open')) {
+        controls.classList.remove('open');
+        menuToggle.setAttribute('aria-expanded', 'false');
+        menuToggle.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        `;
+      }
+    };
+    document.addEventListener('click', closeMenuOnClickOutside);
+
+    header.appendChild(menuToggle);
     header.appendChild(controls);
     this.appendChild(header);
 
