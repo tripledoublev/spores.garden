@@ -9,6 +9,7 @@ import { getBacklinks, listRecords, describeRepo, getRecord, getProfile } from '
 import { applyTheme, generateThemeFromDid } from '../themes/engine';
 import { escapeHtml } from '../utils/sanitize';
 import { generateSocialCardImage } from '../utils/social-card';
+import { generateFlowerSVGString } from '../utils/flower-svg';
 import { showConfirmModal } from '../utils/confirm-modal';
 import type { WelcomeModalElement, WelcomeAction } from '../types';
 import './section-block';
@@ -167,6 +168,14 @@ class SiteApp extends HTMLElement {
     const ownerDid = getSiteOwnerDid();
     const isOwnerLoggedIn = isOwner();
     const isHomePage = !this.isViewingProfile();
+
+    // Update favicon based on the garden owner's DID (only when viewing a garden)
+    // This ensures the favicon shows the garden owner's flower, not any other flower that might render later
+    if (!isHomePage && ownerDid) {
+      this.updateFavicon(ownerDid);
+    } else if (isHomePage) {
+      this.updateFavicon(null);
+    }
 
     // On home page, always show default title/subtitle regardless of login state
     const displayTitle = isHomePage ? 'spores.garden' : (config.title || 'spores.garden');
@@ -2086,6 +2095,72 @@ class SiteApp extends HTMLElement {
     } catch (error) {
       console.warn('Failed to save onboarding status to localStorage:', error);
     }
+  }
+
+  /**
+   * Update the browser favicon based on the garden owner's DID.
+   * This should only be called once when the garden loads, not for every flower.
+   */
+  private updateFavicon(did: string | null): void {
+    let svgString: string;
+
+    if (!did) {
+      // On home page with no garden, use dandelion icon
+      svgString = this.getDandelionFaviconSvg();
+    } else {
+      svgString = generateFlowerSVGString(did, 32);
+    }
+
+    const dataUri = `data:image/svg+xml;base64,${btoa(svgString)}`;
+
+    let link = document.querySelector<HTMLLinkElement>("link[rel*='icon']");
+    if (link) {
+      link.href = dataUri;
+    } else {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      link.href = dataUri;
+      document.head.appendChild(link);
+    }
+  }
+
+  /**
+   * Generate dandelion SVG for favicon (with explicit colors instead of currentColor)
+   */
+  private getDandelionFaviconSvg(): string {
+    const color = '#4a7c59'; // Garden green color
+    return `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 38 Q19 30 20 22" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <circle cx="20" cy="12" r="3" fill="${color}"/>
+      <g stroke="${color}" stroke-width="0.8" stroke-linecap="round">
+        <line x1="20" y1="12" x2="20" y2="2"/>
+        <circle cx="20" cy="1.5" r="1" fill="${color}"/>
+        <line x1="20" y1="12" x2="27" y2="4"/>
+        <circle cx="27.5" cy="3.5" r="1" fill="${color}"/>
+        <line x1="20" y1="12" x2="30" y2="10"/>
+        <circle cx="30.5" cy="10" r="1" fill="${color}"/>
+        <line x1="20" y1="12" x2="28" y2="18"/>
+        <circle cx="28.5" cy="18.5" r="1" fill="${color}"/>
+        <line x1="20" y1="12" x2="13" y2="4"/>
+        <circle cx="12.5" cy="3.5" r="1" fill="${color}"/>
+        <line x1="20" y1="12" x2="10" y2="10"/>
+        <circle cx="9.5" cy="10" r="1" fill="${color}"/>
+        <line x1="20" y1="12" x2="12" y2="18"/>
+        <circle cx="11.5" cy="18.5" r="1" fill="${color}"/>
+        <line x1="20" y1="12" x2="24" y2="3"/>
+        <circle cx="24.5" cy="2.5" r="0.8" fill="${color}"/>
+        <line x1="20" y1="12" x2="16" y2="3"/>
+        <circle cx="15.5" cy="2.5" r="0.8" fill="${color}"/>
+        <line x1="20" y1="12" x2="29" y2="14"/>
+        <circle cx="29.5" cy="14" r="0.8" fill="${color}"/>
+        <line x1="20" y1="12" x2="11" y2="14"/>
+        <circle cx="10.5" cy="14" r="0.8" fill="${color}"/>
+      </g>
+      <g transform="translate(32, 6)" opacity="0.6">
+        <line x1="0" y1="3" x2="0" y2="0" stroke="${color}" stroke-width="0.5"/>
+        <circle cx="0" cy="0" r="0.8" fill="${color}"/>
+      </g>
+    </svg>`;
   }
 
   /**

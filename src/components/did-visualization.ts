@@ -603,22 +603,6 @@ class DidVisualization extends HTMLElement {
     if (showInfo) {
       this.attachTooltipListeners();
     }
-
-    this.updateFavicon(svgString);
-  }
-
-  private updateFavicon(svgString: string) {
-    const dataUri = `data:image/svg+xml;base64,${btoa(svgString)}`;
-
-    let link = document.querySelector<HTMLLinkElement>("link[rel*='icon']");
-    if (link) {
-      link.href = dataUri;
-    } else {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      link.href = dataUri;
-      document.head.appendChild(link);
-    }
   }
 
   private stringToHash(str: string): number {
