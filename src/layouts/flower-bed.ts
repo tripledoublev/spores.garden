@@ -452,7 +452,7 @@ async function showSporeDetailsModal(originGardenDid: string) {
       </p>
       
       <!-- Lineage Trail -->
-      <div style="margin-bottom: 1.5rem;">
+      <div style="margin-bottom: 1.5rem; padding: var(--spacing-md);">
         <h3 style="font-size: 0.9rem; font-weight: 600; margin: 0 0 1rem 0; color: var(--color-text-muted);">
           Journey (${lineage.length} garden${lineage.length !== 1 ? 's' : ''})
         </h3>
@@ -461,11 +461,11 @@ async function showSporeDetailsModal(originGardenDid: string) {
         </div>
       </div>
       
-      <div style="display: flex; gap: 0.5rem;">
-        <a href="${getLink(originGardenDid)}" class="button button-secondary" style="flex: 1; text-align: center; text-decoration: none;">
+      <div style="display: flex; gap: 0.5rem; padding: var(--spacing-md);">
+        <a href="${getLink(originGardenDid)}" class="button button-secondary" style="flex: 1; display: flex; justify-content: center; align-items: center; text-decoration: none;">
           Visit Origin
         </a>
-        <a href="${getLink(currentHolderDid)}" class="button button-primary" style="flex: 1; text-align: center; text-decoration: none;">
+        <a href="${getLink(currentHolderDid)}" class="button button-primary" style="flex: 1; display: flex; justify-content: center; align-items: center; text-align: center; text-decoration: none;">
           Visit Current Holder
         </a>
       </div>
