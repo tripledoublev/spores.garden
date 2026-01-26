@@ -218,10 +218,14 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     content: 'description',
     date: 'startsAt',
     url: (record) => {
-      // Try to extract URL from uris array
-      const uris = record.value?.uris;
-      if (Array.isArray(uris) && uris.length > 0) {
-        return uris[0]?.uri;
+      // Always link to smokesignal.events page for the event
+      if (record.uri) {
+        const parts = record.uri.split('/');
+        const did = parts[2];  // did:plc:xxxx
+        const rkey = parts[4]; // event id
+        if (did && rkey) {
+          return `https://smokesignal.events/${did}/${rkey}`;
+        }
       }
       return undefined;
     },
@@ -242,6 +246,19 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
       const subject = record.value?.subject;
       if (subject?.uri) {
         return `Event: ${subject.uri}`;
+      }
+      return undefined;
+    },
+    url: (record) => {
+      // Link to smokesignal.events page from subject reference
+      const subjectUri = record.value?.subject?.uri;
+      if (subjectUri) {
+        const parts = subjectUri.split('/');
+        const did = parts[2];  // did:plc:xxxx
+        const rkey = parts[4]; // event id
+        if (did && rkey) {
+          return `https://smokesignal.events/${did}/${rkey}`;
+        }
       }
       return undefined;
     },
