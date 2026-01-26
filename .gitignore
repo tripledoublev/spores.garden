@@ -23,3 +23,9 @@ npm-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Generated lexicons (built by scripts/publish-lexicons.js)
+public/lexicons/
+public/.well-known/atproto-lexicon/
+public/.well-known/atproto-lexicons
+public/.well-known/atproto-lexicons.json
