@@ -1,0 +1,30 @@
+{
+  "lexicon": 1,
+  "id": "garden.spores.social.takenFlower",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A flower taken from another user's garden, representing a bookmark or collection.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["sourceDid", "createdAt"],
+        "properties": {
+          "sourceDid": {
+            "type": "string",
+            "format": "did"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional note or reason for taking this seed",
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  }
+}

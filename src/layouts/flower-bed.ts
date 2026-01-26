@@ -1,27 +1,85 @@
 import { getBacklinks, getProfile, listRecords, getRecord } from '../at-client';
-import { getSiteOwnerDid } from '../config';
-import { generateThemeFromDid, getThemePreset } from '../themes/engine';
+import { getSiteOwnerDid, isValidSpore } from '../config';
+import { generateThemeFromDid } from '../themes/engine';
 import { isLoggedIn, getCurrentDid } from '../oauth';
+import { generateSporeFlowerSVGString, generateFlowerSVGString } from '../utils/flower-svg';
 
-const STYLE_COLLECTION = 'garden.spores.site.style';
-const CONFIG_RKEY = 'self';
+const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
+
+interface SporeRecord {
+  ownerDid: string;
+  capturedAt: string;
+  subject: string;
+  uri: string;
+  rkey: string;
+}
 
 /**
- * Load owner's style record to get their unique theme
+ * Get owner's theme generated deterministically from their DID
  */
-async function loadOwnerStyle(ownerDid: string) {
-  try {
-    const styleRecord = await getRecord(ownerDid, STYLE_COLLECTION, CONFIG_RKEY);
-    if (styleRecord?.value?.theme) {
-      return styleRecord.value.theme;
-    }
-  } catch (error) {
-    // If style record doesn't exist, fall back to generated theme
-  }
-
-  // Fallback: generate theme from DID
+function getOwnerTheme(ownerDid: string) {
   const generated = generateThemeFromDid(ownerDid);
   return generated.theme;
+}
+
+/**
+ * Find all spore records for a given origin using backlinks
+ * Returns records with ownerDid derived from backlink.did
+ */
+async function findSporeRecordsByOrigin(originGardenDid: string): Promise<SporeRecord[]> {
+  try {
+    const backlinksResponse = await getBacklinks(
+      originGardenDid,
+      `${SPECIAL_SPORE_COLLECTION}:subject`,
+      { limit: 100 }
+    );
+    const backlinks = backlinksResponse.records || backlinksResponse.links || [];
+
+    const records = await Promise.all(
+      backlinks.map(async (bl) => {
+        try {
+          const record = await getRecord(
+            bl.did,
+            bl.collection || SPECIAL_SPORE_COLLECTION,
+            bl.rkey,
+            { useSlingshot: true }
+          );
+          if (!record?.value) return null;
+          return {
+            ownerDid: bl.did,
+            capturedAt: record.value.createdAt,
+            subject: record.value.subject,
+            uri: record.uri || `at://${bl.did}/${bl.collection || SPECIAL_SPORE_COLLECTION}/${bl.rkey}`,
+            rkey: bl.rkey
+          } as SporeRecord;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return records.filter((r): r is SporeRecord => r !== null);
+  } catch (error) {
+    console.error('Failed to find spore records by origin:', error);
+    return [];
+  }
+}
+
+/**
+ * Get the current holder of a spore by its origin DID
+ */
+async function getCurrentHolder(originGardenDid: string): Promise<string | null> {
+  const records = await findSporeRecordsByOrigin(originGardenDid);
+  if (records.length === 0) return null;
+
+  // Sort by capturedAt DESC, most recent = current holder
+  records.sort((a, b) => {
+    const timeA = new Date(a.capturedAt || 0).getTime();
+    const timeB = new Date(b.capturedAt || 0).getTime();
+    return timeB - timeA;
+  });
+
+  return records[0].ownerDid;
 }
 
 export async function renderFlowerBed(section) {
@@ -34,21 +92,19 @@ export async function renderFlowerBed(section) {
     return el;
   }
 
-  // Load owner's unique style
-  const ownerTheme = await loadOwnerStyle(ownerDid);
+  // Get owner's unique theme (generated from DID)
+  const ownerTheme = getOwnerTheme(ownerDid);
 
   // Get theme colors, border style, and border width
-  const preset = ownerTheme?.preset || 'minimal';
-  const presetTheme = getThemePreset(preset) || { colors: {}, fonts: {} };
-  const colors = { ...presetTheme.colors, ...ownerTheme?.colors };
+  const colors = ownerTheme?.colors;
   const borderStyle = ownerTheme?.borderStyle || 'solid';
   const borderWidth = ownerTheme?.borderWidth || '4px';
 
   // Use accent or primary color for the inset border to show uniqueness
-  const insetBorderColor = colors.accent || colors.primary || colors.border || colors.text || '#000000';
-  const borderColor = colors.text || colors.border || '#000000';
+  const insetBorderColor = colors?.accent || colors?.primary || colors?.border || colors?.text || '#000000';
+  const borderColor = colors?.text || colors?.border || '#000000';
   // Use background color, but lighten it slightly for surface effect
-  const backgroundColor = colors.background || '#f8f9fa';
+  const backgroundColor = colors?.background || '#f8f9fa';
 
   // Apply owner's unique styling to the flower bed via CSS custom properties
   el.style.setProperty('--flower-bed-border-style', borderStyle);
@@ -126,6 +182,10 @@ export async function renderFlowerBed(section) {
       grid.appendChild(flowerEl);
     }
 
+    // === SPORE RENDERING ===
+    // Check if this garden has any spores to display (originated here OR owner captured one)
+    await renderSporesInFlowerBed(ownerDid, grid);
+
     el.appendChild(grid);
 
     // Add a friendly hint if nobody else has planted here yet.
@@ -145,6 +205,277 @@ export async function renderFlowerBed(section) {
   }
 
   return el;
+}
+
+/**
+ * Find spores that should appear in this garden's flower bed.
+ * 
+ * A spore appears if:
+ * 1. It originated from this garden
+ * 2. This garden owner has ever captured it (has a record for it)
+ * 
+ * Deduplication: Group by origin (subject), show one per origin
+ * Badge: isCurrentHolder indicates if garden owner currently holds it
+ */
+async function findSporesForGarden(gardenOwnerDid: string): Promise<Array<{
+  originGardenDid: string;
+  currentHolderDid: string;
+  isOrigin: boolean;
+  isCurrentHolder: boolean;
+}>> {
+  const spores: Array<{
+    originGardenDid: string;
+    currentHolderDid: string;
+    isOrigin: boolean;
+    isCurrentHolder: boolean;
+  }> = [];
+
+  const seenOrigins = new Set<string>();
+
+  try {
+    // 1. Check if this garden originated a spore (always show if valid)
+    if (isValidSpore(gardenOwnerDid)) {
+      const currentHolder = await getCurrentHolder(gardenOwnerDid);
+      seenOrigins.add(gardenOwnerDid);
+      spores.push({
+        originGardenDid: gardenOwnerDid,
+        currentHolderDid: currentHolder || gardenOwnerDid,
+        isOrigin: true,
+        isCurrentHolder: currentHolder === gardenOwnerDid
+      });
+    }
+
+    // 2. Check all spores this garden owner has ever captured
+    try {
+      const ownedRecords = await listRecords(gardenOwnerDid, SPECIAL_SPORE_COLLECTION, { limit: 50 });
+      const records = ownedRecords?.records || [];
+
+      // Group by unique origin (subject) - dedupe
+      const byOrigin = new Map<string, { capturedAt: string; record: any }>();
+      for (const record of records) {
+        const originDid = record.value?.subject;
+        if (!originDid) continue;
+        
+        const capturedAt = record.value?.createdAt || '';
+        const existing = byOrigin.get(originDid);
+        
+        if (!existing || capturedAt > existing.capturedAt) {
+          byOrigin.set(originDid, { capturedAt, record });
+        }
+      }
+
+      // For each unique origin, add to spores list
+      for (const [originDid] of byOrigin) {
+        // Skip if already processed (e.g., own origin)
+        if (seenOrigins.has(originDid)) continue;
+        seenOrigins.add(originDid);
+
+        // Validate the spore
+        if (!isValidSpore(originDid)) continue;
+
+        // Check who is current holder
+        const currentHolder = await getCurrentHolder(originDid);
+        spores.push({
+          originGardenDid: originDid,
+          currentHolderDid: currentHolder || originDid,
+          isOrigin: false,
+          isCurrentHolder: currentHolder === gardenOwnerDid
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to check owned spores:', e);
+    }
+
+  } catch (error) {
+    console.error('Failed to find spores for garden:', error);
+  }
+
+  return spores;
+}
+
+/**
+ * Render spores in the flower bed as special outline flowers
+ */
+async function renderSporesInFlowerBed(ownerDid: string, grid: HTMLElement): Promise<void> {
+  const spores = await findSporesForGarden(ownerDid);
+
+  for (const spore of spores) {
+    const sporeEl = document.createElement('div');
+    sporeEl.className = 'flower-grid-item spore-item';
+
+    const container = document.createElement('div');
+    container.style.position = 'relative';
+    container.style.cursor = 'pointer';
+
+    // Generate outline flower SVG for the spore (based on ORIGIN garden's DID)
+    const sporeSvg = generateSporeFlowerSVGString(spore.originGardenDid, 100);
+    container.innerHTML = sporeSvg;
+
+    // Add click handler to show spore details modal
+    container.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await showSporeDetailsModal(spore.originGardenDid);
+    });
+
+    sporeEl.appendChild(container);
+    grid.appendChild(sporeEl);
+  }
+}
+
+/**
+ * Show modal with spore details and full lineage trail
+ * Lineage is reconstructed from all backlinked records (not stored in record)
+ */
+async function showSporeDetailsModal(originGardenDid: string) {
+  // Fetch all records for this origin to build lineage
+  const allRecords = await findSporeRecordsByOrigin(originGardenDid);
+  
+  // Sort by capturedAt ascending (oldest first for lineage display)
+  allRecords.sort((a, b) => {
+    const timeA = new Date(a.capturedAt || 0).getTime();
+    const timeB = new Date(b.capturedAt || 0).getTime();
+    return timeA - timeB;
+  });
+
+  // Current holder is the most recent
+  const currentHolderDid = allRecords.length > 0 
+    ? allRecords[allRecords.length - 1].ownerDid 
+    : originGardenDid;
+
+  // Build lineage from records
+  const lineage: Array<{did: string; timestamp?: string; isOrigin?: boolean; isCurrent?: boolean}> = [];
+  
+  // Origin is always first (may or may not have a record if never stolen)
+  const originRecord = allRecords.find(r => r.ownerDid === originGardenDid);
+  lineage.push({
+    did: originGardenDid,
+    timestamp: originRecord?.capturedAt,
+    isOrigin: true,
+    isCurrent: currentHolderDid === originGardenDid
+  });
+
+  // Add all other holders (skip origin if already added)
+  for (const record of allRecords) {
+    if (record.ownerDid === originGardenDid) continue;
+    lineage.push({
+      did: record.ownerDid,
+      timestamp: record.capturedAt,
+      isOrigin: false,
+      isCurrent: record.ownerDid === currentHolderDid && record === allRecords[allRecords.length - 1]
+    });
+  }
+
+  // Fetch all profiles in parallel
+  const uniqueDids = [...new Set(lineage.map(l => l.did))];
+  const profileMap = new Map<string, any>();
+  try {
+    const profiles = await Promise.all(uniqueDids.map(did => getProfile(did).catch(() => null)));
+    uniqueDids.forEach((did, i) => {
+      if (profiles[i]) profileMap.set(did, profiles[i]);
+    });
+  } catch {
+    // Profiles are optional
+  }
+
+  const getHandle = (did: string) => {
+    const profile = profileMap.get(did);
+    return profile?.handle || did.substring(0, 20) + '...';
+  };
+
+  const getLink = (did: string) => {
+    const profile = profileMap.get(did);
+    return `/@${profile?.handle || did}`;
+  };
+
+  const formatDate = (timestamp?: string) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Build lineage HTML
+  const lineageHtml = lineage.map((entry, index) => {
+    const handle = getHandle(entry.did);
+    const link = getLink(entry.did);
+    const isFirst = index === 0;
+    
+    let label = '';
+    if (entry.isOrigin) label = '🌱 Origin';
+    else if (entry.isCurrent) label = '✨ Current Holder';
+    else label = '🌿 Visited';
+    
+    return `
+      <div style="display: flex; align-items: flex-start; gap: 0.75rem; position: relative;">
+        <!-- Connector line -->
+        ${!isFirst ? `<div style="position: absolute; left: 15px; top: -12px; width: 2px; height: 12px; background: var(--color-border, #e0e0e0);"></div>` : ''}
+        
+        <!-- Flower icon -->
+        <div style="width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+          ${generateFlowerSVGString(entry.did, 32)}
+        </div>
+        
+        <!-- Info -->
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="${link}" style="font-weight: ${entry.isCurrent ? '600' : '400'}; color: var(--color-text); text-decoration: none; overflow: hidden; text-overflow: ellipsis;">
+              @${handle}
+            </a>
+            <span style="font-size: 0.75rem; color: var(--color-text-muted);">${label}</span>
+          </div>
+          ${entry.timestamp ? `<div style="font-size: 0.75rem; color: var(--color-text-muted);">${formatDate(entry.timestamp)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join(`<div style="height: 12px;"></div>`);
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem;">
+        <h2 style="margin: 0; font-size: 1.25rem; line-height: 1.3;">
+          Special Spore
+        </h2>
+        <button class="button button-ghost modal-close" aria-label="Close" style="font-size: 1.5rem; line-height: 1; padding: 0; width: 2rem; height: 2rem; flex-shrink: 0;">×</button>
+      </div>
+      
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        ${generateSporeFlowerSVGString(originGardenDid, 100)}
+      </div>
+      
+      <p style="font-size: 0.9em; color: var(--color-text-muted); margin-bottom: 1.5rem; text-align: center;">
+        This rare spore travels from garden to garden. Follow its journey!
+      </p>
+      
+      <!-- Lineage Trail -->
+      <div style="margin-bottom: 1.5rem;">
+        <h3 style="font-size: 0.9rem; font-weight: 600; margin: 0 0 1rem 0; color: var(--color-text-muted);">
+          Journey (${lineage.length} garden${lineage.length !== 1 ? 's' : ''})
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: 0;">
+          ${lineageHtml}
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 0.5rem;">
+        <a href="${getLink(originGardenDid)}" class="button button-secondary" style="flex: 1; text-align: center; text-decoration: none;">
+          Visit Origin
+        </a>
+        <a href="${getLink(currentHolderDid)}" class="button button-primary" style="flex: 1; text-align: center; text-decoration: none;">
+          Visit Current Holder
+        </a>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Close handlers
+  const closeBtn = modal.querySelector('.modal-close');
+  closeBtn?.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
 }
 
 /**
@@ -195,7 +526,6 @@ async function showFlowerGardensModal(flowerDid: string) {
   }
 
   const flowerHandle = flowerProfile?.handle || flowerDid.substring(0, 20) + '...';
-  const flowerName = flowerProfile?.displayName || flowerHandle;
 
   // Create modal
   const modal = document.createElement('div');
@@ -223,10 +553,8 @@ async function showFlowerGardensModal(flowerDid: string) {
   // Add "Visit @flower garden" button directly under the heading
   const selfCta = modal.querySelector('#flower-gardens-self-cta');
   if (selfCta) {
-    const label = `Visit @${flowerHandle}'s garden`;
-
     const visitSelfLink = document.createElement('a');
-    visitSelfLink.href = `/@${flowerDid}`;
+    visitSelfLink.href = `/@${flowerProfile?.handle || flowerDid}`;
     visitSelfLink.className = 'button button-primary';
     visitSelfLink.style.display = 'flex';
     visitSelfLink.style.alignItems = 'center';
@@ -283,7 +611,7 @@ async function showFlowerGardensModal(flowerDid: string) {
 
   // Close handlers
   const closeBtn = modal.querySelector('.modal-close');
-  closeBtn.addEventListener('click', () => modal.remove());
+  closeBtn?.addEventListener('click', () => modal.remove());
 
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.remove();
@@ -295,20 +623,19 @@ async function showFlowerGardensModal(flowerDid: string) {
     const gardens = await findGardensWithFlower(flowerDid);
 
     if (gardens.length === 0) {
-      gardensList.innerHTML = '<p>This flower hasn\'t been planted in any other garden yet.</p>';
+      if (gardensList) gardensList.innerHTML = '<p>This flower hasn\'t been planted in any other garden yet.</p>';
       return;
     }
 
-    gardensList.innerHTML = '';
+    if (gardensList) gardensList.innerHTML = '';
 
     // Create list of gardens
     for (const { gardenDid, profile } of gardens) {
       const gardenHandle = profile?.handle ? `@${profile.handle}` : `${gardenDid.substring(0, 20)}...`;
-      const label = `Visit ${gardenHandle}'s garden`;
 
       // Single, full-width CTA per garden (prevents layout overlap on narrow modals)
       const visitLink = document.createElement('a');
-      visitLink.href = `/@${gardenDid}`;
+      visitLink.href = `/@${profile?.handle || gardenDid}`;
       visitLink.className = 'button button-primary';
       visitLink.style.display = 'flex';
       visitLink.style.alignItems = 'center';
@@ -362,10 +689,10 @@ async function showFlowerGardensModal(flowerDid: string) {
 
       visitLink.appendChild(textWrap);
 
-      gardensList.appendChild(visitLink);
+      gardensList?.appendChild(visitLink);
     }
   } catch (error) {
     console.error('Failed to load gardens:', error);
-    gardensList.innerHTML = '<p>Failed to load gardens. Please try again.</p>';
+    if (gardensList) gardensList.innerHTML = '<p>Failed to load gardens. Please try again.</p>';
   }
 }

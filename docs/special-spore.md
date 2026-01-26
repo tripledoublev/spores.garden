@@ -13,29 +13,22 @@ When a user completes initial onboarding:
 2. Using seeded randomness based on the garden owner's DID, there's a 1/10 chance (10% probability)
 3. If selected, a special spore is created with:
    - `subject`: The origin garden DID (for backlink indexing)
-   - `ownerDid`: The garden owner's DID (initial holder)
-   - `originGardenDid`: Same as ownerDid (the garden where spore originated)
-   - `lastCapturedAt`: Current timestamp
-   - `history`: Array containing the first holder entry
+   - `createdAt`: Current timestamp
 
 ### Capture-the-Flag Mechanics
 
-Special spores can be "stolen" (captured) by other users, but with restrictions:
+Special spores use a **free-for-all (FFA) capture-the-flag** mechanic. Any logged-in user can steal a spore from its current holder.
 
 **Stealing Rules:**
-- A user can only steal a spore if they have NOT:
-  - Planted a flower in the garden
-  - Taken a seed from the garden
-- Stealing a spore automatically plants a flower in the garden as a trade
+- Any logged-in user can steal (no restrictions)
+- You cannot steal your own spore (you already own it)
 
 **Capture Process:**
-1. When stolen, a NEW record is created (old records are never deleted)
-2. The new record preserves the `originGardenDid` (never changes)
-3. The new record has:
-   - `subject`: Same originGardenDid (for backlink indexing)
-   - `ownerDid`: New holder's DID
-   - `lastCapturedAt`: New timestamp
-   - `history`: All previous history + new entry
+1. When stolen, a NEW record is created in the stealer's repo (old records are never deleted)
+2. The new record has:
+   - `subject`: Same origin garden DID (for backlink indexing)
+   - `createdAt`: New timestamp
+3. The owner is implicit - it's the DID of the repo where the record is stored
 
 ### Backlink-Based Discovery
 
@@ -43,113 +36,130 @@ All spore records reference the origin garden DID via the `subject` field. This 
 
 1. **Constellation Indexing**: The Constellation service indexes all records that reference a DID
 2. **Backlink Queries**: We can query `getBacklinks(originGardenDid, 'garden.spores.item.specialSpore')` to find ALL spore records across all DIDs
-3. **Current Holder Detection**: Sort all records by `lastCapturedAt` timestamp - most recent = current holder
+3. **Current Holder Detection**: Sort all records by `createdAt` timestamp - most recent = current holder
 4. **Full Lineage Tracking**: All historical records remain, creating a complete evolution history
 
-### Display
+## Display System (Hybrid Approach)
 
-When viewing a garden with a special spore:
+Spores are displayed through a **hybrid system** that integrates them into the garden experience:
 
-1. **Current Holder**: The most recent record (by `lastCapturedAt`) is displayed as the current owner
-2. **Visualization**: The spore's visual appearance is generated from the current holder's DID
-3. **Lineage**: All previous holders are displayed chronologically, showing the full evolution
+### 1. Flower Bed Integration
+
+Spores appear as **special line-drawing flowers** in flower beds:
+
+- **Origin Garden**: The spore appears in the flower bed of the garden where it was born
+- **Capture Trail**: Every garden that captured the spore shows it in their flower bed
+- **Visual Distinction**: Spores are rendered as **outline-only** flowers (no fill), making them visually distinct from regular planted flowers
+- **Sparkle Indicator**: A ✨ indicator marks spore flowers
+
+This creates a **lineage trail** - as you visit gardens, you can discover spores and trace their journey through multiple flower beds.
+
+### 2. Floating Badge (Steal UI)
+
+When viewing the **current holder's** garden:
+
+- A **floating badge** appears in the bottom-right corner
+- Shows the spore visualization (outline style)
+- Displays current owner and capture count
+- Contains the **"Steal!"** button for logged-in users
+- Animates with a subtle glow effect
+
+This separates the steal mechanic from content sections, making it always accessible.
+
+### 3. Spore Details Modal
+
+Clicking a spore in the flower bed opens a modal showing:
+- Large spore visualization
+- Origin garden link
+- Current holder link
+- Capture history summary
+
+## Visual Style
+
+Spores use a distinctive **line-drawing** rendering style:
+
+```
+Regular Flowers: Filled petals with color
+Spore Flowers:   Outline-only, no fill, with golden glow
+```
+
+This makes spores immediately recognizable as special items while maintaining the flower-based visual language.
 
 ## Technical Implementation
 
 ### Lexicon Schema
 
+The schema is intentionally minimal - just two fields:
+
 ```json
 {
-  "required": ["subject", "ownerDid", "originGardenDid", "lastCapturedAt", "history"],
+  "required": ["subject", "createdAt"],
   "properties": {
     "subject": {
       "type": "string",
       "format": "did",
-      "description": "DID of the origin garden (same as originGardenDid). Used for backlink indexing."
+      "description": "Origin garden DID. Used for backlink indexing to find all captures of this spore."
     },
-    "ownerDid": {
-      "type": "string",
-      "format": "did",
-      "description": "DID of the current holder of the spore"
-    },
-    "originGardenDid": {
-      "type": "string",
-      "format": "did",
-      "description": "DID of the garden where this spore originated. All spore records reference this DID via backlinks."
-    },
-    "lastCapturedAt": {
+    "createdAt": {
       "type": "string",
       "format": "datetime",
-      "description": "Timestamp when this record was created (when spore was captured by current holder)"
-    },
-    "history": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["did", "timestamp"],
-        "properties": {
-          "did": { "type": "string", "format": "did" },
-          "timestamp": { "type": "string", "format": "datetime" }
-        }
-      }
+      "description": "When this capture occurred."
     }
   }
 }
 ```
 
-### Query Pattern
+### Why No `ownerDid` or `originGardenDid` Fields?
 
+The schema is lean by design:
+
+- **Owner is implicit**: In AT Protocol, every record's owner is the DID of the repo it's stored in. When you query backlinks, you get `backlink.did` which tells you who holds that record. No need to duplicate this in the record itself.
+
+- **Origin = subject**: The `subject` field already stores the origin garden DID (for backlink indexing). Adding a separate `originGardenDid` would be redundant.
+
+- **History is reconstructed**: Instead of storing history in each record, we query all backlinks for a given `subject` and sort by `createdAt` to reconstruct the full capture history.
+
+### Key Functions
+
+**Outline Flower Generation** (`src/utils/flower-svg.ts`):
 ```typescript
-// Find all spore records for an origin garden
-const backlinks = await getBacklinks(
-  originGardenDid,
-  'garden.spores.item.specialSpore',
-  { limit: 100 }
-);
-
-// Fetch full records from backlinks
-const records = await Promise.all(
-  backlinks.records.map(backlink =>
-    getRecord(backlink.did, backlink.collection, backlink.rkey, { useSlingshot: true })
-  )
-);
-
-// Sort by timestamp to find current holder
-records.sort((a, b) => 
-  new Date(b.value.lastCapturedAt) - new Date(a.value.lastCapturedAt)
-);
-
-const currentHolder = records[0]; // Most recent
+// Generate line-drawing style flower for spores
+generateSporeFlowerSVGString(did: string, size: number): string
 ```
 
-### Record Creation Pattern
-
+**Flower Bed Spore Rendering** (`src/layouts/flower-bed.ts`):
 ```typescript
-// When stealing - create new record, never delete old
-await createRecord('garden.spores.item.specialSpore', {
-  $type: 'garden.spores.item.specialSpore',
-  subject: originGardenDid,           // Preserve origin for backlinks
-  ownerDid: newOwnerDid,               // New holder
-  originGardenDid: originGardenDid,    // Preserve origin (never change)
-  lastCapturedAt: new Date().toISOString(),
-  history: [...previousHistory, {      // Append to history
-    did: newOwnerDid,
-    timestamp: new Date().toISOString()
-  }]
-});
+// Finds and renders spores in flower beds
+findSporesForGarden(gardenOwnerDid: string): Promise<SporeInfo[]>
+renderSporesInFlowerBed(ownerDid: string, grid: HTMLElement): Promise<void>
+```
+
+**Floating Badge** (`src/components/spore-badge.ts`):
+```typescript
+// Self-contained component that renders on current holder's garden
+class SporeBadge extends HTMLElement
 ```
 
 ## Gamification Aspects
 
 - **Rarity**: Only 1 in 10 gardens gets a special spore (10% probability)
 - **Deterministic**: Using seeded randomness based on DID ensures same garden always gets/doesn't get a spore
-- **Capture Mechanics**: Players compete to hold rare spores
-- **Lineage Tracking**: Full history of all captures creates a sense of evolution and ownership trail
-- **Trade Requirement**: Must plant a flower to steal (social interaction)
+- **FFA Capture**: Anyone can steal - pure competitive capture-the-flag
+- **Lineage Trail**: Spores leave a visual trail in flower beds of every garden they've visited
+- **Discovery**: Follow spores through the network to discover new gardens
 
 ## Files
 
-- Lexicon: `lexicons/garden.spores.item.specialSpore.json`
-- Display Layout: `src/layouts/special-spore-display.ts`
-- Generation Logic: `src/config.ts` (lines 381-391)
-- Documentation: `docs/special-spore.md`
+- **Lexicon**: `lexicons/garden.spores.item.specialSpore.json`
+- **Outline Flower**: `src/utils/flower-svg.ts` (generateSporeFlowerSVGString)
+- **Flower Bed Integration**: `src/layouts/flower-bed.ts`
+- **Floating Badge**: `src/components/spore-badge.ts`
+- **Generation Logic**: `src/config.ts`
+- **Validation**: `src/config.ts` (isValidSpore)
+
+## Migration from Section-Based Display
+
+The previous `special-spore-display` section type is deprecated. Spores now:
+1. Automatically appear in flower beds (no section needed)
+2. Show as a floating badge on current holder's garden
+3. Existing sections will show a migration notice

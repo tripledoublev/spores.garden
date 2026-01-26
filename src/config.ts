@@ -35,6 +35,11 @@ function seededRandom(seed: string): () => number {
   };
 }
 
+// Test DIDs that always get a spore (for development/testing)
+const TEST_SPORE_DIDS = [
+  'did:plc:y3lae7hmqiwyq7w2v3bcb2c2', // v's test DID
+];
+
 /**
  * Validate if a spore is authentic (should exist for the given origin DID)
  * 
@@ -47,6 +52,11 @@ function seededRandom(seed: string): () => number {
 export function isValidSpore(originGardenDid: string): boolean {
   if (!originGardenDid) {
     return false;
+  }
+
+  // Test DIDs always get a spore
+  if (TEST_SPORE_DIDS.includes(originGardenDid)) {
+    return true;
   }
 
   // Use the same deterministic logic as spore creation
@@ -382,18 +392,16 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
     }));
   }
 
-  // On first config, create special spore if lucky
+  // On first config, create special spore if lucky (or if test DID)
   if (isFirstTimeConfig) {
     const rng = seededRandom(did);
-    // 1 in 10 chance to get a special spore
-    if (rng() < 0.1) {
+    // 1 in 10 chance to get a special spore, OR test DID always gets one
+    const shouldGetSpore = TEST_SPORE_DIDS.includes(did) || rng() < 0.1;
+    if (shouldGetSpore) {
       promises.push(putRecord(SPECIAL_SPORE_COLLECTION, CONFIG_RKEY, {
         $type: SPECIAL_SPORE_COLLECTION,
         subject: did, // Subject for backlink indexing (origin garden)
-        ownerDid: did,
-        originGardenDid: did, // Origin garden is where the spore is created
-        lastCapturedAt: new Date().toISOString(),
-        history: [{ did: did, timestamp: new Date().toISOString() }]
+        createdAt: new Date().toISOString()
       }));
     }
 

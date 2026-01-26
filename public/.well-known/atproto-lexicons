@@ -1,0 +1,399 @@
+[
+  {
+    "lexicon": 1,
+    "id": "garden.spores.content.image",
+    "defs": {
+      "main": {
+        "type": "record",
+        "description": "An image uploaded to the garden.",
+        "key": "tid",
+        "record": {
+          "type": "object",
+          "required": [
+            "image",
+            "createdAt"
+          ],
+          "properties": {
+            "image": {
+              "type": "blob",
+              "accept": [
+                "image/*"
+              ],
+              "maxSize": 10000000
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "Optional title for the image."
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "datetime"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.guestbook.entry",
+    "defs": {
+      "main": {
+        "type": "record",
+        "description": "Guestbook entry for spores.garden. Stored in visitor's repo, queried via backlinks.",
+        "record": {
+          "type": "object",
+          "required": [
+            "subject",
+            "message",
+            "createdAt"
+          ],
+          "properties": {
+            "subject": {
+              "type": "string",
+              "format": "did",
+              "description": "DID of the guestbook owner (the site being signed)"
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 1000,
+              "description": "Guestbook message"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "datetime",
+              "description": "Signature timestamp"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.item.specialSpore",
+    "defs": {
+      "main": {
+        "type": "record",
+        "description": "A special spore capture record. Each steal creates a new record with a TID key. Current holder is determined by the most recent capturedAt timestamp across all backlinked records for a given origin (subject).",
+        "key": "tid",
+        "record": {
+          "type": "object",
+          "required": [
+            "subject",
+            "capturedAt"
+          ],
+          "properties": {
+            "subject": {
+              "type": "string",
+              "format": "did",
+              "description": "Origin garden DID. Used for backlink indexing to find all captures of this spore."
+            },
+            "capturedAt": {
+              "type": "string",
+              "format": "datetime",
+              "description": "When this capture occurred."
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.site.config",
+    "defs": {
+      "main": {
+        "type": "record",
+        "key": "self",
+        "description": "Site configuration for spores.garden, including title and subtitle.",
+        "record": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Site title"
+            },
+            "subtitle": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "Site subtitle"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.site.content",
+    "defs": {
+      "main": {
+        "type": "record",
+        "description": "Custom content block for spores.garden sites",
+        "record": {
+          "type": "object",
+          "required": [
+            "content"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "Block title"
+            },
+            "content": {
+              "type": "string",
+              "maxLength": 50000,
+              "description": "Block content"
+            },
+            "format": {
+              "type": "string",
+              "knownValues": [
+                "markdown",
+                "html",
+                "text"
+              ],
+              "default": "markdown",
+              "description": "Content format"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "datetime",
+              "description": "Creation timestamp"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.site.profile",
+    "defs": {
+      "main": {
+        "type": "record",
+        "description": "Custom profile information for spores.garden sites",
+        "record": {
+          "type": "object",
+          "properties": {
+            "displayName": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "Display name"
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 5000,
+              "description": "Profile description/bio"
+            },
+            "avatar": {
+              "type": "blob",
+              "accept": [
+                "image/png",
+                "image/jpeg",
+                "image/webp",
+                "image/gif"
+              ],
+              "maxSize": 1000000,
+              "description": "Avatar image blob"
+            },
+            "banner": {
+              "type": "blob",
+              "accept": [
+                "image/png",
+                "image/jpeg",
+                "image/webp",
+                "image/gif"
+              ],
+              "maxSize": 2000000,
+              "description": "Banner image blob"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "datetime",
+              "description": "Creation timestamp"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "datetime",
+              "description": "Last update timestamp"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.site.sections",
+    "defs": {
+      "main": {
+        "type": "record",
+        "key": "self",
+        "description": "Site sections for spores.garden",
+        "record": {
+          "type": "object",
+          "required": [
+            "sections"
+          ],
+          "properties": {
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "ref",
+                "ref": "#section"
+              },
+              "description": "Site sections to display"
+            }
+          }
+        }
+      },
+      "section": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique section identifier"
+          },
+          "type": {
+            "type": "string",
+            "knownValues": [
+              "collection",
+              "records",
+              "content",
+              "block",
+              "guestbook",
+              "profile"
+            ],
+            "description": "Section type"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Section title"
+          },
+          "layout": {
+            "type": "string",
+            "knownValues": [
+              "post",
+              "card",
+              "image",
+              "link",
+              "links",
+              "list",
+              "profile",
+              "raw",
+              "guestbook"
+            ],
+            "description": "Layout to use for rendering"
+          },
+          "collection": {
+            "type": "string",
+            "description": "Collection NSID to display (for type=collection)"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "at-uri"
+            },
+            "description": "Specific record URIs to display (for type=records)"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 50000,
+            "description": "Content for block sections"
+          },
+          "format": {
+            "type": "string",
+            "knownValues": [
+              "markdown",
+              "html",
+              "text"
+            ],
+            "description": "Content format"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximum records to display"
+          },
+          "customCss": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Section-specific custom CSS"
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.social.flower",
+    "defs": {
+      "main": {
+        "type": "record",
+        "description": "A flower planted in another user's garden, representing a 'like' or 'follow'.",
+        "key": "tid",
+        "record": {
+          "type": "object",
+          "required": [
+            "subject",
+            "createdAt"
+          ],
+          "properties": {
+            "subject": {
+              "type": "string",
+              "format": "did"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "datetime"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "lexicon": 1,
+    "id": "garden.spores.social.takenFlower",
+    "defs": {
+      "main": {
+        "type": "record",
+        "description": "A flower taken from another user's garden, representing a bookmark or collection.",
+        "key": "tid",
+        "record": {
+          "type": "object",
+          "required": [
+            "sourceDid",
+            "createdAt"
+          ],
+          "properties": {
+            "sourceDid": {
+              "type": "string",
+              "format": "did"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "datetime"
+            },
+            "note": {
+              "type": "string",
+              "description": "Optional note or reason for taking this seed",
+              "maxLength": 500
+            }
+          }
+        }
+      }
+    }
+  }
+]

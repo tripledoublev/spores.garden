@@ -1,17 +1,15 @@
 /**
- * <recent-gardens> - Displays recently updated gardens on the main page
+ * <recent-gardens> - Displays recent garden activity on the main page
  *
- * Shows a list of gardens that have been recently updated, either through:
- * - Manual edits to garden configuration
- * - Flower interactions (planting, taking seeds)
- * 
- * Uses Constellation backlinks to discover gardens with recent activity.
+ * Shows gardens with recent flower activity, discovered through:
+ * - Jetstream: Real-time events from across the AT Protocol network
+ * - Constellation backlinks: Historical flower interactions
  */
 
-import { getProfile, getBacklinks, getRecord } from '../at-client';
-import type { BacklinkRecord } from '../types';
+import { getProfile, getRecord } from '../at-client';
 import { hasGardenIdentifierInUrl } from '../config';
 import { generateThemeFromDid } from '../themes/engine';
+import { getJetstreamClient, type GardenDiscoveryEvent } from '../jetstream';
 import './did-visualization';
 
 /**
@@ -23,451 +21,148 @@ interface GardenMetadata {
   title?: string;
   subtitle?: string;
   lastUpdated: Date;
-  updateType?: 'edit' | 'flower-plant' | 'flower-take' | 'content';
-  previewImage?: string;
+  updateType?: 'flower' | 'seedling' | 'edit' | 'spore';
 }
 
+// Seed gardens for bootstrapping discovery
+// These are known active gardens that help kickstart the discovery network
+const SEED_GARDENS = [
+  'did:plc:y3lae7hmqiwyq7w2v3bcb2c2', // charlebois.info
+  'did:plc:2qt2kdxo6viizgglawlm4l3n', // lexa.fyi
+  'did:plc:rxduhzsfgfpl2glle7vagcwl', // hypha.coop
+  'did:plc:gspui4hkqdes4maykfp7cm5y', // udit.bsky.social
+
+];
+
 /**
- * Cache structure for known gardens with versioning and timestamps
+ * Cached activity for a garden (persists across page loads)
  */
-interface KnownGardensCache {
-  version: number;
-  lastUpdated: number; // timestamp
-  dids: string[];
+interface CachedActivity {
+  updateType: GardenMetadata['updateType'];
+  timestamp: number; // ms since epoch
 }
 
-// Cache version - increment when cache format changes
-const CACHE_VERSION = 1;
-// Cache TTL in milliseconds (1 hour)
-const CACHE_TTL_MS = 60 * 60 * 1000;
-
 /**
- * API interface for fetching recent gardens
+ * Cache of recent activity per garden DID
  */
-interface RecentGardensAPI {
-  getRecentGardens(limit: number, offset: number): Promise<GardenMetadata[]>;
+function getCachedActivity(did: string): CachedActivity | null {
+  try {
+    const stored = localStorage.getItem('spores.garden.activityCache');
+    if (stored) {
+      const cache = JSON.parse(stored) as Record<string, CachedActivity>;
+      return cache[did] || null;
+    }
+  } catch {
+    // Ignore
+  }
+  return null;
 }
 
 /**
- * Mock API implementation for development and testing
- * Returns sample garden data with realistic timestamps
+ * Save activity to cache
  */
-class MockRecentGardensAPI implements RecentGardensAPI {
-  private mockGardens: GardenMetadata[] = [
-    {
-      did: 'did:plc:example1',
-      handle: 'alice.bsky.social',
-      title: 'Alice\'s Garden',
-      subtitle: '@alice.bsky.social',
-      lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      updateType: 'flower-plant'
-    },
-    {
-      did: 'did:plc:example2',
-      handle: 'bob.bsky.social',
-      title: 'Bob\'s Digital Garden',
-      subtitle: '@bob.bsky.social',
-      lastUpdated: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-      updateType: 'content'
-    },
-    {
-      did: 'did:plc:example3',
-      handle: 'charlie.bsky.social',
-      title: 'Charlie\'s Spores',
-      subtitle: '@charlie.bsky.social',
-      lastUpdated: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-      updateType: 'edit'
-    },
-    {
-      did: 'did:plc:example4',
-      handle: 'diana.bsky.social',
-      title: 'Diana\'s Collection',
-      subtitle: '@diana.bsky.social',
-      lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      updateType: 'flower-take'
-    },
-    {
-      did: 'did:plc:example5',
-      handle: 'eve.bsky.social',
-      title: 'Eve\'s Garden',
-      subtitle: '@eve.bsky.social',
-      lastUpdated: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-      updateType: 'content'
-    },
-    {
-      did: 'did:plc:example6',
-      handle: 'frank.bsky.social',
-      title: 'Frank\'s Spores',
-      subtitle: '@frank.bsky.social',
-      lastUpdated: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-      updateType: 'flower-plant'
+function setCachedActivity(did: string, updateType: GardenMetadata['updateType'], timestamp: Date) {
+  try {
+    const stored = localStorage.getItem('spores.garden.activityCache');
+    const cache: Record<string, CachedActivity> = stored ? JSON.parse(stored) : {};
+    
+    cache[did] = {
+      updateType: updateType || 'flower',
+      timestamp: timestamp.getTime()
+    };
+    
+    // Keep cache size reasonable (max 50 entries)
+    const entries = Object.entries(cache);
+    if (entries.length > 50) {
+      // Remove oldest entries
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const newCache: Record<string, CachedActivity> = {};
+      entries.slice(-50).forEach(([k, v]) => newCache[k] = v);
+      localStorage.setItem('spores.garden.activityCache', JSON.stringify(newCache));
+    } else {
+      localStorage.setItem('spores.garden.activityCache', JSON.stringify(cache));
     }
-  ];
-
-  async getRecentGardens(limit: number = 12, offset: number = 0): Promise<GardenMetadata[]> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Return paginated results
-    return this.mockGardens
-      .slice(offset, offset + limit)
-      .map(garden => ({ ...garden })); // Return copies
+  } catch {
+    // Ignore
   }
 }
 
 /**
- * Constellation-based API implementation
- * Uses Constellation backlinks to discover gardens with recent activity
- */
-class ConstellationRecentGardensAPI implements RecentGardensAPI {
-  private knownGardenDids: string[] = [];
-
-  /**
-   * Fetch recent gardens using Constellation backlinks
-   * Strategy: Query backlinks from known gardens to find recent activity
-   */
-  async getRecentGardens(limit: number = 12, offset: number = 0): Promise<GardenMetadata[]> {
-    const gardens = new Map<string, GardenMetadata>();
-
-    try {
-      // Load known gardens from localStorage if available
-      if (this.knownGardenDids.length === 0) {
-        this.loadKnownGardens();
-      }
-
-      // Add current user's garden if logged in
-      try {
-        const { getCurrentDid } = await import('../oauth');
-        const currentDid = getCurrentDid();
-        if (currentDid && !this.knownGardenDids.includes(currentDid)) {
-          this.knownGardenDids.push(currentDid);
-        }
-      } catch (error) {
-        // Not logged in or import failed, continue
-      }
-
-      // Discover gardens from flower interactions
-      const flowerBacklinks = await this.discoverGardensFromFlowers(limit * 2);
-
-      // Discover gardens from config updates
-      const configBacklinks = await this.discoverGardensFromConfigs(limit * 2);
-
-      // Merge results
-      for (const garden of [...flowerBacklinks, ...configBacklinks]) {
-        const existing = gardens.get(garden.did);
-        if (!existing || garden.lastUpdated > existing.lastUpdated) {
-          gardens.set(garden.did, garden);
-          // Add newly discovered gardens to known list
-          if (!this.knownGardenDids.includes(garden.did)) {
-            this.knownGardenDids.push(garden.did);
-          }
-        }
-      }
-
-      // Save updated known gardens list
-      this.saveKnownGardens();
-
-      // Sort by lastUpdated and paginate
-      const sortedGardens = Array.from(gardens.values())
-        .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())
-        .slice(offset, offset + limit);
-
-      return sortedGardens;
-    } catch (error) {
-      console.error('Failed to fetch recent gardens from Constellation:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Discover gardens by finding recent flower plantings
-   * Queries flower records to find gardens that have received flowers
-   */
-  private async discoverGardensFromFlowers(limit: number): Promise<GardenMetadata[]> {
-    const gardens: GardenMetadata[] = [];
-    const discoveredDids = new Set<string>();
-
-    try {
-      // Query flower records from known gardens to find who they've planted flowers for
-      for (const gardenDid of this.knownGardenDids.slice(0, 10)) {
-        try {
-          // List flower records from this garden
-          const { listRecords } = await import('../at-client');
-          const flowerRecords = await listRecords(
-            gardenDid,
-            'garden.spores.social.flower',
-            { limit: 20 },
-            null
-          );
-
-          if (flowerRecords?.records) {
-            for (const record of flowerRecords.records) {
-              // The subject field in flower records points to the garden DID that received the flower
-              const subjectDid = record.value?.subject;
-              if (subjectDid && !discoveredDids.has(subjectDid) && subjectDid !== gardenDid) {
-                discoveredDids.add(subjectDid);
-
-                try {
-                  // Check if this DID has a garden config
-                  const configRecord = await getRecord(
-                    subjectDid,
-                    'garden.spores.site.config',
-                    'self',
-                    { useSlingshot: true }
-                  );
-
-                  if (configRecord?.value) {
-                    const createdAt = record.value?.createdAt || record.value?.indexedAt;
-                    gardens.push({
-                      did: subjectDid,
-                      lastUpdated: createdAt ? new Date(createdAt) : new Date(),
-                      updateType: 'flower-plant'
-                    });
-
-                    // Limit discoveries
-                    if (gardens.length >= limit) break;
-                  }
-                } catch (error) {
-                  // Skip gardens we can't access
-                  continue;
-                }
-              }
-            }
-          }
-        } catch (error) {
-          // Continue with next garden
-          continue;
-        }
-
-        if (gardens.length >= limit) break;
-      }
-    } catch (error) {
-      console.warn('Error discovering gardens from flowers:', error);
-    }
-
-    return gardens;
-  }
-
-  /**
-   * Discover gardens by finding recent config updates
-   * Checks known gardens for recent activity
-   */
-  private async discoverGardensFromConfigs(limit: number): Promise<GardenMetadata[]> {
-    const gardens: GardenMetadata[] = [];
-
-    // Check known gardens for recent config updates
-    for (const gardenDid of this.knownGardenDids.slice(0, limit * 2)) {
-      try {
-        const configRecord = await getRecord(
-          gardenDid,
-          'garden.spores.site.config',
-          'self',
-          { useSlingshot: true }
-        );
-
-        if (configRecord?.value) {
-          const updatedAt = configRecord.value.updatedAt || configRecord.value.createdAt;
-          // Use the timestamp if available, otherwise use current time
-          const updateDate = updatedAt ? new Date(updatedAt) : new Date();
-          // Include all known gardens (not just recent ones) so newly created gardens show up
-          gardens.push({
-            did: gardenDid,
-            lastUpdated: updateDate,
-            updateType: 'edit'
-          });
-        }
-      } catch (error) {
-        // Garden doesn't exist or we can't access it, remove from known list
-        const index = this.knownGardenDids.indexOf(gardenDid);
-        if (index > -1) {
-          this.knownGardenDids.splice(index, 1);
-        }
-        continue;
-      }
-    }
-
-    return gardens;
-  }
-
-  /**
-   * Load known gardens from localStorage with cache validation
-   */
-  private loadKnownGardens() {
-    try {
-      const stored = localStorage.getItem('spores.garden.knownGardens');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        
-        // Check if it's the new versioned format
-        if (typeof parsed === 'object' && parsed.version !== undefined) {
-          const cache = parsed as KnownGardensCache;
-          
-          // Validate cache version
-          if (cache.version !== CACHE_VERSION) {
-            console.log('Cache version mismatch, resetting known gardens cache');
-            this.knownGardenDids = [];
-            return;
-          }
-          
-          // Check if cache is stale (older than TTL)
-          const age = Date.now() - cache.lastUpdated;
-          if (age > CACHE_TTL_MS) {
-            console.log('Known gardens cache is stale, will refresh');
-            // Still use the data but mark for refresh
-            this.knownGardenDids = cache.dids || [];
-          } else {
-            this.knownGardenDids = cache.dids || [];
-          }
-        } else {
-          // Legacy format (array of strings) - migrate to new format
-          console.log('Migrating known gardens to versioned cache format');
-          this.knownGardenDids = Array.isArray(parsed) ? parsed : [];
-          this.saveKnownGardens(); // Save in new format
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load known gardens:', error);
-      this.knownGardenDids = [];
-    }
-  }
-
-  /**
-   * Save known gardens to localStorage with versioning and timestamp
-   */
-  private saveKnownGardens() {
-    try {
-      const cache: KnownGardensCache = {
-        version: CACHE_VERSION,
-        lastUpdated: Date.now(),
-        dids: this.knownGardenDids
-      };
-      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
-    } catch (error) {
-      console.warn('Failed to save known gardens:', error);
-    }
-  }
-
-  /**
-   * Remove a garden DID from the known gardens list
-   * Called when a garden is confirmed to no longer exist
-   */
-  private removeKnownGarden(did: string) {
-    const index = this.knownGardenDids.indexOf(did);
-    if (index > -1) {
-      this.knownGardenDids.splice(index, 1);
-      this.saveKnownGardens();
-    }
-  }
-
-  /**
-   * Add a garden DID to the known gardens list
-   */
-  addKnownGarden(did: string) {
-    if (!this.knownGardenDids.includes(did)) {
-      this.knownGardenDids.push(did);
-      this.saveKnownGardens();
-    }
-  }
-
-  /**
-   * Check if cache needs refresh based on TTL
-   */
-  isCacheStale(): boolean {
-    try {
-      const stored = localStorage.getItem('spores.garden.knownGardens');
-      if (!stored) return true;
-      
-      const parsed = JSON.parse(stored);
-      if (typeof parsed === 'object' && parsed.version !== undefined) {
-        const cache = parsed as KnownGardensCache;
-        const age = Date.now() - cache.lastUpdated;
-        return age > CACHE_TTL_MS;
-      }
-      return true; // Legacy format is considered stale
-    } catch {
-      return true;
-    }
-  }
-}
-
-/**
- * Register a garden DID as a known garden (for discovery)
- * Call this when a garden is created or updated
+ * Register a garden DID as known (for discovery)
  */
 export function registerGarden(did: string) {
   try {
     const stored = localStorage.getItem('spores.garden.knownGardens');
-    let cache: KnownGardensCache;
+    const dids: string[] = stored ? JSON.parse(stored) : [];
     
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Handle both new and legacy formats
-      if (typeof parsed === 'object' && parsed.version !== undefined) {
-        cache = parsed as KnownGardensCache;
-      } else {
-        // Migrate from legacy format
-        cache = {
-          version: CACHE_VERSION,
-          lastUpdated: Date.now(),
-          dids: Array.isArray(parsed) ? parsed : []
-        };
-      }
-    } else {
-      cache = {
-        version: CACHE_VERSION,
-        lastUpdated: Date.now(),
-        dids: []
-      };
-    }
-    
-    if (!cache.dids.includes(did)) {
-      cache.dids.push(did);
-      cache.lastUpdated = Date.now(); // Update timestamp when adding new garden
-      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
+    if (!dids.includes(did)) {
+      dids.push(did);
+      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(dids));
     }
   } catch (error) {
     console.warn('Failed to register garden:', error);
   }
 }
 
+/**
+ * Load known gardens from localStorage
+ */
+function loadKnownGardens(): string[] {
+  try {
+    const stored = localStorage.getItem('spores.garden.knownGardens');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Handle legacy versioned format
+      if (typeof parsed === 'object' && parsed.dids) {
+        return parsed.dids;
+      }
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch (error) {
+    console.warn('Failed to load known gardens:', error);
+  }
+  return [];
+}
+
+/**
+ * Save known gardens to localStorage
+ */
+function saveKnownGardens(dids: string[]) {
+  try {
+    localStorage.setItem('spores.garden.knownGardens', JSON.stringify(dids));
+  } catch (error) {
+    console.warn('Failed to save known gardens:', error);
+  }
+}
+
 class RecentGardens extends HTMLElement {
-  private api: ConstellationRecentGardensAPI;
   private gardens: GardenMetadata[] = [];
+  private knownGardenDids: string[] = [];
   private loading = false;
+  private jetstreamUnsubscribe: (() => void) | null = null;
   private visibilityHandler: (() => void) | null = null;
   private lastLoadTime = 0;
-
-  constructor() {
-    super();
-    // Use Constellation API by default
-    this.api = new ConstellationRecentGardensAPI();
-  }
+  
+  // Batching for efficient historical event processing
+  private pendingEvents: Map<string, GardenDiscoveryEvent> = new Map();
+  private batchTimeout: ReturnType<typeof setTimeout> | null = null;
+  private historicalReplayDone = false; // Set true when we see a recent event
 
   static get observedAttributes() {
-    return ['data-limit', 'data-show-empty', 'data-mock'];
+    return ['data-limit', 'data-show-empty'];
   }
 
   connectedCallback() {
     this.loadGardens();
-    
-    // Set up visibility change listener to refresh stale data when tab becomes visible
-    this.visibilityHandler = () => {
-      if (document.visibilityState === 'visible') {
-        // Only refresh if cache is stale or it's been more than 5 minutes since last load
-        const timeSinceLastLoad = Date.now() - this.lastLoadTime;
-        const shouldRefresh = this.api.isCacheStale() || timeSinceLastLoad > 5 * 60 * 1000;
-        
-        if (shouldRefresh && !this.loading) {
-          console.log('Tab visible and cache stale, refreshing gardens...');
-          this.loadGardens();
-        }
-      }
-    };
-    document.addEventListener('visibilitychange', this.visibilityHandler);
+    this.setupJetstream();
+    this.setupVisibilityHandler();
   }
 
   disconnectedCallback() {
-    // Clean up visibility listener
+    if (this.jetstreamUnsubscribe) {
+      this.jetstreamUnsubscribe();
+      this.jetstreamUnsubscribe = null;
+    }
     if (this.visibilityHandler) {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
@@ -481,17 +176,255 @@ class RecentGardens extends HTMLElement {
   }
 
   /**
-   * Check if we're on the main page (not viewing a specific garden)
+   * Set up Jetstream for real-time garden discovery
+   */
+  private setupJetstream() {
+    const client = getJetstreamClient();
+    
+    this.jetstreamUnsubscribe = client.onDiscovery((event: GardenDiscoveryEvent) => {
+      this.handleJetstreamEvent(event);
+    });
+
+    // Connect if not already connected
+    if (!client.isConnected()) {
+      client.connect();
+    }
+  }
+
+  /**
+   * Handle incoming Jetstream events
+   *
+   * Activity is attributed to the RECORD CREATOR (event.did):
+   * - flower: someone planted a flower → show planter's garden
+   * - seedling: someone took a seed → show taker's garden
+   * - edit: someone created/edited garden → show that garden
+   */
+  private handleJetstreamEvent(event: GardenDiscoveryEvent) {
+    if (!this.isMainPage()) return;
+
+    console.log('[RecentGardens] Jetstream event:', event.collection, event.did, event.timestamp);
+
+    const gardenDid = event.did;
+    const eventAge = Date.now() - event.timestamp.getTime();
+    const isRealTime = eventAge < 60000; // Event from last 60 seconds = real-time
+    
+    // Once we see a real-time event, historical replay is done
+    if (isRealTime && !this.historicalReplayDone) {
+      this.historicalReplayDone = true;
+      // Flush any pending historical events
+      if (this.batchTimeout) {
+        clearTimeout(this.batchTimeout);
+        this.batchTimeout = null;
+      }
+      if (this.pendingEvents.size > 0) {
+        this.processBatchedEvents();
+      }
+    }
+    
+    // Real-time: process immediately
+    if (this.historicalReplayDone) {
+      this.processEventImmediate(event);
+      return;
+    }
+    
+    // Historical: batch and deduplicate by DID (keep most recent per DID)
+    const existing = this.pendingEvents.get(gardenDid);
+    if (!existing || event.timestamp > existing.timestamp) {
+      this.pendingEvents.set(gardenDid, event);
+    }
+    
+    // Longer debounce for historical events (2 seconds)
+    if (this.batchTimeout) clearTimeout(this.batchTimeout);
+    this.batchTimeout = setTimeout(() => {
+      this.processBatchedEvents();
+    }, 2000);
+  }
+
+  /**
+   * Process batched historical events efficiently
+   */
+  private async processBatchedEvents() {
+    const events = Array.from(this.pendingEvents.values());
+    this.pendingEvents.clear();
+
+    console.log('[RecentGardens] Processing batched events:', events.length);
+
+    if (events.length === 0) return;
+    
+    // Sort by timestamp (most recent first)
+    events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    // Filter out DIDs we already have with newer data
+    const newEvents = events.filter(event => {
+      const existing = this.gardens.find(g => g.did === event.did);
+      return !existing || event.timestamp > existing.lastUpdated;
+    });
+    
+    if (newEvents.length === 0) return;
+    
+    const limit = parseInt(this.getAttribute('data-limit') || '12', 10);
+    const topEvents = newEvents.slice(0, limit);
+    
+    // Process all events in parallel
+    const gardenPromises = topEvents.map(async (event) => {
+      const updateType = this.getUpdateTypeFromCollection(event.collection);
+      
+      if (!this.knownGardenDids.includes(event.did)) {
+        this.knownGardenDids.push(event.did);
+      }
+      
+      const garden: GardenMetadata = {
+        did: event.did,
+        lastUpdated: event.timestamp,
+        updateType,
+      };
+      
+      setCachedActivity(event.did, updateType, event.timestamp);
+      
+      // Reuse existing profile if we have it
+      const existing = this.gardens.find(g => g.did === event.did);
+      if (existing?.handle) {
+        garden.handle = existing.handle;
+        garden.title = existing.title;
+        garden.subtitle = existing.subtitle;
+      } else {
+        try {
+          const profile = await getProfile(event.did);
+          garden.handle = profile.handle;
+          garden.title = profile.displayName || profile.handle;
+          garden.subtitle = `@${profile.handle}`;
+        } catch {
+          garden.title = event.did;
+        }
+      }
+      
+      return garden;
+    });
+    
+    const newGardens = await Promise.all(gardenPromises);
+    
+    // Merge: update existing or add new
+    for (const garden of newGardens) {
+      const existingIndex = this.gardens.findIndex(g => g.did === garden.did);
+      if (existingIndex >= 0) {
+        this.gardens[existingIndex] = garden;
+      } else {
+        this.gardens.push(garden);
+      }
+    }
+    
+    // Sort and trim
+    this.gardens.sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime());
+    this.gardens = this.gardens.slice(0, limit);
+    
+    saveKnownGardens(this.knownGardenDids);
+    this.render();
+  }
+
+  /**
+   * Process a single event immediately (real-time mode)
+   */
+  private async processEventImmediate(event: GardenDiscoveryEvent) {
+    const gardenDid = event.did;
+    const updateType = this.getUpdateTypeFromCollection(event.collection);
+
+    // For non-config records, verify the user has a garden
+    if (updateType !== 'edit') {
+      try {
+        const configRecord = await getRecord(gardenDid, 'garden.spores.site.config', 'self', { useSlingshot: true });
+        if (!configRecord?.value) return;
+      } catch {
+        return;
+      }
+    }
+
+    // Add to known gardens
+    if (!this.knownGardenDids.includes(gardenDid)) {
+      this.knownGardenDids.push(gardenDid);
+      saveKnownGardens(this.knownGardenDids);
+    }
+
+    // Find existing or create new
+    const existingIndex = this.gardens.findIndex(g => g.did === gardenDid);
+    
+    const newGarden: GardenMetadata = {
+      did: gardenDid,
+      lastUpdated: event.timestamp,
+      updateType,
+    };
+
+    // Reuse existing profile data if available
+    if (existingIndex >= 0) {
+      const existing = this.gardens[existingIndex];
+      newGarden.handle = existing.handle;
+      newGarden.title = existing.title;
+      newGarden.subtitle = existing.subtitle;
+    } else {
+      // Fetch profile for new garden
+      try {
+        const profile = await getProfile(gardenDid);
+        newGarden.handle = profile.handle;
+        newGarden.title = profile.displayName || profile.handle;
+        newGarden.subtitle = `@${profile.handle}`;
+      } catch {
+        newGarden.title = gardenDid;
+      }
+    }
+
+    setCachedActivity(gardenDid, updateType, event.timestamp);
+
+    if (existingIndex >= 0) {
+      this.gardens[existingIndex] = newGarden;
+    } else {
+      this.gardens.unshift(newGarden);
+    }
+
+    this.gardens.sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime());
+    const limit = parseInt(this.getAttribute('data-limit') || '12', 10);
+    this.gardens = this.gardens.slice(0, limit);
+
+    this.render();
+  }
+
+  /**
+   * Get update type from collection name
+   */
+  private getUpdateTypeFromCollection(collection: string): GardenMetadata['updateType'] {
+    if (collection === 'garden.spores.site.config') return 'edit';
+    if (collection === 'garden.spores.social.takenFlower') return 'seedling';
+    if (collection === 'garden.spores.item.specialSpore') return 'spore';
+    return 'flower';
+  }
+
+  /**
+   * Set up visibility change handler
+   */
+  private setupVisibilityHandler() {
+    this.visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        // Only refresh if lastLoadTime has been set (not initial 0) and it's been > 5 minutes
+        if (this.lastLoadTime > 0) {
+          const timeSinceLastLoad = Date.now() - this.lastLoadTime;
+          if (timeSinceLastLoad > 5 * 60 * 1000 && !this.loading) {
+            this.loadGardens();
+          }
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+  }
+
+  /**
+   * Check if we're on the main page
    */
   private isMainPage(): boolean {
     return !hasGardenIdentifierInUrl();
   }
 
   /**
-   * Load recent gardens from API
+   * Load recent gardens from flower interactions
    */
   private async loadGardens() {
-    // Only show on main page
     if (!this.isMainPage()) {
       this.style.display = 'none';
       return;
@@ -502,18 +435,54 @@ class RecentGardens extends HTMLElement {
     this.render();
 
     try {
-      // Seed some initial known gardens if none exist (for discovery bootstrapping)
-      this.seedInitialGardens();
+      // Load known gardens, seeding if needed
+      this.knownGardenDids = loadKnownGardens();
+      console.log('[RecentGardens] Known gardens from localStorage:', this.knownGardenDids.length);
+      if (this.knownGardenDids.length === 0) {
+        this.knownGardenDids = [...SEED_GARDENS];
+        saveKnownGardens(this.knownGardenDids);
+        console.log('[RecentGardens] Seeded with:', SEED_GARDENS);
+      }
 
+      // Add current user if logged in
+      try {
+        const { getCurrentDid } = await import('../oauth');
+        const currentDid = getCurrentDid();
+        if (currentDid && !this.knownGardenDids.includes(currentDid)) {
+          this.knownGardenDids.push(currentDid);
+          saveKnownGardens(this.knownGardenDids);
+        }
+      } catch {
+        // Not logged in
+      }
+
+      // Discover gardens from flower records
       const limit = parseInt(this.getAttribute('data-limit') || '12', 10);
-      this.gardens = await this.api.getRecentGardens(limit);
+      const discovered = await this.discoverGardensFromFlowers(limit);
+      console.log('[RecentGardens] Discovered from flowers:', discovered.length);
 
-      // Enrich garden data with profile information
+      // Merge with any gardens already found via Jetstream (don't overwrite)
+      for (const garden of discovered) {
+        const existingIndex = this.gardens.findIndex(g => g.did === garden.did);
+        if (existingIndex >= 0) {
+          // Keep the newer one
+          if (garden.lastUpdated > this.gardens[existingIndex].lastUpdated) {
+            this.gardens[existingIndex] = garden;
+          }
+        } else {
+          this.gardens.push(garden);
+        }
+      }
+
+      // Sort and trim
+      this.gardens.sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime());
+      this.gardens = this.gardens.slice(0, limit);
+
+      // Enrich with profile data
       await this.enrichGardens();
 
-      // Track last successful load time
+      console.log('[RecentGardens] Total gardens after merge:', this.gardens.length);
       this.lastLoadTime = Date.now();
-
     } catch (error) {
       console.error('Failed to load recent gardens:', error);
       this.gardens = [];
@@ -524,83 +493,187 @@ class RecentGardens extends HTMLElement {
   }
 
   /**
-   * Seed initial known gardens for discovery bootstrapping
-   * These are well-known gardens that help bootstrap the discovery network
+   * Discover gardens by finding flower plantings (PARALLEL)
+   * Activity is attributed to the FLOWER PLANTER (record creator), not the recipient
+   *
+   * IMPORTANT: Always returns verified seed gardens as fallback, even without flowers
    */
-  private seedInitialGardens() {
+  private async discoverGardensFromFlowers(limit: number): Promise<GardenMetadata[]> {
     try {
-      const stored = localStorage.getItem('spores.garden.knownGardens');
-      let cache: KnownGardensCache;
-      
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Handle both new and legacy formats
-        if (typeof parsed === 'object' && parsed.version !== undefined) {
-          cache = parsed as KnownGardensCache;
-        } else {
-          // Migrate from legacy format
-          cache = {
-            version: CACHE_VERSION,
-            lastUpdated: Date.now(),
-            dids: Array.isArray(parsed) ? parsed : []
-          };
-        }
-      } else {
-        cache = {
-          version: CACHE_VERSION,
-          lastUpdated: Date.now(),
-          dids: []
-        };
-      }
+      const { listRecords } = await import('../at-client');
+      const gardensToCheck = this.knownGardenDids.slice(0, 10);
 
-      // Seed gardens if list is empty or very small
-      if (cache.dids.length < 3) {
-        const seedGardens = [
-          'did:plc:y3lae7hmqiwyq7w2v3bcb2c2', // charlebois.info
-        ];
+      // Step 1: Verify ALL seed gardens have valid configs + fetch flower records IN PARALLEL
+      const verificationResults = await Promise.all(
+        gardensToCheck.map(async (gardenDid) => {
+          try {
+            // Check for config record (verifies it's a real garden)
+            const configRecord = await getRecord(gardenDid, 'garden.spores.site.config', 'self', { useSlingshot: true });
+            const hasConfig = !!configRecord?.value;
 
-        let updated = false;
-        for (const did of seedGardens) {
-          if (!cache.dids.includes(did)) {
-            cache.dids.push(did);
-            updated = true;
+            // Get config creation time from record metadata (indexedAt) or value
+            let configTimestamp: Date | null = null;
+            if (hasConfig && configRecord) {
+              // Try indexedAt from record metadata first, then createdAt from value
+              const indexedAt = (configRecord as any).indexedAt;
+              const createdAt = (configRecord.value as any)?.createdAt;
+              if (indexedAt) {
+                configTimestamp = new Date(indexedAt);
+              } else if (createdAt) {
+                configTimestamp = new Date(createdAt);
+              }
+            }
+
+            // Fetch all activity types in parallel
+            let flowerRecords = null;
+            let takenFlowerRecords = null;
+            let sporeRecords = null;
+            if (hasConfig) {
+              const [flowers, takenFlowers, spores] = await Promise.all([
+                listRecords(gardenDid, 'garden.spores.social.flower', { limit: 5 }, null).catch(() => null),
+                listRecords(gardenDid, 'garden.spores.social.takenFlower', { limit: 5 }, null).catch(() => null),
+                listRecords(gardenDid, 'garden.spores.item.specialSpore', { limit: 5 }, null).catch(() => null),
+              ]);
+              flowerRecords = flowers;
+              takenFlowerRecords = takenFlowers;
+              sporeRecords = spores;
+            }
+
+            return { gardenDid, hasConfig, configTimestamp, flowerRecords, takenFlowerRecords, sporeRecords };
+          } catch {
+            return { gardenDid, hasConfig: false, configTimestamp: null, flowerRecords: null, takenFlowerRecords: null, sporeRecords: null };
+          }
+        })
+      );
+
+      // Step 2: Collect verified gardens and discover new DIDs from flower subjects
+      const verifiedGardens: GardenMetadata[] = [];
+      const newKnownDids: string[] = [];
+
+      for (const { gardenDid, hasConfig, configTimestamp, flowerRecords, takenFlowerRecords, sporeRecords } of verificationResults) {
+        if (!hasConfig) continue; // Not a real garden
+
+        // Check cached activity
+        const cached = getCachedActivity(gardenDid);
+
+        // Collect all activity timestamps with their types
+        const activities: Array<{ timestamp: Date; type: GardenMetadata['updateType'] }> = [];
+
+        // Check flower records
+        if (flowerRecords?.records && flowerRecords.records.length > 0) {
+          const mostRecentFlower = flowerRecords.records[0];
+          const createdAt = mostRecentFlower.value?.createdAt;
+          if (createdAt) {
+            activities.push({ timestamp: new Date(createdAt), type: 'flower' });
+          }
+
+          // Collect flower subjects for future discovery
+          for (const record of flowerRecords.records) {
+            const subjectDid = record.value?.subject;
+            if (subjectDid && subjectDid !== gardenDid && !this.knownGardenDids.includes(subjectDid)) {
+              newKnownDids.push(subjectDid);
+            }
           }
         }
 
-        if (updated) {
-          cache.lastUpdated = Date.now();
-          localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
+        // Check takenFlower records
+        if (takenFlowerRecords?.records && takenFlowerRecords.records.length > 0) {
+          const mostRecentTaken = takenFlowerRecords.records[0];
+          const createdAt = mostRecentTaken.value?.createdAt;
+          if (createdAt) {
+            activities.push({ timestamp: new Date(createdAt), type: 'seedling' });
+          }
         }
+
+        // Check specialSpore records
+        if (sporeRecords?.records && sporeRecords.records.length > 0) {
+          const mostRecentSpore = sporeRecords.records[0];
+          const createdAt = mostRecentSpore.value?.createdAt;
+          if (createdAt) {
+            activities.push({ timestamp: new Date(createdAt), type: 'spore' });
+          }
+        }
+
+        // Check config timestamp
+        if (configTimestamp) {
+          activities.push({ timestamp: configTimestamp, type: 'edit' });
+        }
+
+        // Check cached activity
+        if (cached) {
+          activities.push({ timestamp: new Date(cached.timestamp), type: cached.updateType });
+        }
+
+        // Determine most recent activity
+        let lastUpdated: Date;
+        let updateType: GardenMetadata['updateType'] = undefined;
+
+        if (activities.length > 0) {
+          // Sort by timestamp descending and pick the most recent
+          activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          lastUpdated = activities[0].timestamp;
+          updateType = activities[0].type;
+        } else {
+          // No timestamp available - use epoch to indicate unknown
+          lastUpdated = new Date(0);
+          updateType = 'edit';
+        }
+
+        verifiedGardens.push({
+          did: gardenDid,
+          lastUpdated,
+          updateType,
+        });
       }
+
+      // Add new known DIDs
+      if (newKnownDids.length > 0) {
+        this.knownGardenDids.push(...newKnownDids);
+        saveKnownGardens(this.knownGardenDids);
+      }
+
+      console.log('[RecentGardens] Verified gardens:', verifiedGardens.length);
+
+      // Sort by activity (gardens with activity first, then by timestamp)
+      verifiedGardens.sort((a, b) => {
+        // Gardens with real activity come first
+        const aHasActivity = a.lastUpdated.getTime() > 0;
+        const bHasActivity = b.lastUpdated.getTime() > 0;
+        if (aHasActivity && !bHasActivity) return -1;
+        if (!aHasActivity && bHasActivity) return 1;
+        // Then sort by timestamp
+        return b.lastUpdated.getTime() - a.lastUpdated.getTime();
+      });
+
+      return verifiedGardens.slice(0, limit);
     } catch (error) {
-      console.warn('Failed to seed initial gardens:', error);
+      console.warn('Error discovering gardens from flowers:', error);
+      return [];
     }
   }
 
   /**
-   * Enrich garden metadata with profile information
+   * Enrich garden metadata with profile information (PARALLEL)
    */
   private async enrichGardens() {
-    for (const garden of this.gardens) {
-      try {
-        const profile = await getProfile(garden.did);
-        garden.handle = profile.handle;
-        garden.title = garden.title || profile.displayName || profile.handle;
-
-        // If no subtitle is set, use handle
-        if (!garden.subtitle && profile.handle) {
-          garden.subtitle = `@${profile.handle}`;
+    await Promise.all(
+      this.gardens.map(async (garden) => {
+        try {
+          const profile = await getProfile(garden.did);
+          garden.handle = profile.handle;
+          garden.title = garden.title || profile.displayName || profile.handle;
+          if (!garden.subtitle && profile.handle) {
+            garden.subtitle = `@${profile.handle}`;
+          }
+        } catch {
+          garden.title = garden.title || garden.did;
         }
-      } catch (error) {
-        console.warn(`Failed to fetch profile for ${garden.did}:`, error);
-        // Continue with DID if profile fetch fails
-        garden.title = garden.title || garden.did;
-      }
-    }
+      })
+    );
   }
 
   /**
-   * Format relative time (e.g., "2 hours ago")
+   * Format relative time
    */
   private formatRelativeTime(date: Date): string {
     const now = new Date();
@@ -622,14 +695,14 @@ class RecentGardens extends HTMLElement {
   }
 
   /**
-   * Get update type icon/emoji
+   * Get update type icon
    */
   private getUpdateTypeIcon(updateType?: string): string {
     switch (updateType) {
-      case 'flower-plant': return '🌸';
-      case 'flower-take': return '🌼';
-      case 'content': return '📝';
+      case 'flower': return '🌸';
+      case 'seedling': return '🌱';
       case 'edit': return '✏️';
+      case 'spore': return '🍄';
       default: return '✨';
     }
   }
@@ -640,7 +713,7 @@ class RecentGardens extends HTMLElement {
     if (this.loading) {
       this.innerHTML = `
         <section class="recent-gardens">
-          <h2 class="recent-gardens-title">Loading Gardens</h2>
+          <h2 class="recent-gardens-title">Loading Activity...</h2>
         </section>
       `;
       return;
@@ -650,7 +723,7 @@ class RecentGardens extends HTMLElement {
       if (showEmpty) {
         this.innerHTML = `
           <section class="recent-gardens">
-            <h2 class="recent-gardens-title">No Recent Gardens Found</h2>
+            <h2 class="recent-gardens-title">No Recent Activity</h2>
           </section>
         `;
       } else {
@@ -660,35 +733,25 @@ class RecentGardens extends HTMLElement {
     }
 
     const gardensHTML = this.gardens.map(garden => {
-      const gardenUrl = garden.handle
-        ? `/@${garden.handle}`
-        : `/@${garden.did}`;
-
+      const gardenUrl = garden.handle ? `/@${garden.handle}` : `/@${garden.did}`;
       const updateIcon = this.getUpdateTypeIcon(garden.updateType);
-      const relativeTime = this.formatRelativeTime(garden.lastUpdated);
+      // Only show time if we have a real timestamp (not epoch)
+      const hasRealTimestamp = garden.lastUpdated.getTime() > 0;
+      const relativeTime = hasRealTimestamp ? this.formatRelativeTime(garden.lastUpdated) : null;
 
-      // Generate unique theme styles from the garden's DID
+      // Generate unique theme from DID
       const { theme } = generateThemeFromDid(garden.did);
       const { colors, borderStyle, borderWidth, shadow } = theme;
 
-      // Build inline styles for unique garden appearance
       const shadowValue = shadow.type === 'inset'
         ? `inset ${shadow.x} ${shadow.y} ${shadow.blur} ${shadow.spread} ${shadow.color}`
         : `${shadow.x} ${shadow.y} ${shadow.blur} ${shadow.spread} ${shadow.color}`;
 
-      const rowStyle = `
-        background: ${colors.background};
-        border: ${borderWidth} ${borderStyle} ${colors.border};
-      `.trim().replace(/\s+/g, ' ');
-
-      const linkStyle = `
-        color: ${colors.text};
-      `.trim().replace(/\s+/g, ' ');
-
-      const hoverShadow = shadowValue;
+      const rowStyle = `background: ${colors.background}; border: ${borderWidth} ${borderStyle} ${colors.border};`;
+      const linkStyle = `color: ${colors.text};`;
 
       return `
-        <article class="recent-garden-row" style="${rowStyle}" data-shadow="${this.escapeHtml(hoverShadow)}">
+        <article class="recent-garden-row" style="${rowStyle}" data-shadow="${this.escapeHtml(shadowValue)}">
           <a href="${gardenUrl}" class="recent-garden-row-link" style="${linkStyle}">
             <div class="recent-garden-flower">
               <did-visualization did="${garden.did}" size="40"></did-visualization>
@@ -699,9 +762,7 @@ class RecentGardens extends HTMLElement {
             </div>
             <div class="recent-garden-activity" style="color: ${colors.muted};">
               <span class="recent-garden-update-icon">${updateIcon}</span>
-              <time class="recent-garden-time" datetime="${garden.lastUpdated.toISOString()}">
-                ${relativeTime}
-              </time>
+              ${relativeTime ? `<time class="recent-garden-time" datetime="${garden.lastUpdated.toISOString()}">${relativeTime}</time>` : ''}
             </div>
           </a>
         </article>
@@ -710,19 +771,18 @@ class RecentGardens extends HTMLElement {
 
     this.innerHTML = `
       <section class="recent-gardens">
-        <h2 class="recent-gardens-title">Recent Gardens</h2>
+        <h2 class="recent-gardens-title">Recent Garden Activity</h2>
         <div class="recent-gardens-list">
           ${gardensHTML}
         </div>
       </section>
     `;
 
-    // Attach hover handlers for unique shadow effects
     this.attachHoverHandlers();
   }
 
   /**
-   * Attach hover handlers to garden rows for unique shadow effects
+   * Attach hover handlers for shadow effects
    */
   private attachHoverHandlers() {
     const rows = this.querySelectorAll('.recent-garden-row');
@@ -749,54 +809,8 @@ class RecentGardens extends HTMLElement {
     div.textContent = text;
     return div.innerHTML;
   }
-
-  /**
-   * Set a custom API implementation (for testing or future integration)
-   */
-  setAPI(api: RecentGardensAPI) {
-    this.api = api;
-    this.loadGardens();
-  }
-
-  /**
-   * Load known gardens from localStorage
-   */
-  private loadKnownGardensFromStorage(): string[] {
-    try {
-      const stored = localStorage.getItem('spores.garden.knownGardens');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Handle both new and legacy formats
-        if (typeof parsed === 'object' && parsed.version !== undefined) {
-          return (parsed as KnownGardensCache).dids || [];
-        }
-        // Legacy format
-        return Array.isArray(parsed) ? parsed : [];
-      }
-    } catch (error) {
-      console.warn('Failed to load known gardens from storage:', error);
-    }
-    return [];
-  }
-
-  /**
-   * Save known gardens to localStorage with versioning
-   */
-  private saveKnownGardensToStorage(dids: string[]) {
-    try {
-      const cache: KnownGardensCache = {
-        version: CACHE_VERSION,
-        lastUpdated: Date.now(),
-        dids
-      };
-      localStorage.setItem('spores.garden.knownGardens', JSON.stringify(cache));
-    } catch (error) {
-      console.warn('Failed to save known gardens to storage:', error);
-    }
-  }
 }
 
 customElements.define('recent-gardens', RecentGardens);
 
-export type { RecentGardensAPI, GardenMetadata };
-export { ConstellationRecentGardensAPI, MockRecentGardensAPI };
+export type { GardenMetadata };

@@ -1,6 +1,5 @@
 import { renderFlowerBed } from '../layouts/flower-bed';
 import { renderCollectedFlowers } from '../layouts/collected-flowers';
-import { renderSpecialSporeDisplay } from './special-spore-display';
 import { renderImage } from './image';
 import { renderSmokeSignal } from './smoke-signal';
 import { renderLeaflet } from './leaflet';
@@ -465,11 +464,6 @@ registerLayout('flower-bed', renderFlowerBed);
  * Collected Flowers Layout - displays flowers taken from other gardens
  */
 registerLayout('collected-flowers', renderCollectedFlowers);
-
-/**
- * Special Spore Display Layout - displays the special spore item
- */
-registerLayout('special-spore-display', renderSpecialSporeDisplay);
 
 /**
  * Smoke Signal Events Layout - displays events (hosting/attending)

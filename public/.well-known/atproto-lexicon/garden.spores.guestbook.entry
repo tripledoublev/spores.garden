@@ -1,0 +1,31 @@
+{
+  "lexicon": 1,
+  "id": "garden.spores.guestbook.entry",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Guestbook entry for spores.garden. Stored in visitor's repo, queried via backlinks.",
+      "record": {
+        "type": "object",
+        "required": ["subject", "message", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "format": "did",
+            "description": "DID of the guestbook owner (the site being signed)"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Guestbook message"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Signature timestamp"
+          }
+        }
+      }
+    }
+  }
+}

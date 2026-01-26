@@ -161,16 +161,18 @@ class SectionBlock extends HTMLElement {
     const controls = document.createElement('div');
     controls.className = 'section-controls';
 
+    // Info row container (info box + move buttons)
+    const infoRow = document.createElement('div');
+    infoRow.className = 'section-info-row';
+
     // Info box showing element type
     const infoBox = document.createElement('div');
     infoBox.className = 'section-info';
-    controls.appendChild(infoBox);
+    infoRow.appendChild(infoBox);
 
     // Move buttons container
     const moveButtons = document.createElement('div');
     moveButtons.className = 'section-move-buttons';
-    moveButtons.style.display = 'flex';
-    moveButtons.style.gap = '0.25rem';
 
     // Get current section index to determine if buttons should be disabled
     const config = getConfig();
@@ -205,7 +207,12 @@ class SectionBlock extends HTMLElement {
     });
     moveButtons.appendChild(moveDownBtn);
 
-    controls.appendChild(moveButtons);
+    infoRow.appendChild(moveButtons);
+    controls.appendChild(infoRow);
+
+    // Action buttons container (toggle header, edit, delete)
+    const actionButtons = document.createElement('div');
+    actionButtons.className = 'section-action-buttons';
 
     // Hide/Show Header toggle button (only if section has a title)
     if (this.section.title) {
@@ -225,7 +232,7 @@ class SectionBlock extends HTMLElement {
         this.section.hideHeader = newValue;
         this.render();
       });
-      controls.appendChild(toggleHeaderBtn);
+      actionButtons.appendChild(toggleHeaderBtn);
     }
 
     // Edit button only for section types that support editing
@@ -254,7 +261,7 @@ class SectionBlock extends HTMLElement {
           this.editRecords();
         }
       });
-      controls.appendChild(editBtn);
+      actionButtons.appendChild(editBtn);
     }
 
     // Delete button
@@ -321,7 +328,8 @@ class SectionBlock extends HTMLElement {
         this.remove();
       }
     });
-    controls.appendChild(deleteBtn);
+    actionButtons.appendChild(deleteBtn);
+    controls.appendChild(actionButtons);
 
     return controls;
   }

@@ -1,0 +1,77 @@
+{
+  "lexicon": 1,
+  "id": "garden.spores.site.sections",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "self",
+      "description": "Site sections for spores.garden",
+      "record": {
+        "type": "object",
+        "required": ["sections"],
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "#section" },
+            "description": "Site sections to display"
+          }
+        }
+      }
+    },
+    "section": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique section identifier"
+        },
+        "type": {
+          "type": "string",
+          "knownValues": ["collection", "records", "content", "block", "guestbook", "profile"],
+          "description": "Section type"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Section title"
+        },
+        "layout": {
+          "type": "string",
+          "knownValues": ["post", "card", "image", "link", "links", "list", "profile", "raw", "guestbook"],
+          "description": "Layout to use for rendering"
+        },
+        "collection": {
+          "type": "string",
+          "description": "Collection NSID to display (for type=collection)"
+        },
+        "records": {
+          "type": "array",
+          "items": { "type": "string", "format": "at-uri" },
+          "description": "Specific record URIs to display (for type=records)"
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 50000,
+          "description": "Content for block sections"
+        },
+        "format": {
+          "type": "string",
+          "knownValues": ["markdown", "html", "text"],
+          "description": "Content format"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum records to display"
+        },
+        "customCss": {
+          "type": "string",
+          "maxLength": 10000,
+          "description": "Section-specific custom CSS"
+        }
+      }
+    }
+  }
+}

@@ -548,3 +548,107 @@ export function generateFlowerSVGString(did: string, displaySize: number = 100):
     ${flowerSVG}
   </svg>`;
 }
+
+/**
+ * Generate outline-only flower SVG for spores.
+ * Same shape as regular flower but rendered as line drawings without fill.
+ * This creates a distinctive "ethereal" look for special spores.
+ */
+function generateFlowerSVGOutline(params: FlowerParams, size: number, rng: () => number): string {
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const flowerRadius = size * 0.4;
+
+  let svgElements: string[] = [];
+
+  // Generate layered petals - outer layers first (OUTLINE ONLY)
+  for (let layer = 0; layer < params.layerCount; layer++) {
+    const layerScale = Math.pow(params.layerSizeDecay, layer);
+    const layerRotation = params.petalRotation + layer * params.layerRotationOffset;
+    const layerPetalCount = params.petalCount - layer;
+
+    const layerColorAdjust = layer * 25;
+    const layerPrimaryColor = adjustColor(params.primaryColor, layerColorAdjust);
+    const layerSecondaryColor = adjustColor(params.secondaryColor, layerColorAdjust);
+
+    const angleStep = 360 / Math.max(layerPetalCount, 3);
+
+    for (let i = 0; i < layerPetalCount; i++) {
+      const sizeMultiplier = 1 + (rng() - 0.5) * 2 * params.petalSizeJitter;
+      const angleJitter = (rng() - 0.5) * 2 * params.petalAngleJitter;
+      const curveVariation = (rng() - 0.5) * 2 * params.petalCurveJitter;
+
+      const angle = layerRotation + i * angleStep + angleJitter;
+      const petalPath = generatePetalPath(
+        params.petalShape,
+        params.petalSize * layerScale,
+        centerX,
+        centerY,
+        angle,
+        sizeMultiplier,
+        curveVariation,
+        rng
+      );
+
+      const strokeColor = i % 2 === 0 ? layerPrimaryColor : layerSecondaryColor;
+      // KEY DIFFERENCE: fill="none" - outline only!
+      svgElements.push(`<path d="${petalPath}" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="${1 - layer * 0.1}" />`);
+    }
+  }
+
+  // Add center as outline rings instead of filled
+  const centerRadius = flowerRadius * params.centerSize * 3 * 0.4;
+  svgElements.push(`<circle cx="${centerX}" cy="${centerY}" r="${centerRadius * 0.8}" fill="none" stroke="${params.centerColor}" stroke-width="1.5" />`);
+  svgElements.push(`<circle cx="${centerX}" cy="${centerY}" r="${centerRadius * 0.4}" fill="none" stroke="${params.stamenTipColor}" stroke-width="1" />`);
+
+  // Add stem if needed (outline style)
+  if (params.hasStem) {
+    const stemStartY = centerY;
+    const stemHeight = size * 0.35;
+    const stemColor = adjustColor(params.secondaryColor, -40);
+
+    const stemCurve = (rng() - 0.5) * 4;
+    const stemEndY = stemStartY + stemHeight;
+    svgElements.unshift(`<path d="M ${centerX} ${stemStartY} Q ${centerX + stemCurve} ${stemStartY + stemHeight * 0.5} ${centerX} ${stemEndY}" stroke="${stemColor}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-dasharray="4 2" />`);
+
+    // Add leaves if needed (outline style)
+    if (params.hasLeaves) {
+      const leafSize = size * 0.1;
+      const leafColor = adjustColor(params.secondaryColor, -30);
+
+      const leftLeafY = stemStartY + stemHeight * 0.35;
+      svgElements.unshift(generateLeaf(params.leafStyle, centerX, leftLeafY, leafSize, -50, leafColor, rng));
+
+      if (rng() > 0.3) {
+        const rightLeafY = stemStartY + stemHeight * 0.55;
+        svgElements.unshift(generateLeaf(params.leafStyle, centerX, rightLeafY, leafSize * 0.85, 50, leafColor, rng));
+      }
+    }
+  }
+
+  return svgElements.join('\n        ');
+}
+
+/**
+ * Generate an outline-only SVG string for a spore flower based on a DID.
+ * Spores are rendered as line drawings to distinguish them from regular flowers.
+ */
+export function generateSporeFlowerSVGString(did: string, displaySize: number = 100): string {
+  // Generate theme from DID to get colors
+  const { theme } = generateThemeFromDid(did);
+  const { colors } = theme;
+
+  // Generate flower parameters from DID
+  const flowerParams = generateFlowerParams(did, colors);
+
+  // Create a fresh RNG for SVG generation (separate from param generation)
+  const svgRng = seededRandom(did + '-svg');
+
+  // Generate outline flower SVG
+  const svgSize = 100;
+  const flowerSVG = generateFlowerSVGOutline(flowerParams, svgSize, svgRng);
+
+  return `<svg width="${displaySize}" height="${displaySize}" viewBox="0 0 ${svgSize} ${svgSize}" xmlns="http://www.w3.org/2000/svg" class="spore-flower">
+    ${flowerSVG}
+  </svg>`;
+}

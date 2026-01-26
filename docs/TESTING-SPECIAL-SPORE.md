@@ -60,7 +60,7 @@ if (rng() < 0.1) {
         subject: did,
         ownerDid: did,
         originGardenDid: did,
-        lastCapturedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         history: [{ did: did, timestamp: new Date().toISOString() }]
     }));
 }
@@ -164,7 +164,7 @@ if (rng() < 0.1) {
 **Step 4: Verify Lineage Persistence**
 1. All spore records remain in their respective PDSs
 2. Backlinks to origin garden (Account A) enable discovery
-3. Most recent `lastCapturedAt` timestamp determines current holder
+3. Most recent `createdAt` timestamp determines current holder
 
 ---
 
@@ -203,7 +203,7 @@ The special spore uses AT Protocol backlinks for cross-PDS discovery.
 
 ### Verify
 - ✅ All spore records are found (across different DIDs)
-- ✅ Records are sorted by `lastCapturedAt` (most recent first)
+- ✅ Records are sorted by `createdAt` (most recent first)
 - ✅ Current holder is determined correctly
 
 ---

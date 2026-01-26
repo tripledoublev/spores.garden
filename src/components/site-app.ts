@@ -16,7 +16,7 @@ import './section-block';
 import './welcome-modal';
 import './create-content';
 import './create-image';
-import './site-config';
+import './spore-badge';
 
 class SiteApp extends HTMLElement {
   private hasShownWelcome = false;
@@ -135,11 +135,6 @@ class SiteApp extends HTMLElement {
         this.shareToBluesky();
       });
 
-      // Listen for open config modal requests
-      window.addEventListener('open-config-modal', () => {
-        this.showConfigModal();
-      });
-
       // Apply theme and wait for it to be fully applied before rendering
       await applyTheme(config.theme);
       this.isThemeReady = true;
@@ -212,16 +207,48 @@ class SiteApp extends HTMLElement {
     titleContainer.style.display = 'flex';
     titleContainer.style.flexDirection = 'column';
 
-    const title = document.createElement('h1');
-    title.className = 'site-title';
-    title.textContent = displayTitle;
-    titleContainer.appendChild(title);
+    // When in edit mode and owner is logged in, show editable inputs
+    if (this.editMode && isOwnerLoggedIn && !isHomePage) {
+      // Editable title input
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.className = 'site-title-input';
+      titleInput.value = config.title || '';
+      titleInput.placeholder = 'Site title';
+      titleInput.maxLength = 100;
+      titleInput.setAttribute('aria-label', 'Edit site title');
+      titleInput.addEventListener('input', (e) => {
+        const value = (e.target as HTMLInputElement).value;
+        config.title = value;
+      });
+      titleContainer.appendChild(titleInput);
 
-    // Add subtitle as h2
-    const subtitle = document.createElement('h2');
-    subtitle.className = 'site-subtitle';
-    subtitle.textContent = displaySubtitle;
-    titleContainer.appendChild(subtitle);
+      // Editable subtitle input
+      const subtitleInput = document.createElement('input');
+      subtitleInput.type = 'text';
+      subtitleInput.className = 'site-subtitle-input';
+      subtitleInput.value = config.subtitle || '';
+      subtitleInput.placeholder = 'Site subtitle';
+      subtitleInput.maxLength = 200;
+      subtitleInput.setAttribute('aria-label', 'Edit site subtitle');
+      subtitleInput.addEventListener('input', (e) => {
+        const value = (e.target as HTMLInputElement).value;
+        config.subtitle = value;
+      });
+      titleContainer.appendChild(subtitleInput);
+    } else {
+      // Display mode - show static text
+      const title = document.createElement('h1');
+      title.className = 'site-title';
+      title.textContent = displayTitle;
+      titleContainer.appendChild(title);
+
+      // Add subtitle as h2
+      const subtitle = document.createElement('h2');
+      subtitle.className = 'site-subtitle';
+      subtitle.textContent = displaySubtitle;
+      titleContainer.appendChild(subtitle);
+    }
 
     leftGroup.appendChild(titleContainer);
     header.appendChild(leftGroup);
@@ -235,14 +262,6 @@ class SiteApp extends HTMLElement {
 
     if (isLoggedIn()) {
       if (isOwnerLoggedIn && !isHomePage) {
-        // Garden configuration button (only on profile pages, not home)
-        const configBtn = document.createElement('button');
-        configBtn.className = 'button button-secondary';
-        configBtn.textContent = 'Config';
-        configBtn.setAttribute('aria-label', 'Open garden configuration');
-        configBtn.addEventListener('click', () => this.showConfigModal());
-        controls.appendChild(configBtn);
-
         // Edit/Save mode toggle
         const editBtn = document.createElement('button');
         editBtn.className = this.editMode ? 'button button-primary' : 'button button-secondary';
@@ -530,6 +549,16 @@ class SiteApp extends HTMLElement {
 
     this.appendChild(main);
 
+    // Spore badge - floating UI for spore steal mechanics (only on profile pages)
+    if (!isHomePage) {
+      // Remove any existing spore badge before adding new one
+      const existingBadge = document.querySelector('spore-badge');
+      if (existingBadge) existingBadge.remove();
+
+      const sporeBadge = document.createElement('spore-badge');
+      document.body.appendChild(sporeBadge);
+    }
+
     // Dev tool: Reset button (only on localhost/127.0.0.1 AND logged in)
     const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     if (isLocalDev && isLoggedIn()) {
@@ -591,7 +620,6 @@ class SiteApp extends HTMLElement {
           'garden.spores.config',
           'garden.spores.site.config',
           'garden.spores.site.sections',
-          'garden.spores.site.style',
           'garden.spores.social.flower',
           'garden.spores.social.takenFlower',
           'garden.spores.content.block',
@@ -762,10 +790,6 @@ class SiteApp extends HTMLElement {
           <button data-type="collected-flowers" class="section-type">
             <span class="icon">🌼</span>
             <span>Collected Flowers</span>
-          </button>
-          <button data-type="special-spore-display" class="section-type">
-            <span class="icon">✨</span>
-            <span>Special Spore</span>
           </button>
           <button data-action="load-records" class="section-type">
             <span class="icon">📚</span>
@@ -1090,8 +1114,8 @@ class SiteApp extends HTMLElement {
     const section = {
       id,
       type,
-      layout: type === 'profile' ? 'profile' : type === 'flower-bed' ? 'flower-bed' : type === 'collected-flowers' ? 'collected-flowers' : type === 'special-spore-display' ? 'special-spore-display' : 'card',
-      title: type === 'flower-bed' ? 'Flower Bed' : type === 'collected-flowers' ? 'Collected Flowers' : type === 'special-spore-display' ? 'Special Spore' : ''
+      layout: type === 'profile' ? 'profile' : type === 'flower-bed' ? 'flower-bed' : type === 'collected-flowers' ? 'collected-flowers' : 'card',
+      title: type === 'flower-bed' ? 'Flower Bed' : type === 'collected-flowers' ? 'Collected Flowers' : ''
     };
 
     config.sections = [...(config.sections || []), section];
@@ -1211,9 +1235,6 @@ class SiteApp extends HTMLElement {
     } else if (params.type === 'collected-flowers') {
       section.layout = 'collected-flowers';
       section.title = 'Collected Flowers';
-    } else if (params.type === 'special-spore-display') {
-      section.layout = 'special-spore-display';
-      section.title = 'Special Spore';
     }
 
     if (params.collection) section.collection = params.collection;
@@ -1923,87 +1944,6 @@ class SiteApp extends HTMLElement {
     });
 
     modal.show();
-  }
-
-  showConfigModal() {
-    // Check if modal already exists
-    let modal = document.querySelector('.config-modal') as HTMLElement;
-
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.className = 'modal config-modal';
-
-      const modalContent = document.createElement('div');
-      modalContent.className = 'modal-content config-modal-content';
-
-      const header = document.createElement('div');
-      header.className = 'config-modal-header';
-      header.innerHTML = `
-        <h2>Garden Configuration</h2>
-        <button class="button button-ghost modal-close" aria-label="Close">×</button>
-      `;
-
-      const configEditor = document.createElement('site-config');
-
-      // Add save button footer
-      const footer = document.createElement('div');
-      footer.className = 'modal-actions';
-      footer.innerHTML = `
-        <button class="button button-primary" id="config-save-btn">Save Changes</button>
-        <button class="button button-secondary modal-close">Cancel</button>
-      `;
-
-      modalContent.appendChild(header);
-      modalContent.appendChild(configEditor);
-      modalContent.appendChild(footer);
-      modal.appendChild(modalContent);
-
-      // Save button handler
-      const saveBtn = footer.querySelector('#config-save-btn') as HTMLButtonElement | null;
-      saveBtn?.addEventListener('click', async () => {
-        if (saveBtn) {
-          saveBtn.disabled = true;
-          saveBtn.textContent = 'Saving...';
-        }
-
-        try {
-          await saveConfig();
-          // Close modal on success
-          modal.remove();
-          // Trigger re-render
-          window.dispatchEvent(new CustomEvent('config-updated'));
-        } catch (error) {
-          console.error('Failed to save config:', error);
-          alert(`Failed to save config: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Changes';
-          }
-        }
-      });
-
-      // Close handlers
-      const closeBtn = header.querySelector('.modal-close');
-      closeBtn.addEventListener('click', () => {
-        modal.remove();
-      });
-
-      const cancelBtn = footer.querySelector('.modal-close');
-      cancelBtn.addEventListener('click', () => {
-        modal.remove();
-      });
-
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          modal.remove();
-        }
-      });
-
-      document.body.appendChild(modal);
-    }
-
-    // Show modal
-    modal.style.display = 'flex';
   }
 
   async save() {

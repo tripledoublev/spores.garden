@@ -1,0 +1,36 @@
+{
+    "lexicon": 1,
+    "id": "garden.spores.content.image",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "An image uploaded to the garden.",
+            "key": "tid",
+            "record": {
+                "type": "object",
+                "required": [
+                    "image",
+                    "createdAt"
+                ],
+                "properties": {
+                    "image": {
+                        "type": "blob",
+                        "accept": [
+                            "image/*"
+                        ],
+                        "maxSize": 10000000
+                    },
+                    "title": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "description": "Optional title for the image."
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "datetime"
+                    }
+                }
+            }
+        }
+    }
+}

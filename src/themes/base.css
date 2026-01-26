@@ -230,6 +230,79 @@ site-app.theme-ready .header {
   letter-spacing: 0.05em;
 }
 
+/* Inline edit inputs for title/subtitle in edit mode */
+.site-title-input,
+.site-subtitle-input {
+  font-family: var(--font-heading);
+  background: var(--color-background);
+  border: 2px dashed var(--color-border-dark);
+  border-radius: 0;
+  color: var(--color-text);
+  width: 100%;
+  max-width: 400px;
+  transition: all var(--transition);
+}
+
+.site-title-input {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin: 0;
+}
+
+.site-subtitle-input {
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: none;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+}
+
+.site-title-input:focus,
+.site-subtitle-input:focus {
+  outline: none;
+  border-style: solid;
+  border-width: 2px;
+  border-color: var(--color-border-dark);
+}
+
+.site-title-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.site-subtitle-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+/* Mobile adjustments for inline edit inputs */
+@media (max-width: 767px) {
+  .site-title-input {
+    font-size: 1.25rem;
+    max-width: 100%;
+  }
+  
+  .site-subtitle-input {
+    font-size: 0.85rem;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 479px) {
+  .site-title-input {
+    font-size: 1.1rem;
+  }
+  
+  .site-subtitle-input {
+    font-size: 0.75rem;
+  }
+}
+
 .controls {
   display: flex;
   gap: var(--spacing-sm);
@@ -439,6 +512,23 @@ site-app.theme-ready .header {
   text-overflow: ellipsis;
 }
 
+.section-info-row {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.section-move-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.section-action-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
 /* Section Controls Mobile Responsive (< 768px) */
 @media (max-width: 767px) {
   .section-header {
@@ -462,23 +552,57 @@ site-app.theme-ready .header {
     min-height: 44px;
   }
 
-  .section-move-buttons {
+  .section-info-row {
     width: 100%;
-    justify-content: center;
+    display: flex;
+  }
+
+  .section-info-row .section-info,
+  .section-info-row .section-move-buttons {
+    flex: 0 0 50%;
+    width: 50%;
+    box-sizing: border-box;
+  }
+
+  .section-info-row .section-info {
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .section-info-row .section-move-buttons {
+    justify-content: flex-end;
+  }
+
+  /* Override button sizing inside move buttons - keep them small */
+  .section-info-row .section-move-buttons .button {
+    flex: 0 0 auto;
+    min-width: 44px;
+    width: auto;
+  }
+
+  .section-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    width: 100%;
+  }
+
+  .section-action-buttons .button {
+    flex: 1 1 calc(50% - var(--spacing-xs));
+    min-width: 0;
   }
 }
 
 /* Section Info Collapse - Extra small screens (< 480px) */
 @media (max-width: 479px) {
-  .section-info {
-    width: 100%;
-    margin-bottom: var(--spacing-xs);
-    font-size: 0.75rem;
-    max-width: none;
+  .section-info-row .section-info {
+    font-size: 0.65rem;
   }
 
-  .section-controls .button {
-    flex: 1 1 100%;
+  /* Keep action buttons at 50% even on small screens */
+  .section-action-buttons .button {
+    flex: 1 1 calc(50% - var(--spacing-xs));
     min-width: 0;
   }
 }
@@ -1054,6 +1178,56 @@ site-app.theme-ready .header {
   .confirm-modal-content .modal-actions .button {
     flex: 1;
     min-width: 0;
+    min-height: 44px;
+  }
+}
+
+/* Alert Modal (single button notification) */
+.alert-modal-content {
+  max-width: 400px;
+  text-align: center;
+}
+
+.alert-modal-content h2 {
+  margin-bottom: var(--spacing-md);
+}
+
+.alert-modal-message {
+  margin: 0 0 var(--spacing-lg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.alert-modal-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: var(--spacing-md);
+}
+
+.alert-modal-content.alert-success .alert-modal-icon {
+  color: #22c55e;
+}
+
+.alert-modal-content.alert-error .alert-modal-icon {
+  color: #dc2626;
+}
+
+.alert-modal-content .modal-actions {
+  justify-content: center;
+}
+
+.alert-modal-content .modal-actions .button {
+  min-width: 120px;
+}
+
+/* Alert Modal Mobile Responsive (< 480px) */
+@media (max-width: 479px) {
+  .alert-modal-content {
+    max-width: none;
+    padding: var(--spacing-md);
+  }
+
+  .alert-modal-content .modal-actions .button {
     min-height: 44px;
   }
 }

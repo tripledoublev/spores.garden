@@ -72,20 +72,20 @@ Static Site → Slingshot (records) + Constellation (backlinks) → Your PDS
 | `list` | Generic list |
 | `profile` | About section |
 | `raw` | Custom HTML |
-| `flower-bed` | Flower garden display |
+| `flower-bed` | Flower garden display (includes spores) |
 | `collected-flowers` | Collected flowers display |
-| `special-spore-display` | Special spore capture-the-flag display |
 
 Layouts extract common fields (title, content, image, date, etc.) from any lexicon.
 
 ## Special Spores
 
-Special spores are rare, gamified items that implement a capture-the-flag mechanic:
+Special spores are rare, gamified items that implement a free-for-all capture-the-flag mechanic:
 
 - **Rarity**: Only 1 in 10 new gardens receives a special spore (10% probability on first config)
-- **Capture Mechanics**: Users can steal spores from gardens (with restrictions)
+- **FFA Capture**: Any logged-in user can steal a spore from its current holder
 - **Backlink-Based**: All spore records reference the origin garden via backlinks, enabling full lineage tracking
-- **Evolution**: Complete history of all captures is preserved and displayed chronologically
+- **Hybrid Display**: Spores appear in flower beds (as outline-style flowers) AND as a floating steal badge
+- **Lineage Trail**: Visit gardens to discover spores and trace their capture history through flower beds
 
 ### Spore Validation
 
