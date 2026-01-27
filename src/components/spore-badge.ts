@@ -21,9 +21,9 @@ interface SporeInfo {
 /**
  * Find all spores currently held by this garden owner
  */
-async function findAllHeldSpores(gardenOwnerDid: string): Promise<SporeInfo[]> {
+export async function findAllHeldSpores(gardenOwnerDid: string): Promise<SporeInfo[]> {
   const heldSpores: SporeInfo[] = [];
-  
+
   try {
     // Check if this garden originated a spore and still holds it
     if (isValidSpore(gardenOwnerDid)) {
@@ -41,7 +41,7 @@ async function findAllHeldSpores(gardenOwnerDid: string): Promise<SporeInfo[]> {
     for (const record of sporeRecords) {
       const originDid = record.value?.subject;
       if (!originDid || !isValidSpore(originDid)) continue;
-      
+
       // Skip if we already found this spore (from origin check above)
       if (heldSpores.some(s => s.originGardenDid === originDid)) continue;
 
@@ -112,7 +112,7 @@ async function findSporeByOrigin(originGardenDid: string): Promise<SporeInfo | n
 /**
  * Steal a spore - FFA capture-the-flag mechanic
  */
-async function stealSpore(sporeInfo: SporeInfo, newOwnerDid: string, ownerHandle: string): Promise<void> {
+export async function stealSpore(sporeInfo: SporeInfo, newOwnerDid: string, ownerHandle: string): Promise<void> {
   try {
     await createRecord('garden.spores.item.specialSpore', {
       $type: SPECIAL_SPORE_COLLECTION,
@@ -230,6 +230,11 @@ class SporeBadge extends HTMLElement {
         if (confirmed) {
           try {
             await stealSpore(sporeInfo, visitorDid, ownerHandle);
+
+            // Immediate UI update: remove the stole spore from local state
+            this.sporeInfos = this.sporeInfos.filter(s => s.originGardenDid !== sporeInfo.originGardenDid);
+            this.render();
+
             window.dispatchEvent(new CustomEvent('config-updated'));
           } catch (error) {
             await showAlertModal({
