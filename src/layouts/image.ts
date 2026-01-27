@@ -110,7 +110,10 @@ export function renderImage(fields: ReturnType<typeof extractFields>, record?: a
     const displayCount = Math.min(4, totalImages);
     const remainingCount = totalImages - displayCount;
     
+    const imageUrls = fields.images.map((img: string | { url: string; alt?: string }) => typeof img === 'string' ? img : img.url);
+
     fields.images.slice(0, displayCount).forEach((src, index) => {
+      const srcUrl = typeof src === 'string' ? src : src.url;
       const imgContainer = document.createElement('div');
       imgContainer.className = 'image-gallery-item';
       imgContainer.style.position = 'relative';
@@ -137,7 +140,7 @@ export function renderImage(fields: ReturnType<typeof extractFields>, record?: a
       imgContainer.appendChild(loadingOverlay);
       
       const img = document.createElement('img');
-      img.src = src;
+      img.src = srcUrl;
       const altText = fields.title ? `${fields.title} - Image ${index + 1} of ${totalImages}` : `Image ${index + 1} of ${totalImages}`;
       img.alt = altText;
       img.loading = 'lazy';
@@ -150,7 +153,7 @@ export function renderImage(fields: ReturnType<typeof extractFields>, record?: a
       
       // Add click handler to open modal at this image
       const openModal = () => {
-        openImageModal(fields.images, index, fields.title || fields.content || '');
+        openImageModal(imageUrls, index, fields.title || fields.content || '');
       };
       img.addEventListener('click', openModal);
       
@@ -182,7 +185,7 @@ export function renderImage(fields: ReturnType<typeof extractFields>, record?: a
             img.style.display = '';
             img.style.opacity = '0';
             loadingOverlay.style.display = 'flex';
-            img.src = src;
+            img.src = srcUrl;
             errorContainer.remove();
           },
           `Image ${index + 1} failed to load`
@@ -202,7 +205,7 @@ export function renderImage(fields: ReturnType<typeof extractFields>, record?: a
         overlay.setAttribute('type', 'button');
         overlay.addEventListener('click', (e) => {
           e.stopPropagation();
-          openImageModal(fields.images, index, fields.title || fields.content || '');
+          openImageModal(imageUrls, index, fields.title || fields.content || '');
         });
         imgContainer.appendChild(overlay);
       }

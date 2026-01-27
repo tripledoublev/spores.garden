@@ -102,7 +102,7 @@ export async function withLoadingState<T>(
     const errorEl = createErrorMessage(
       options?.errorMessage || 'Failed to load content',
       options?.retryCallback
-        ? () => withLoadingState(container, options.retryCallback!, options)
+        ? async () => { await withLoadingState(container, options.retryCallback!, options); }
         : undefined
     );
     
