@@ -387,8 +387,8 @@ export class SiteRenderer {
                         // Create the CTA button
                         const plantCTA = document.createElement('button');
                         plantCTA.className = 'button button-small header-strip-cta';
-                        plantCTA.textContent = '+ Plant a flower';
-                        plantCTA.setAttribute('aria-label', 'Plant a flower in this garden');
+                        plantCTA.textContent = 'Plant your flower';
+                        plantCTA.setAttribute('aria-label', 'Plant your flower in this garden');
                         plantCTA.title = 'Leave your unique flower in this garden';
                         plantCTA.addEventListener('click', () => this.interactions.plantFlower());
                         
