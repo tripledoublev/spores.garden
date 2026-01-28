@@ -108,6 +108,7 @@ function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFi
     // Check the lexicon $type to determine the record type
 
     const isAttending =
+      $raw.isHosting === false ||
       $type === 'community.lexicon.calendar.rsvp' ||
       $type.includes('calendar.rsvp') ||
       $raw.status?.includes('going') ||
