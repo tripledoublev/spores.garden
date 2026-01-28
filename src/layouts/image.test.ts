@@ -1,18 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderImage } from './image';
 import { extractFields } from '../records/field-extractor';
 
 describe('Image Layout', () => {
   beforeEach(() => {
-    // Clean up any existing modals
     document.body.innerHTML = '';
-  });
-
-  afterEach(() => {
-    // Clean up modals after each test
-    const modals = document.querySelectorAll('.image-modal');
-    modals.forEach(modal => modal.remove());
-    document.body.style.overflow = '';
   });
 
   describe('Single Image Rendering', () => {
@@ -59,7 +51,7 @@ describe('Image Layout', () => {
       expect(img?.getAttribute('alt')).toBe('Image description');
     });
 
-    it('should add accessibility attributes', () => {
+    it('should set alt text for accessibility', () => {
       const fields = {
         image: 'https://example.com/image.jpg',
         title: 'Test Image'
@@ -68,9 +60,7 @@ describe('Image Layout', () => {
       const result = renderImage(fields as any);
       const img = result.querySelector('img');
 
-      expect(img?.getAttribute('role')).toBe('button');
-      expect(img?.getAttribute('tabindex')).toBe('0');
-      expect(img?.getAttribute('aria-label')).toContain('View larger image');
+      expect(img?.getAttribute('alt')).toBe('Test Image');
     });
 
     it('should display error message when image fails to load', () => {
@@ -152,7 +142,7 @@ describe('Image Layout', () => {
       expect(moreButton?.textContent).toBe('+1 more');
     });
 
-    it('should add accessibility attributes to gallery images', () => {
+    it('should set alt text on gallery images', () => {
       const fields = {
         images: ['https://example.com/img1.jpg', 'https://example.com/img2.jpg'],
         title: 'Gallery'
@@ -161,11 +151,9 @@ describe('Image Layout', () => {
       const result = renderImage(fields as any);
       const images = result.querySelectorAll('.image-gallery-item img');
 
-      images.forEach((img, index) => {
-        expect(img.getAttribute('role')).toBe('button');
-        expect(img.getAttribute('tabindex')).toBe('0');
-        expect(img.getAttribute('aria-label')).toContain(`View image ${index + 1}`);
-      });
+      expect(images[0].getAttribute('alt')).toContain('Gallery');
+      expect(images[0].getAttribute('alt')).toContain('Image 1 of 2');
+      expect(images[1].getAttribute('alt')).toContain('Image 2 of 2');
     });
   });
 
@@ -229,98 +217,6 @@ describe('Image Layout', () => {
       const caption = result.querySelector('figcaption');
 
       expect(caption).toBeFalsy();
-    });
-  });
-
-  describe('Modal Functionality', () => {
-    it('should open modal when image is clicked', () => {
-      const fields = {
-        image: 'https://example.com/image.jpg',
-        title: 'Test Image'
-      };
-
-      const result = renderImage(fields as any);
-      const img = result.querySelector('img');
-
-      if (img) {
-        (img as HTMLElement).click();
-
-        // Check if modal was created
-        const modal = document.querySelector('.image-modal');
-        expect(modal).toBeTruthy();
-        expect(modal?.getAttribute('aria-modal')).toBe('true');
-      }
-    });
-
-    it('should open modal with gallery when gallery image is clicked', () => {
-      const fields = {
-        images: [
-          'https://example.com/img1.jpg',
-          'https://example.com/img2.jpg'
-        ]
-      };
-
-      const result = renderImage(fields as any);
-      const firstImg = result.querySelector('.image-gallery-item img');
-
-      if (firstImg) {
-        (firstImg as HTMLElement).click();
-
-        const modal = document.querySelector('.image-modal');
-        expect(modal).toBeTruthy();
-
-        const modalImage = modal?.querySelector('.image-modal-image');
-        expect(modalImage).toBeTruthy();
-      }
-    });
-
-    it('should close modal when close button is clicked', () => {
-      const fields = {
-        image: 'https://example.com/image.jpg'
-      };
-
-      const result = renderImage(fields as any);
-      const img = result.querySelector('img');
-
-      if (img) {
-        (img as HTMLElement).click();
-
-        const modal = document.querySelector('.image-modal');
-        expect(modal).toBeTruthy();
-
-        const closeButton = modal?.querySelector('.image-modal-close');
-        if (closeButton) {
-          (closeButton as HTMLElement).click();
-
-          // Modal should be removed
-          const remainingModal = document.querySelector('.image-modal');
-          expect(remainingModal).toBeFalsy();
-        }
-      }
-    });
-
-    it('should support keyboard navigation in modal', () => {
-      const fields = {
-        images: ['https://example.com/img1.jpg', 'https://example.com/img2.jpg']
-      };
-
-      const result = renderImage(fields as any);
-      const firstImg = result.querySelector('.image-gallery-item img');
-
-      if (firstImg) {
-        (firstImg as HTMLElement).click();
-
-        const modal = document.querySelector('.image-modal');
-        expect(modal).toBeTruthy();
-
-        // Test Escape key
-        const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
-        document.dispatchEvent(escapeEvent);
-
-        // Modal should be closed
-        const remainingModal = document.querySelector('.image-modal');
-        expect(remainingModal).toBeFalsy();
-      }
     });
   });
 

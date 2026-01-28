@@ -533,7 +533,7 @@ describe('Leaflet Layout', () => {
   });
 
   describe('URL Handling', () => {
-    it('should make title a link when URL is available', () => {
+    it('should render title as plain text (never as link)', () => {
       const fields = {
         title: 'Test Article',
         url: 'https://leaflet.pub/@user/article123'
@@ -546,12 +546,11 @@ describe('Leaflet Layout', () => {
       };
 
       const result = renderLeaflet(fields as any, record);
-      const titleLink = result.querySelector('.leaflet-title a');
+      const titleEl = result.querySelector('.leaflet-title');
 
-      expect(titleLink).toBeTruthy();
-      expect(titleLink?.getAttribute('href')).toBe('https://leaflet.pub/@user/article123');
-      expect(titleLink?.getAttribute('target')).toBe('_blank');
-      expect(titleLink?.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(titleEl).toBeTruthy();
+      expect(titleEl?.textContent).toBe('Test Article');
+      expect(titleEl?.querySelector('a')).toBeNull();
     });
 
     it('should render link back to leaflet.pub', () => {

@@ -12,10 +12,10 @@ npm run dev
 ```
 
 Then open one of:
-- `http://localhost:5174/@your-handle.bsky.social` (path-based with handle)
-- `http://localhost:5174/@did:plc:your-did-here` (path-based with DID)
-- `http://localhost:5174?did=did:plc:your-did-here` (query param with DID)
-- `http://localhost:5174?handle=your-handle.bsky.social` (query param with handle)
+- `http://127.0.0.1:5174/@your-handle.bsky.social` (path-based with handle)
+- `http://127.0.0.1:5174/@did:plc:your-did-here` (path-based with DID)
+- `http://127.0.0.1:5174?did=did:plc:your-did-here` (query param with DID)
+- `http://127.0.0.1:5174?handle=your-handle.bsky.social` (query param with handle)
 
 The app automatically resolves handles to DIDs using the AT Protocol identity service.
 

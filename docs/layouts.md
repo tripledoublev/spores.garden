@@ -390,7 +390,6 @@ The following layouts are available by default:
 - `raw` - Custom HTML content (sanitized)
 - `flower-bed` - Displays planted flowers
 - `collected-flowers` - Displays collected flowers
-- `special-spore-display` - Displays special spore items
 - `smoke-signal` - Displays Smoke Signal events
 - `leaflet` - Displays Leaflet.pub articles
 

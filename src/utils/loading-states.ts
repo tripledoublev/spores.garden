@@ -106,8 +106,7 @@ export async function withLoadingState<T>(
     const errorEl = createErrorMessage(
       errorMessage,
       onRetry ? async () => {
-        const retryResult = await withLoadingState(container, onRetry, loadingMessage, errorMessage, onRetry);
-        return retryResult;
+        await withLoadingState(container, onRetry, loadingMessage, errorMessage, onRetry);
       } : undefined,
       error instanceof Error ? error.message : String(error)
     );

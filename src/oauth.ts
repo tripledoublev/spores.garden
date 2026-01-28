@@ -1,6 +1,13 @@
 /**
  * OAuth wrapper for AT Protocol authentication using atcute
  *
+ * Session and expiry behaviour:
+ * - This app does not use token refresh. When the access token expires, the user must log in again.
+ * - Expiry is enforced on restore (stored session with expiresAt in the past is cleared).
+ * - When a PDS call returns 401 or 403 (invalid/expired token), we clear the session, dispatch
+ *   auth-change with { loggedIn: false, did: null, reason: 'expired' }, and throw so callers can
+ *   show "Session expired, please log in again". The UI reflects logged-out state immediately.
+ *
  * Usage:
  *   import { initOAuth, login, logout, getAgent, isLoggedIn } from './oauth';
  *
@@ -257,6 +264,23 @@ async function restoreSession() {
 }
 
 /**
+ * Clear in-memory session and storage, then dispatch auth-change so the UI shows logged out.
+ * Used when the PDS returns 401/403 (invalid or expired token). Call before rethrowing.
+ */
+function clearSessionDueToAuthFailure() {
+  currentAgent = null;
+  currentSession = null;
+  try {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // Ignore cleanup errors
+  }
+  window.dispatchEvent(new CustomEvent('auth-change', {
+    detail: { loggedIn: false, did: null, reason: 'expired' }
+  }));
+}
+
+/**
  * Logout
  */
 export function logout() {
@@ -347,6 +371,11 @@ export async function createRecord(collection: string, record: unknown) {
     });
 
     if (!response.ok) {
+      const status = (response as { status?: number }).status;
+      if (status === 401 || status === 403) {
+        clearSessionDueToAuthFailure();
+        throw new Error('Session expired, please log in again.');
+      }
       const errorMsg = response.data?.message || response.data?.error || 'Unknown error';
       throw new Error(`Failed to create record: ${errorMsg}`);
     }
@@ -401,6 +430,11 @@ export async function putRecord(collection: string, rkey: string, record: unknow
   });
 
   if (!response.ok) {
+    const status = (response as { status?: number }).status;
+    if (status === 401 || status === 403) {
+      clearSessionDueToAuthFailure();
+      throw new Error('Session expired, please log in again.');
+    }
     const errorMsg = response.data?.message || response.data?.error || 'Unknown error';
     throw new Error(`Failed to update record: ${errorMsg}`);
   }
@@ -450,6 +484,10 @@ export async function deleteRecord(collection: string, rkey: string) {
   });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      clearSessionDueToAuthFailure();
+      throw new Error('Session expired, please log in again.');
+    }
     if (response.status === 404) {
       return null;
     }
@@ -501,6 +539,11 @@ export async function post(record: unknown) {
   });
 
   if (!response.ok) {
+    const status = (response as { status?: number }).status;
+    if (status === 401 || status === 403) {
+      clearSessionDueToAuthFailure();
+      throw new Error('Session expired, please log in again.');
+    }
     const errorMsg = response.data?.message || response.data?.error || 'Unknown error';
     throw new Error(`Failed to create post: ${errorMsg}`);
   }
@@ -535,6 +578,10 @@ export async function uploadBlob(blob: Blob, mimeType: string) {
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        clearSessionDueToAuthFailure();
+        throw new Error('Session expired, please log in again.');
+      }
       const errorData = await response.json().catch(() => ({}));
       const errorMsg = errorData.message || errorData.error || `HTTP ${response.status}`;
       throw new Error(`Failed to upload blob: ${errorMsg}`);

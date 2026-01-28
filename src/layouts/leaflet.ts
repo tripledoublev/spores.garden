@@ -10,6 +10,61 @@
 import { extractFields } from '../records/field-extractor';
 import { createErrorMessage } from '../utils/loading-states';
 
+const SITE_STANDARD_PUBLICATION = 'site.standard.publication';
+const SITE_STANDARD_DOCUMENT = 'site.standard.document';
+
+/**
+ * Fetch the document owner's site.standard.publication and build the read-more URL
+ * from publication.url + document rkey (per Standard.site: canonical document URL
+ * is publication url + document path).
+ * Resolves the publication by: (1) document's publication ref (AT URI) if present,
+ * (2) else list site.standard.publication for the repo and use the first record.
+ */
+async function fetchPublicationReadMoreUrl(record: { uri?: string; value?: { publication?: string | { uri?: string } } }): Promise<string | undefined> {
+  const uri = record?.uri;
+  if (!uri || !uri.includes(SITE_STANDARD_DOCUMENT)) return undefined;
+  const parts = uri.split('/');
+  const did = parts[2];
+  const docRkey = parts[parts.length - 1];
+  if (!did || !docRkey) return undefined;
+
+  const { getRecordByUri } = await import('../records/loader');
+  const { listRecords } = await import('../at-client');
+
+  let pub: { value?: { url?: string } } | null = null;
+
+  const publicationRef = record.value?.publication;
+  const publicationUri = typeof publicationRef === 'string' ? publicationRef : publicationRef?.uri;
+  if (publicationUri && publicationUri.includes(SITE_STANDARD_PUBLICATION)) {
+    pub = await getRecordByUri(publicationUri);
+  }
+  if (!pub?.value?.url) {
+    const data = await listRecords(did, SITE_STANDARD_PUBLICATION, { limit: 1 });
+    const first = data?.records?.[0];
+    if (first?.value) pub = first as { value: { url?: string } };
+  }
+
+  const base = pub?.value?.url;
+  if (typeof base !== 'string' || !base.startsWith('https://')) return undefined;
+  return `${base.replace(/\/$/, '')}/${docRkey}`;
+}
+
+/**
+ * Append the "Read on leaflet.pub" link block to the article container
+ */
+function appendReadMoreLink(container: HTMLElement, url: string): void {
+  const linkBack = document.createElement('div');
+  linkBack.className = 'leaflet-link-back';
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = 'Read on leaflet.pub →';
+  link.setAttribute('aria-label', 'Read full article on leaflet.pub - Opens in new tab');
+  linkBack.appendChild(link);
+  container.appendChild(linkBack);
+}
+
 /**
  * Format a blob URL from a leaflet.pub blob reference
  */
@@ -91,6 +146,8 @@ function renderBlock(block: any, authorDid: string, depth: number = 0): HTMLElem
   switch (blockType) {
     case 'pub.leaflet.blocks.text': {
       const textBlock = block.block;
+      const plaintext = (textBlock.plaintext || '').trim();
+      if (plaintext === '') return null;
       const p = document.createElement('p');
       if (textBlock.facets && textBlock.facets.length > 0) {
         p.innerHTML = applyFacets(textBlock.plaintext || '', textBlock.facets);
@@ -297,6 +354,7 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
     const title = fields.title || 'Untitled Article';
     const date = fields.date;
     const url = fields.url;
+    const readMoreUrl = url && typeof url === 'string' && url.startsWith('https://') ? url : undefined;
     const image = fields.image;
     const tags = fields.tags;
     
@@ -326,17 +384,7 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
 
     const titleEl = document.createElement('h1');
     titleEl.className = 'leaflet-title';
-    if (url) {
-      const link = document.createElement('a');
-      link.href = url;
-      link.textContent = title;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.setAttribute('aria-label', `${title} - Opens in new tab`);
-      titleEl.appendChild(link);
-    } else {
-      titleEl.textContent = title;
-    }
+    titleEl.textContent = title;
     header.appendChild(titleEl);
 
     // Article metadata
@@ -461,29 +509,27 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
       }
     }
 
-    // Article content - render blocks
+    // Article content - render blocks (only show section when there is rendered content)
     if (pages && pages.length > 0) {
-      const contentEl = document.createElement('div');
-      contentEl.className = 'leaflet-content';
-      
       const blocksFragment = renderBlocks(pages, authorDid);
-      contentEl.appendChild(blocksFragment);
-      
-      container.appendChild(contentEl);
+      if (blocksFragment.childNodes.length > 0) {
+        const contentEl = document.createElement('div');
+        contentEl.className = 'leaflet-content';
+        contentEl.appendChild(blocksFragment);
+        container.appendChild(contentEl);
+      }
     }
 
-    // Link to original on leaflet.pub (if URL available)
-    if (url) {
-      const linkBack = document.createElement('div');
-      linkBack.className = 'leaflet-link-back';
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = 'Read on leaflet.pub →';
-      link.setAttribute('aria-label', `Read full article on leaflet.pub - Opens in new tab`);
-      linkBack.appendChild(link);
-      container.appendChild(linkBack);
+    // Link to original on leaflet.pub: use field url when valid https, else for
+    // site.standard.document fetch the owner's publication record and use its url + doc rkey
+    if (readMoreUrl) {
+      appendReadMoreLink(container, readMoreUrl);
+    } else if (record?.uri && record.uri.includes(SITE_STANDARD_DOCUMENT)) {
+      fetchPublicationReadMoreUrl(record).then((url) => {
+        if (url) appendReadMoreLink(container, url);
+      }).catch((err) => {
+        console.warn('Failed to resolve publication read-more URL:', err);
+      });
     }
 
     el.appendChild(container);

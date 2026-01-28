@@ -4,7 +4,7 @@
 This is a static, browser-run app built around AT Protocol data. Key paths:
 - `index.html` loads the app and pulls in `src/main.ts`.
 - `src/` contains all runtime code, using ES modules and TypeScript.
-  - `src/components/` custom elements (site-app.ts, section-block.ts, etc.) that render the UI.
+  - `src/components/` custom elements (site-app.ts, site-editor.ts, section-block.ts, etc.) that render the UI.
   - `src/layouts/` layout renderers used by sections.
   - `src/themes/` theme presets and the theme engine.
   - `src/editor/` edit-mode UI helpers.
@@ -20,7 +20,7 @@ Run everything with npm (Vite handles dev/build):
 - `npm run build` builds production assets to `dist/`.
 - `npm run preview` serves the production build locally.
 - `npm start` is an alias for `dev`.
-Local dev expects `http://localhost:5174?did=did:plc:your-did-here` (see `spec.md`).
+Local dev expects `http://127.0.0.1:5174?did=did:plc:your-did-here` (see `spec.md`).
 
 ## Coding Style & Naming Conventions
 - Indentation: 2 spaces; use semicolons.

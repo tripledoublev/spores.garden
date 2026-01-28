@@ -11,13 +11,14 @@ npm install
 npm run dev
 ```
 
-Then open one of:
-- `http://localhost:5174/@your-handle.bsky.social` (path-based with handle)
-- `http://localhost:5174/@did:plc:your-did-here` (path-based with DID)
-- `http://localhost:5174?did=did:plc:your-did-here` (query param with DID)
-- `http://localhost:5174?handle=your-handle.bsky.social` (query param with handle)
+Then open your browser to:
+- `http://127.0.0.1:5174` (or the port shown in your terminal)
 
-The app automatically resolves handles to DIDs using the AT Protocol identity service.
+You will see a "Connect" button. Log in with your Bluesky/AT Protocol handle (e.g., `user.bsky.social`) to view and edit your garden.
+
+You can also directly view gardens by URL:
+- `http://127.0.0.1:5174/@your-handle.bsky.social` (path-based with handle)
+- `http://127.0.0.1:5174/@did:plc:your-did-here` (path-based with DID)
 
 ## How It Works
 
@@ -56,7 +57,10 @@ Static Site → Slingshot (records) + Constellation (backlinks) → Your PDS
 
 ### Project Structure
 
-- `/src/components/` - Web Components (site-app, section-block, etc.)
+- `/src/components/` - Web Components
+  - `site-app.ts` - Main application coordinator
+  - `site-*.ts` - Modular app components (Auth, Editor, Router, Renderer, Data, Interactions)
+  - `section-block.ts` - Content block rendering
 - `/src/layouts/` - Record rendering layouts
 - `/src/records/` - AT Protocol record loading and field extraction
 - `/src/themes/` - Theme engine and presets
@@ -79,7 +83,6 @@ Static Site → Slingshot (records) + Constellation (backlinks) → Your PDS
 | `smoke-signal` | Events (hosting/attending) |
 | `flower-bed` | Flower garden display |
 | `collected-flowers` | Collected flowers display |
-| `special-spore-display` | Special spore capture-the-flag display |
 
 Layouts extract common fields (title, content, image, date, etc.) from any lexicon.
 
