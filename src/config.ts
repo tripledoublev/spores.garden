@@ -91,15 +91,10 @@ function generateInitialSections(did: string): any[] {
     title: 'Welcome'
   });
 
-  // 3. Flower Bed
-  sections.push({
-    id: `section-${sectionId++}`,
-    type: 'flower-bed',
-    layout: 'flower-bed',
-    title: 'Flower Bed'
-  });
+  // Note: Flower Bed is now rendered as a header strip directly under the header,
+  // not as a section. See site-renderer.ts for the implementation.
 
-  // 4. Collected Flowers
+  // 3. Collected Flowers
   sections.push({
     id: `section-${sectionId++}`,
     type: 'collected-flowers',
@@ -107,7 +102,7 @@ function generateInitialSections(did: string): any[] {
     title: 'Collected Flowers'
   });
 
-  // 5. Share to Bluesky
+  // 4. Share to Bluesky
   sections.push({
     id: `section-${sectionId++}`,
     type: 'share-to-bluesky',

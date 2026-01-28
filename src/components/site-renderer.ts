@@ -4,6 +4,7 @@ import { escapeHtml } from '../utils/sanitize';
 import { SiteRouter } from './site-router';
 import { generateFlowerSVGString, generateSporeFlowerSVGString } from '../utils/flower-svg';
 import { showSporeDetailsModal } from './spore-modal';
+import { renderFlowerBed } from '../layouts/flower-bed';
 import type { SiteAuth } from './site-auth';
 import type { SiteEditor } from './site-editor';
 import type { SiteInteractions } from './site-interactions';
@@ -354,6 +355,64 @@ export class SiteRenderer {
         header.appendChild(menuToggle);
         header.appendChild(controls);
         this.app.appendChild(header);
+
+        // Flower bed header strip (shows visitor flowers under header)
+        if (!isHomePage) {
+            // Render asynchronously to avoid blocking the main render
+            renderFlowerBed({}, true).then(async flowerBedStrip => {
+                // Guard against race conditions
+                if (this.renderId !== myRenderId) return;
+                
+                // Check if we should show the "Plant a flower" CTA
+                // Only for logged-in visitors who haven't planted yet
+                const canShowPlantCTA = isLoggedIn() && !isOwnerLoggedIn && ownerDid;
+                
+                if (canShowPlantCTA) {
+                    const currentDid = getCurrentDid();
+                    const hasPlantedFlower = await this.interactions.checkHasPlantedFlower(ownerDid!, currentDid);
+                    
+                    // Guard against race conditions after async check
+                    if (this.renderId !== myRenderId) return;
+                    
+                    if (!hasPlantedFlower) {
+                        // Create the flower bed strip if it doesn't exist (no visitors yet)
+                        if (!flowerBedStrip) {
+                            flowerBedStrip = document.createElement('div');
+                            flowerBedStrip.className = 'flower-bed header-strip';
+                            const grid = document.createElement('div');
+                            grid.className = 'flower-grid';
+                            flowerBedStrip.appendChild(grid);
+                        }
+                        
+                        // Create the CTA button
+                        const plantCTA = document.createElement('button');
+                        plantCTA.className = 'button button-small header-strip-cta';
+                        plantCTA.textContent = '+ Plant a flower';
+                        plantCTA.setAttribute('aria-label', 'Plant a flower in this garden');
+                        plantCTA.title = 'Leave your unique flower in this garden';
+                        plantCTA.addEventListener('click', () => this.interactions.plantFlower());
+                        
+                        // Add CTA to the flower grid
+                        const grid = flowerBedStrip.querySelector('.flower-grid');
+                        if (grid) {
+                            grid.appendChild(plantCTA);
+                        }
+                    }
+                }
+                
+                if (flowerBedStrip) {
+                    // Insert after header, before main
+                    const main = this.app.querySelector('main');
+                    if (main) {
+                        this.app.insertBefore(flowerBedStrip, main);
+                    } else {
+                        this.app.appendChild(flowerBedStrip);
+                    }
+                }
+            }).catch(err => {
+                console.error('Failed to render flower bed header strip:', err);
+            });
+        }
 
         // Main content
         const main = document.createElement('main');

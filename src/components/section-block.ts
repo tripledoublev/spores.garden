@@ -56,6 +56,14 @@ class SectionBlock extends HTMLElement {
       return;
     }
 
+    // Skip flower-bed sections - they are now rendered as a header strip
+    // This ensures backward compatibility with old content that have flower-bed sections
+    if (this.section.type === 'flower-bed') {
+      this.replaceChildren();
+      this.style.display = 'none';
+      return;
+    }
+
     const fragment = document.createDocumentFragment();
 
     // Check if this is a Bluesky post section (hide title in view mode)

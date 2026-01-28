@@ -33,12 +33,14 @@ function getOwnerTheme(ownerDid: string) {
  */
 
 
-export async function renderFlowerBed(section) {
-  const el = document.createElement('div');
-  el.className = 'flower-bed';
-
+export async function renderFlowerBed(section: any, excludeOwner: boolean = false): Promise<HTMLElement | null> {
   const ownerDid = getSiteOwnerDid();
   if (!ownerDid) {
+    if (excludeOwner) {
+      return null;
+    }
+    const el = document.createElement('div');
+    el.className = 'flower-bed';
     el.textContent = 'Could not determine garden owner.';
     return el;
   }
@@ -56,13 +58,6 @@ export async function renderFlowerBed(section) {
   const borderColor = colors?.text || colors?.border || '#000000';
   // Use background color, but lighten it slightly for surface effect
   const backgroundColor = colors?.background || '#f8f9fa';
-
-  // Apply owner's unique styling to the flower bed via CSS custom properties
-  el.style.setProperty('--flower-bed-border-style', borderStyle);
-  el.style.setProperty('--flower-bed-border-width', borderWidth);
-  el.style.setProperty('--flower-bed-border-color', borderColor);
-  el.style.setProperty('--flower-bed-inset-color', insetBorderColor);
-  el.style.setProperty('--flower-bed-background', backgroundColor);
 
   try {
     const response = await getBacklinks(ownerDid, 'garden.spores.social.flower:subject', { limit: 100 });
@@ -100,7 +95,32 @@ export async function renderFlowerBed(section) {
       }
     }
 
-    const flowersToRender = [{ did: ownerDid }, ...visitorFlowers];
+    // Early return if excludeOwner and no visitors
+    if (excludeOwner && visitorFlowers.length === 0) {
+      return null;
+    }
+
+    // Create element and apply classes
+    const el = document.createElement('div');
+    el.className = 'flower-bed';
+    if (excludeOwner) {
+      el.classList.add('header-strip');
+    }
+
+    // Apply owner's unique styling to the flower bed via CSS custom properties
+    // (only needed for the full flower bed section, not header strip)
+    if (!excludeOwner) {
+      el.style.setProperty('--flower-bed-border-style', borderStyle);
+      el.style.setProperty('--flower-bed-border-width', borderWidth);
+      el.style.setProperty('--flower-bed-border-color', borderColor);
+      el.style.setProperty('--flower-bed-inset-color', insetBorderColor);
+      el.style.setProperty('--flower-bed-background', backgroundColor);
+    }
+
+    // Determine flowers to render
+    const flowersToRender = excludeOwner 
+      ? visitorFlowers  // Only visitors
+      : [{ did: ownerDid }, ...visitorFlowers];  // Include owner
 
     const grid = document.createElement('div');
     grid.className = 'flower-grid';
@@ -140,21 +160,30 @@ export async function renderFlowerBed(section) {
 
     // Add a friendly hint if nobody else has planted here yet.
     // Hide this hint if the user is logged in and viewing their own garden.
-    const isViewingOwnGarden = isLoggedIn() && getCurrentDid() === ownerDid;
-    if (visitorFlowers.length === 0 && !isViewingOwnGarden) {
-      const hint = document.createElement('p');
-      hint.style.marginTop = '1rem';
-      hint.style.color = 'var(--color-text-muted, #6b7280)';
-      hint.textContent = 'Be the first to plant a flower here! Your unique flower will appear in this garden.';
-      el.appendChild(hint);
+    // Skip hint text when excludeOwner (header strip mode)
+    if (!excludeOwner) {
+      const isViewingOwnGarden = isLoggedIn() && getCurrentDid() === ownerDid;
+      if (visitorFlowers.length === 0 && !isViewingOwnGarden) {
+        const hint = document.createElement('p');
+        hint.style.marginTop = '1rem';
+        hint.style.color = 'var(--color-text-muted, #6b7280)';
+        hint.textContent = 'Be the first to plant a flower here! Your unique flower will appear in this garden.';
+        el.appendChild(hint);
+      }
     }
+
+    return el;
 
   } catch (error) {
     console.error('Failed to load flower bed:', error);
+    if (excludeOwner) {
+      return null;
+    }
+    const el = document.createElement('div');
+    el.className = 'flower-bed';
     el.textContent = error instanceof Error ? error.message : 'Failed to load flower bed.';
+    return el;
   }
-
-  return el;
 }
 
 /**
