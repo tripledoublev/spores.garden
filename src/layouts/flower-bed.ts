@@ -189,9 +189,144 @@ async function findGardensWithFlower(flowerDid: string): Promise<Array<{ gardenD
 }
 
 /**
+ * Create a disabled button element (not an <a> tag) for the current page
+ */
+function createDisabledGardenButton(
+  gardenDid: string,
+  gardenHandle: string,
+  displayName: string,
+  isCurrentPage: boolean
+): HTMLElement {
+  const button = document.createElement('div');
+  button.className = 'button button-primary';
+  button.style.display = 'flex';
+  button.style.alignItems = 'center';
+  button.style.gap = '0.75rem';
+  button.style.width = '100%';
+  button.style.boxSizing = 'border-box';
+  button.style.marginBottom = '0.5rem';
+  button.style.padding = '0.75rem 1rem';
+  button.style.opacity = '0.6';
+  button.style.cursor = 'not-allowed';
+  button.setAttribute('aria-label', `Visit ${gardenHandle}'s garden (current page)`);
+  button.title = `Visit ${gardenHandle}'s garden (you are here)`;
+
+  const vizWrap = document.createElement('div');
+  vizWrap.style.width = '40px';
+  vizWrap.style.height = '40px';
+  vizWrap.style.flexShrink = '0';
+
+  const viz = document.createElement('did-visualization');
+  viz.setAttribute('did', gardenDid);
+  viz.setAttribute('size', '40');
+  vizWrap.appendChild(viz);
+  button.appendChild(vizWrap);
+
+  const textWrap = document.createElement('div');
+  textWrap.style.display = 'flex';
+  textWrap.style.flexDirection = 'column';
+  textWrap.style.alignItems = 'flex-start';
+  textWrap.style.gap = '0.125rem';
+  textWrap.style.minWidth = '0';
+  textWrap.style.flex = '1';
+  textWrap.style.overflow = 'hidden';
+
+  const primary = document.createElement('div');
+  primary.style.fontWeight = '700';
+  primary.style.fontSize = '0.875rem';
+  primary.style.textTransform = 'uppercase';
+  primary.style.letterSpacing = '0.02em';
+  primary.textContent = `Visit ${gardenHandle}'s garden`;
+  textWrap.appendChild(primary);
+
+  const secondary = document.createElement('div');
+  secondary.style.fontWeight = '400';
+  secondary.style.opacity = '0.85';
+  secondary.style.fontSize = '0.875rem';
+  secondary.style.overflow = 'hidden';
+  secondary.style.textOverflow = 'ellipsis';
+  secondary.style.whiteSpace = 'nowrap';
+  secondary.style.maxWidth = '100%';
+  secondary.textContent = displayName || gardenHandle;
+  textWrap.appendChild(secondary);
+
+  button.appendChild(textWrap);
+  return button;
+}
+
+/**
+ * Create a clickable link element for a garden
+ */
+function createGardenLink(
+  gardenDid: string,
+  gardenHandle: string,
+  displayName: string,
+  profile: any
+): HTMLAnchorElement {
+  const visitLink = document.createElement('a');
+  visitLink.href = `/@${profile?.handle || gardenDid}`;
+  visitLink.className = 'button button-primary';
+  visitLink.style.display = 'flex';
+  visitLink.style.alignItems = 'center';
+  visitLink.style.gap = '0.75rem';
+  visitLink.style.width = '100%';
+  visitLink.style.boxSizing = 'border-box';
+  visitLink.style.marginBottom = '0.5rem';
+  visitLink.style.padding = '0.75rem 1rem';
+  visitLink.style.textDecoration = 'none';
+  visitLink.setAttribute('aria-label', `Visit ${gardenHandle}'s garden`);
+  visitLink.title = `Visit ${gardenHandle}'s garden`;
+
+  const vizWrap = document.createElement('div');
+  vizWrap.style.width = '40px';
+  vizWrap.style.height = '40px';
+  vizWrap.style.flexShrink = '0';
+
+  const viz = document.createElement('did-visualization');
+  viz.setAttribute('did', gardenDid);
+  viz.setAttribute('size', '40');
+  vizWrap.appendChild(viz);
+  visitLink.appendChild(vizWrap);
+
+  const textWrap = document.createElement('div');
+  textWrap.style.display = 'flex';
+  textWrap.style.flexDirection = 'column';
+  textWrap.style.alignItems = 'flex-start';
+  textWrap.style.gap = '0.125rem';
+  textWrap.style.minWidth = '0';
+  textWrap.style.flex = '1';
+  textWrap.style.overflow = 'hidden';
+
+  const primary = document.createElement('div');
+  primary.style.fontWeight = '700';
+  primary.style.fontSize = '0.875rem';
+  primary.style.textTransform = 'uppercase';
+  primary.style.letterSpacing = '0.02em';
+  primary.textContent = `Visit ${gardenHandle}'s garden`;
+  textWrap.appendChild(primary);
+
+  const secondary = document.createElement('div');
+  secondary.style.fontWeight = '400';
+  secondary.style.opacity = '0.85';
+  secondary.style.fontSize = '0.875rem';
+  secondary.style.overflow = 'hidden';
+  secondary.style.textOverflow = 'ellipsis';
+  secondary.style.whiteSpace = 'nowrap';
+  secondary.style.maxWidth = '100%';
+  secondary.textContent = displayName || gardenHandle;
+  textWrap.appendChild(secondary);
+
+  visitLink.appendChild(textWrap);
+  return visitLink;
+}
+
+/**
  * Show a modal displaying all gardens where a specific flower was planted
  */
 async function showFlowerGardensModal(flowerDid: string) {
+  // Get current page DID to detect if links point to current page
+  const currentPageDid = getSiteOwnerDid();
+
   // Get flower profile for display
   let flowerProfile;
   try {
@@ -201,6 +336,7 @@ async function showFlowerGardensModal(flowerDid: string) {
   }
 
   const flowerHandle = flowerProfile?.handle || flowerDid.substring(0, 20) + '...';
+  const isFlowerGardenCurrentPage = currentPageDid && flowerDid === currentPageDid;
 
   // Create modal
   const modal = document.createElement('div');
@@ -228,60 +364,25 @@ async function showFlowerGardensModal(flowerDid: string) {
   // Add "Visit @flower garden" button directly under the heading
   const selfCta = modal.querySelector('#flower-gardens-self-cta');
   if (selfCta) {
-    const visitSelfLink = document.createElement('a');
-    visitSelfLink.href = `/@${flowerProfile?.handle || flowerDid}`;
-    visitSelfLink.className = 'button button-primary';
-    visitSelfLink.style.display = 'flex';
-    visitSelfLink.style.alignItems = 'center';
-    visitSelfLink.style.gap = '0.75rem';
-    visitSelfLink.style.width = '100%';
-    visitSelfLink.style.boxSizing = 'border-box';
-    visitSelfLink.style.padding = '0.75rem 1rem';
-    visitSelfLink.style.textDecoration = 'none';
-    visitSelfLink.setAttribute('aria-label', `Visit @${flowerHandle}'s garden`);
-    visitSelfLink.title = `Visit @${flowerHandle}'s garden`;
-
-    const vizWrap = document.createElement('div');
-    vizWrap.style.width = '40px';
-    vizWrap.style.height = '40px';
-    vizWrap.style.flexShrink = '0';
-
-    const viz = document.createElement('did-visualization');
-    viz.setAttribute('did', flowerDid);
-    viz.setAttribute('size', '40');
-    vizWrap.appendChild(viz);
-    visitSelfLink.appendChild(vizWrap);
-
-    const textWrap = document.createElement('div');
-    textWrap.style.display = 'flex';
-    textWrap.style.flexDirection = 'column';
-    textWrap.style.alignItems = 'flex-start';
-    textWrap.style.gap = '0.125rem';
-    textWrap.style.minWidth = '0';
-    textWrap.style.flex = '1';
-    textWrap.style.overflow = 'hidden';
-
-    const primary = document.createElement('div');
-    primary.style.fontWeight = '700';
-    primary.style.fontSize = '0.875rem';
-    primary.style.textTransform = 'uppercase';
-    primary.style.letterSpacing = '0.02em';
-    primary.textContent = `Visit @${flowerHandle}'s garden`;
-    textWrap.appendChild(primary);
-
-    const secondary = document.createElement('div');
-    secondary.style.fontWeight = '400';
-    secondary.style.opacity = '0.85';
-    secondary.style.fontSize = '0.875rem';
-    secondary.style.overflow = 'hidden';
-    secondary.style.textOverflow = 'ellipsis';
-    secondary.style.whiteSpace = 'nowrap';
-    secondary.style.maxWidth = '100%';
-    secondary.textContent = flowerProfile?.displayName || flowerHandle;
-    textWrap.appendChild(secondary);
-
-    visitSelfLink.appendChild(textWrap);
-    selfCta.appendChild(visitSelfLink);
+    if (isFlowerGardenCurrentPage) {
+      // Current page - show disabled button
+      const disabledButton = createDisabledGardenButton(
+        flowerDid,
+        `@${flowerHandle}`,
+        flowerProfile?.displayName || flowerHandle,
+        true
+      );
+      selfCta.appendChild(disabledButton);
+    } else {
+      // Not current page - show clickable link
+      const visitSelfLink = createGardenLink(
+        flowerDid,
+        `@${flowerHandle}`,
+        flowerProfile?.displayName || flowerHandle,
+        flowerProfile
+      );
+      selfCta.appendChild(visitSelfLink);
+    }
   }
 
   // Close handlers
@@ -307,64 +408,28 @@ async function showFlowerGardensModal(flowerDid: string) {
     // Create list of gardens
     for (const { gardenDid, profile } of gardens) {
       const gardenHandle = profile?.handle ? `@${profile.handle}` : `${gardenDid.substring(0, 20)}...`;
+      const isGardenCurrentPage = currentPageDid && gardenDid === currentPageDid;
 
       // Single, full-width CTA per garden (prevents layout overlap on narrow modals)
-      const visitLink = document.createElement('a');
-      visitLink.href = `/@${profile?.handle || gardenDid}`;
-      visitLink.className = 'button button-primary';
-      visitLink.style.display = 'flex';
-      visitLink.style.alignItems = 'center';
-      visitLink.style.gap = '0.75rem';
-      visitLink.style.width = '100%';
-      visitLink.style.boxSizing = 'border-box';
-      visitLink.style.marginBottom = '0.5rem';
-      visitLink.style.padding = '0.75rem 1rem';
-      visitLink.style.textDecoration = 'none';
-      visitLink.setAttribute('aria-label', `Visit ${gardenHandle}'s garden`);
-      visitLink.title = `Visit ${gardenHandle}'s garden`;
-
-      const vizWrap = document.createElement('div');
-      vizWrap.style.width = '40px';
-      vizWrap.style.height = '40px';
-      vizWrap.style.flexShrink = '0';
-
-      const viz = document.createElement('did-visualization');
-      viz.setAttribute('did', gardenDid);
-      viz.setAttribute('size', '40');
-      vizWrap.appendChild(viz);
-      visitLink.appendChild(vizWrap);
-
-      const textWrap = document.createElement('div');
-      textWrap.style.display = 'flex';
-      textWrap.style.flexDirection = 'column';
-      textWrap.style.alignItems = 'flex-start';
-      textWrap.style.gap = '0.125rem';
-      textWrap.style.minWidth = '0';
-      textWrap.style.flex = '1';
-      textWrap.style.overflow = 'hidden';
-
-      const primary = document.createElement('div');
-      primary.style.fontWeight = '700';
-      primary.style.fontSize = '0.875rem';
-      primary.style.textTransform = 'uppercase';
-      primary.style.letterSpacing = '0.02em';
-      primary.textContent = `Visit ${gardenHandle}'s garden`;
-      textWrap.appendChild(primary);
-
-      const secondary = document.createElement('div');
-      secondary.style.fontWeight = '400';
-      secondary.style.opacity = '0.85';
-      secondary.style.fontSize = '0.875rem';
-      secondary.style.overflow = 'hidden';
-      secondary.style.textOverflow = 'ellipsis';
-      secondary.style.whiteSpace = 'nowrap';
-      secondary.style.maxWidth = '100%';
-      secondary.textContent = profile?.displayName || gardenHandle;
-      textWrap.appendChild(secondary);
-
-      visitLink.appendChild(textWrap);
-
-      gardensList?.appendChild(visitLink);
+      if (isGardenCurrentPage) {
+        // Current page - show disabled button
+        const disabledButton = createDisabledGardenButton(
+          gardenDid,
+          gardenHandle,
+          profile?.displayName || gardenHandle,
+          true
+        );
+        gardensList?.appendChild(disabledButton);
+      } else {
+        // Not current page - show clickable link
+        const visitLink = createGardenLink(
+          gardenDid,
+          gardenHandle,
+          profile?.displayName || gardenHandle,
+          profile
+        );
+        gardensList?.appendChild(visitLink);
+      }
     }
   } catch (error) {
     console.error('Failed to load gardens:', error);

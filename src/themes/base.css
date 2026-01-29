@@ -35,6 +35,7 @@
   --color-primary: #000000;
   --color-accent: #0ea5e9;
   --color-border: #e5e7eb;
+  --color-border-muted: #d1d5db;
   --color-border-dark: #000000;
 
   /* Fluid Typography (Phase 7) */
@@ -192,7 +193,7 @@ site-app.theme-ready .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
   padding-top: calc(var(--spacing-lg) + var(--safe-area-inset-top));
   padding-left: calc(var(--spacing-lg) + var(--safe-area-inset-left));
   padding-right: calc(var(--spacing-lg) + var(--safe-area-inset-right));
@@ -204,6 +205,23 @@ site-app.theme-ready .header {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
+}
+
+/* Header special spore – nudge up so stem doesn’t sit low vs title/flower */
+.header-spores {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+}
+.header-spores > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.header-spores > div svg {
+  display: block;
+  /* Optical nudge: spore graphic has stem below, so shift up to align with text */
+  transform: translateY(-4px);
 }
 
 /* Home Button with Dandelion Icon */
@@ -235,6 +253,35 @@ site-app.theme-ready .header {
 .dandelion-icon {
   width: 100%;
   height: 100%;
+}
+
+/* Dandelion icon - has both stroke and fill */
+.dandelion-icon path,
+.dandelion-icon line,
+.dandelion-icon circle {
+  stroke: var(--color-text);
+  fill: var(--color-text);
+  transition: stroke var(--transition), fill var(--transition);
+}
+
+/* Monochrome spore flower - outline only, no fill */
+.monochrome-spore-flower path,
+.monochrome-spore-flower circle {
+  stroke: var(--color-text);
+  transition: stroke var(--transition);
+}
+
+/* Invert colors on hover */
+.home-button:hover .dandelion-icon path,
+.home-button:hover .dandelion-icon line,
+.home-button:hover .dandelion-icon circle {
+  stroke: var(--color-background) !important;
+  fill: var(--color-background) !important;
+}
+
+.home-button:hover .monochrome-spore-flower path,
+.home-button:hover .monochrome-spore-flower circle {
+  stroke: var(--color-background) !important;
 }
 
 .site-title {
@@ -773,7 +820,7 @@ site-app.theme-ready .header {
 }
 
 .button-secondary {
-  background: var(--color-button-secondary-bg, var(--color-text-muted));
+  background: var(--color-text-muted);
   color: var(--color-button-secondary-text, var(--color-background));
   border: var(--border-width) var(--border-style, solid) var(--color-border-muted);
 }
@@ -930,7 +977,6 @@ site-app.theme-ready .header {
     position: sticky;
     top: 0;
     background: var(--color-background);
-    border-bottom: var(--border-width) var(--border-style, solid) var(--color-border-dark);
     padding: var(--spacing-md);
     z-index: 1;
   }
@@ -3428,6 +3474,7 @@ site-app.theme-ready .header {
 /* Override container styles for header strip variant */
 .flower-bed.header-strip {
   padding: 0.75rem 1.5rem;
+  padding-top: 0;
   margin: 0;
   border: none;
   box-shadow: none;
@@ -3494,7 +3541,8 @@ site-app.theme-ready .header {
 /* Mobile adjustments for header strip */
 @media (max-width: 479px) {
   .flower-bed.header-strip {
-    padding: 0.5rem 1rem;
+    padding: var(--spacing-sm);
+    padding-top: 0;
   }
   
   .flower-bed.header-strip .flower-grid {
@@ -3513,5 +3561,16 @@ site-app.theme-ready .header {
     margin: 0;
     padding: 0 0.75rem;
     font-size: 0.75rem;
+  }
+  
+  /* Header spores - smaller on mobile to match flower bed header */
+  .header-spores > div {
+    width: 44px !important;
+    height: 44px !important;
+  }
+  
+  .header-spores > div svg {
+    width: 44px !important;
+    height: 44px !important;
   }
 }

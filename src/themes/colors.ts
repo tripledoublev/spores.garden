@@ -57,53 +57,23 @@ export function generateColorsFromDid(did: string): Record<string, string> {
   const textColor = (whiteContrast > blackContrast && whiteContrast > 4.5) ? 'white' : 'black';
   const isDarkBackground = whiteContrast > blackContrast;
 
-  // Generate vibrant primary color
-  const primarySaturation = 0.9 + ((hash >> 4) % 11) / 100;
-  const primaryLightness = isDarkBackground 
-    ? 0.6 + ((hash >> 16) % 20) / 100 
-    : 0.3 + ((hash >> 16) % 20) / 100;
-  let primaryColor = chroma.hsl(hue, primarySaturation, primaryLightness);
-  primaryColor = ensureContrast(primaryColor, backgroundColor, 3.0, 
-    c => {
-      const [, s, l] = c.hsl();
-      return isDarkBackground 
-        ? chroma.hsl(hue, s, Math.min(l + 0.1, 0.8))
-        : chroma.hsl(hue, s, Math.max(l - 0.1, 0.2));
-    });
+  // Primary and accent: palette-based – derived from bg→text gradient in LCH
+  // palette[0]=bg, [1]=25%, [2]=50% (primary), [3]=75% (accent), [4]=text
+  const palette = chroma.scale([backgroundColor, textColor]).mode('lch').colors(5);
+  let primaryColor = chroma(palette[2]).saturate(1.5);
+  let accentColor = chroma(palette[3]).saturate(1.5);
 
-  // Generate vibrant accent color
-  const accentHue = (hue + 60 + ((hash >> 20) % 120)) % 360;
-  const accentSaturation = 0.9 + ((hash >> 5) % 11) / 100;
-  const accentLightness = isDarkBackground
-    ? 0.6 + ((hash >> 17) % 20) / 100
-    : 0.3 + ((hash >> 17) % 20) / 100;
-  let accentColor = chroma.hsl(accentHue, accentSaturation, accentLightness);
+  primaryColor = ensureContrast(primaryColor, backgroundColor, 3.0,
+    c => isDarkBackground ? c.brighten(0.15) : c.darken(0.15));
   accentColor = ensureContrast(accentColor, backgroundColor, 3.0,
-    c => {
-      const [, s, l] = c.hsl();
-      return isDarkBackground
-        ? chroma.hsl(accentHue, s, Math.min(l + 0.1, 0.8))
-        : chroma.hsl(accentHue, s, Math.max(l - 0.1, 0.2));
-    });
+    c => isDarkBackground ? c.brighten(0.15) : c.darken(0.15));
 
   // Generate text-muted with sufficient contrast
   const textMutedColor = mixForContrast(backgroundColor, textColor, backgroundColor, 4.5, 0.5, 0.05);
 
   // Generate border color
   const borderColor = mixForContrast(backgroundColor, textColor, backgroundColor, 2.0, 0.3, 0.1);
-
-  // Generate button-secondary background (must contrast with bg AND bg must contrast with it as text)
-  let buttonSecondaryBg = textMutedColor;
-  if (chroma.contrast(backgroundColor, buttonSecondaryBg) < 3.0 || 
-      chroma.contrast(buttonSecondaryBg, backgroundColor) < 4.5) {
-    buttonSecondaryBg = mixForContrast(backgroundColor, textColor, backgroundColor, 3.0, 0.4, 0.02);
-    // Ensure bg works as text on button
-    if (chroma.contrast(buttonSecondaryBg, backgroundColor) < 4.5) {
-      buttonSecondaryBg = isDarkBackground 
-        ? chroma.mix(backgroundColor, 'white', 0.3)
-        : chroma.mix(backgroundColor, 'black', 0.2);
-    }
-  }
+  const borderMutedColor = chroma.mix(backgroundColor, borderColor, 0.6);
 
   // Determine accent button text color and ensure contrast
   const accentTextColor = chroma.contrast(accentColor, 'white') > 4.5 ? 'white' : 'black';
@@ -118,7 +88,7 @@ export function generateColorsFromDid(did: string): Record<string, string> {
     muted: textMutedColor.hex(),
     'text-muted': textMutedColor.hex(),
     border: borderColor.hex(),
-    'button-secondary-bg': buttonSecondaryBg.hex(),
+    'border-muted': borderMutedColor.hex(),
     'button-secondary-text': backgroundColor.hex(),
     'button-accent-text': accentTextColor
   };

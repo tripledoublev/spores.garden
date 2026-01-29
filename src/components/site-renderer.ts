@@ -2,7 +2,7 @@ import { getConfig, getSiteOwnerDid, isOwner } from '../config';
 import { isLoggedIn, getCurrentDid, logout } from '../oauth';
 import { escapeHtml } from '../utils/sanitize';
 import { SiteRouter } from './site-router';
-import { generateFlowerSVGString, generateSporeFlowerSVGString } from '../utils/flower-svg';
+import { generateFlowerSVGString, generateSporeFlowerSVGString, generateMonochromeSporeFlowerSVGString } from '../utils/flower-svg';
 import { showSporeDetailsModal } from './spore-modal';
 import { renderFlowerBed } from '../layouts/flower-bed';
 import type { SiteAuth } from './site-auth';
@@ -11,7 +11,7 @@ import type { SiteInteractions } from './site-interactions';
 import type { SiteData } from './site-data';
 import './recent-gardens';
 import './section-block';
-import { findAllHeldSpores } from './spore-badge';
+import { findAllHeldSpores } from '../utils/special-spore';
 
 /**
  * Handles the main rendering logic for the site application.
@@ -77,13 +77,20 @@ export class SiteRenderer {
         leftGroup.style.alignItems = 'self-start';
         leftGroup.style.gap = '1rem';
 
-        // Home button with dandelion icon
+        // Home button with dandelion icon (home page) or owner's unique flower (garden pages)
         const homeButton = document.createElement('a');
         homeButton.href = '/';
         homeButton.className = 'home-button';
         homeButton.setAttribute('aria-label', 'Go to home page');
         homeButton.title = 'Go to home page';
-        homeButton.innerHTML = this.getDandelionIcon();
+        
+        // On garden pages (not home), show owner's unique flower in monochrome
+        if (!isHomePage && ownerDid) {
+            homeButton.innerHTML = generateMonochromeSporeFlowerSVGString(ownerDid, 40);
+        } else {
+            homeButton.innerHTML = this.getDandelionIcon();
+        }
+        
         leftGroup.appendChild(homeButton);
 
         // Title and subtitle container
@@ -135,7 +142,7 @@ export class SiteRenderer {
 
             // Render Spores
             try {
-                // We use findAllHeldSpores from spore-badge.ts
+                // We use findAllHeldSpores from utils/special-spore.ts
                 // Note: The floating badge logic still exists at bottom, but we duplicate the *display* here for local user
                 // The floating badge is for specific interactions (stealing), while this header one is for display/provenance.
                 // However, the prompt says "Move the display... to the header".
@@ -244,22 +251,16 @@ export class SiteRenderer {
                     controls.appendChild(viewMyGardenBtn);
                 }
 
-                // "Take a seed" button for visitors
-                const takeFlowerBtn = document.createElement('button');
-                takeFlowerBtn.className = 'button button-secondary';
-                if (hasTakenSeed) {
-                    takeFlowerBtn.textContent = 'Already collected';
-                    takeFlowerBtn.disabled = true;
-                    takeFlowerBtn.setAttribute('aria-label', 'You have already collected a seed from this garden');
-                    takeFlowerBtn.title = 'You have already collected a seed from this garden';
-                } else {
+                // "Take a seed" button for visitors (only when not yet collected)
+                if (!hasTakenSeed) {
+                    const takeFlowerBtn = document.createElement('button');
+                    takeFlowerBtn.className = 'button button-secondary take-seed-btn';
                     takeFlowerBtn.textContent = 'Take a seed';
                     takeFlowerBtn.setAttribute('aria-label', 'Take a seed from this garden to plant in your own');
                     takeFlowerBtn.title = 'Collect a seed from this garden to plant in your own';
-                    takeFlowerBtn.classList.add('take-seed-btn');
                     takeFlowerBtn.addEventListener('click', () => this.interactions.takeFlower());
+                    controls.appendChild(takeFlowerBtn);
                 }
-                controls.appendChild(takeFlowerBtn);
             }
 
             // Logout button
@@ -468,15 +469,6 @@ export class SiteRenderer {
         }
 
         this.app.appendChild(main);
-
-        // Spore badge
-        if (!isHomePage) {
-            const existingBadge = document.querySelector('spore-badge');
-            if (existingBadge) existingBadge.remove();
-
-            const sporeBadge = document.createElement('spore-badge');
-            document.body.appendChild(sporeBadge);
-        }
 
         // Dev tool reset button
         const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
