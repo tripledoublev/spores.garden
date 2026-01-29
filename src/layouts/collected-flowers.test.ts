@@ -12,7 +12,10 @@ vi.mock('../at-client', () => ({
 }));
 
 vi.mock('../oauth', () => ({
-    getCurrentDid: vi.fn()
+    getCurrentDid: vi.fn(),
+    isLoggedIn: vi.fn(() => true),
+    deleteRecord: vi.fn(),
+    putRecord: vi.fn(),
 }));
 
 vi.mock('../config', () => ({

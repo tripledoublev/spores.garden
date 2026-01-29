@@ -232,9 +232,9 @@ export class SiteRenderer {
                     controls.appendChild(viewMyGardenBtn);
                 }
             } else if (!isOwnerLoggedIn && isViewingProfile) {
-                // Check if user already took a seed from this garden
+                // Check if user already picked a flower from this garden
                 const currentDid = getCurrentDid();
-                const hasTakenSeed = await this.interactions.checkHasTakenSeed(currentDid, ownerDid!);
+                const hasPickedFlower = await this.interactions.checkHasPickedFlower(currentDid, ownerDid!);
 
                 // Guard against race conditions
                 if (this.renderId !== myRenderId) return;
@@ -251,13 +251,13 @@ export class SiteRenderer {
                     controls.appendChild(viewMyGardenBtn);
                 }
 
-                // "Take a seed" button for visitors (only when not yet collected)
-                if (!hasTakenSeed) {
+                // "Pick a flower" button for visitors (only when not yet collected)
+                if (!hasPickedFlower) {
                     const takeFlowerBtn = document.createElement('button');
-                    takeFlowerBtn.className = 'button button-secondary take-seed-btn';
-                    takeFlowerBtn.textContent = 'Take a seed';
-                    takeFlowerBtn.setAttribute('aria-label', 'Take a seed from this garden to plant in your own');
-                    takeFlowerBtn.title = 'Collect a seed from this garden to plant in your own';
+                    takeFlowerBtn.className = 'button button-secondary take-flower-btn';
+                    takeFlowerBtn.textContent = 'Pick a flower';
+                    takeFlowerBtn.setAttribute('aria-label', 'Pick a flower from this garden to plant in your own');
+                    takeFlowerBtn.title = 'Collect a flower from this garden to plant in your own';
                     takeFlowerBtn.addEventListener('click', () => this.interactions.takeFlower());
                     controls.appendChild(takeFlowerBtn);
                 }

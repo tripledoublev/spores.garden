@@ -91,9 +91,6 @@ function generateInitialSections(did: string): any[] {
     title: 'Welcome'
   });
 
-  // Note: Flower Bed is now rendered as a header strip directly under the header,
-  // not as a section. See site-renderer.ts for the implementation.
-
   // 3. Collected Flowers
   sections.push({
     id: `section-${sectionId++}`,

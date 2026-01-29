@@ -197,7 +197,7 @@ class RecentGardens extends HTMLElement {
    *
    * Activity is attributed to the RECORD CREATOR (event.did):
    * - flower: someone planted a flower → show planter's garden
-   * - seedling: someone took a seed → show taker's garden
+   * - seedling: someone picked a flower → show picker's garden
    * - edit: someone created/edited garden → show that garden
    */
   private handleJetstreamEvent(event: GardenDiscoveryEvent) {

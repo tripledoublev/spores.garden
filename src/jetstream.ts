@@ -56,7 +56,7 @@ export class JetstreamClient {
   private wantedCollections = [
     'garden.spores.site.config',       // Garden creation/edit
     'garden.spores.social.flower',     // Flower planting activity
-    'garden.spores.social.takenFlower', // Seed taking activity
+    'garden.spores.social.takenFlower', // Flower picking activity
     'garden.spores.item.specialSpore', // Special spore activity
   ];
 

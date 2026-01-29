@@ -869,6 +869,14 @@ site-app.theme-ready .header {
   font-size: 0.75rem;
 }
 
+.button-icon {
+  padding: var(--spacing-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .button-large {
   padding: var(--spacing-lg) var(--spacing-xl);
   font-size: 1rem;
@@ -1171,7 +1179,7 @@ site-app.theme-ready .header {
 /* Form group mobile padding in modals */
 @media (max-width: 479px) {
   .modal-content .form-group,
-  .take-seed-form {
+  .take-flower-form {
     padding: 0 var(--spacing-md);
   }
 
@@ -3274,6 +3282,29 @@ site-app.theme-ready .header {
   line-height: 1.4;
   max-width: 100%;
   word-wrap: break-word;
+}
+
+.flower-grid-item-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: center;
+  margin-top: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.flower-grid-item-actions .button-icon {
+  padding: var(--spacing-xs);
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flower-grid-item-actions .action-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 /* ============================================

@@ -106,7 +106,10 @@ class SectionBlock extends HTMLElement {
           await this.renderRecords(content);
           break;
         case 'collected-flowers': {
-          const rendered = await renderCollectedFlowers(this.section);
+          const rendered = await renderCollectedFlowers(this.section, {
+            onRefresh: () => this.render(),
+            editMode: this.editMode,
+          });
           content.innerHTML = '';
           content.appendChild(rendered);
           break;

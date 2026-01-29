@@ -6,7 +6,7 @@ import { generateSocialCardImage } from '../utils/social-card';
 import { renderFlowerBed } from '../layouts/flower-bed';
 
 /**
- * Handles social interactions like planting flowers, taking seeds, and sharing.
+ * Handles social interactions like planting flowers, picking flowers, and sharing.
  */
 export class SiteInteractions {
     private app: HTMLElement;
@@ -74,7 +74,7 @@ export class SiteInteractions {
 
     async takeFlower() {
         if (!isLoggedIn()) {
-            this.showNotification('You must be logged in to take a seed.', 'error');
+            this.showNotification('You must be logged in to pick a flower.', 'error');
             return;
         }
 
@@ -89,30 +89,29 @@ export class SiteInteractions {
         modal.className = 'modal';
         modal.innerHTML = `
       <div class="modal-content">
-        <h2>Take a Seed</h2>
-        <p>Collect a seed from this garden to plant in your own.</p>
-        <form class="take-seed-form">
+        <h2>Pick a flower</h2>
+        <p>Collect a flower from this garden to plant in your own — visitors will see it in your garden and can follow it back here.</p>
+        <form class="take-flower-form">
           <div class="form-group">
-            <label for="seed-note">Note (optional)</label>
+            <label for="flower-note">Note — this note will appear below the flower in your garden</label>
             <textarea 
-              id="seed-note" 
+              id="flower-note" 
               class="textarea" 
-              placeholder="Why are you collecting this seed? (optional)"
+              placeholder="Optional"
               maxlength="500"
               rows="3"
             ></textarea>
-            <small class="form-hint">Add a note to remember why you collected this seed</small>
           </div>
           <div class="modal-actions">
-            <button type="submit" class="button button-primary">Take Seed</button>
+            <button type="submit" class="button button-primary">Pick a flower</button>
             <button type="button" class="button button-secondary modal-close">Cancel</button>
           </div>
         </form>
       </div>
     `;
 
-        const form = modal.querySelector('.take-seed-form');
-        const noteInput = modal.querySelector('#seed-note') as HTMLTextAreaElement;
+        const form = modal.querySelector('.take-flower-form');
+        const noteInput = modal.querySelector('#flower-note') as HTMLTextAreaElement;
 
         form?.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -132,15 +131,15 @@ export class SiteInteractions {
                 }
 
                 await createRecord('garden.spores.social.takenFlower', recordData);
-                this.showNotification('Seed collected! View it in your Collected Flowers section.', 'success');
+                this.showNotification('Flower picked! View it in your Collected Flowers section.', 'success');
 
                 // Update button state directly
-                const btn = this.app.querySelector('.take-seed-btn') as HTMLButtonElement;
+                const btn = this.app.querySelector('.take-flower-btn') as HTMLButtonElement;
                 if (btn) {
-                    btn.textContent = 'Already collected';
+                    btn.textContent = 'Already picked';
                     btn.disabled = true;
-                    btn.setAttribute('aria-label', 'You have already collected a seed from this garden');
-                    btn.title = 'You have already collected a seed from this garden';
+                    btn.setAttribute('aria-label', 'You have already picked a flower from this garden');
+                    btn.title = 'You have already picked a flower from this garden';
                 }
 
                 // Refresh any collected flowers sections
@@ -151,8 +150,8 @@ export class SiteInteractions {
                     }
                 });
             } catch (error) {
-                console.error('Failed to take flower:', error);
-                this.showNotification(`Failed to take seed: ${error.message}`, 'error');
+                console.error('Failed to pick flower:', error);
+                this.showNotification(`Failed to pick flower: ${error.message}`, 'error');
             }
         });
 
@@ -351,9 +350,9 @@ export class SiteInteractions {
     }
 
     /**
-     * Check if current user has already taken a seed from the given garden
+     * Check if current user has already picked a flower from the given garden
      */
-    async checkHasTakenSeed(currentDid: string | null, ownerDid: string): Promise<boolean> {
+    async checkHasPickedFlower(currentDid: string | null, ownerDid: string): Promise<boolean> {
         if (!currentDid) return false;
 
         try {
@@ -361,7 +360,7 @@ export class SiteInteractions {
             const takenFlowers = response.records || [];
             return takenFlowers.some(record => record.value?.sourceDid === ownerDid);
         } catch (error) {
-            console.error('Failed to check taken seeds:', error);
+            console.error('Failed to check if user picked a flower:', error);
             return false;
         }
     }
