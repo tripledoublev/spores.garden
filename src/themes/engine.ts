@@ -17,6 +17,8 @@ const SHADOW_SPREADS = [0, 0, 1, 2, 3];
 const SHADOW_OPACITIES = [0, 0.06, 0.1, 0.14, 0.18, 0.22];
 const SHADOW_TYPES: Array<'normal' | 'inset'> = ['normal', 'normal', 'normal', 'inset'];
 
+const LAST_THEME_STORAGE_KEY = 'spores.lastTheme';
+
 const THEME_PRESETS = {
   minimal: {
     colors: {
@@ -246,6 +248,27 @@ function loadGoogleFonts(fontNames: string[]): Promise<void> {
 }
 
 /**
+ * Restore the last applied theme colors to the document so the loading screen
+ * shows the previous garden's colors instead of white when navigating.
+ * 
+ * Note: This is primarily called via inline script in index.html for earliest execution.
+ * Kept as exported function for potential programmatic use or fallback scenarios.
+ */
+export function restorePreviousTheme(): void {
+  try {
+    const raw = sessionStorage.getItem(LAST_THEME_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw) as Record<string, string>;
+    const root = document.documentElement;
+    if (saved.background) root.style.setProperty('--color-background', saved.background);
+    if (saved.text) root.style.setProperty('--color-text', saved.text);
+    if (saved.muted) root.style.setProperty('--color-text-muted', saved.muted);
+  } catch {
+    // Ignore parse errors or missing storage
+  }
+}
+
+/**
  * Apply a theme to the document
  * Returns a promise that resolves when the theme is fully applied and fonts are loaded
  */
@@ -288,6 +311,18 @@ export function applyTheme(themeConfig: any = {}): Promise<void> {
     // In light mode: light background -> dark borders (text color)
     const borderDark = colors.text || presetTheme.colors.text || '#000000';
     root.style.setProperty('--color-border-dark', borderDark);
+
+    // Persist theme colors for next page load to enable smooth color transitions
+    // between gardens (prevents white flash on navigation)
+    try {
+      sessionStorage.setItem(LAST_THEME_STORAGE_KEY, JSON.stringify({
+        background: colors.background,
+        text: colors.text,
+        muted: colors.muted
+      }));
+    } catch {
+      // Ignore quota exceeded or privacy/security errors
+    }
 
     // Fonts
     Object.entries(fonts).forEach(([key, value]) => {

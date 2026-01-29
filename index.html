@@ -9,6 +9,25 @@
   <title>spores.garden</title>
   <link rel="stylesheet" href="/src/themes/base.css">
   <script>
+    // Restore previous theme colors immediately to prevent white flash on navigation.
+    // This runs synchronously before first paint, enabling smooth color transitions
+    // between gardens without showing the default white background.
+    (function () {
+      try {
+        var saved = sessionStorage.getItem('spores.lastTheme');
+        if (saved) {
+          var theme = JSON.parse(saved);
+          var root = document.documentElement;
+          if (theme.background) root.style.setProperty('--color-background', theme.background);
+          if (theme.text) root.style.setProperty('--color-text', theme.text);
+          if (theme.muted) root.style.setProperty('--color-text-muted', theme.muted);
+        }
+      } catch (e) {
+        // Ignore parse errors or storage access issues
+      }
+    })();
+  </script>
+  <script>
     // GitHub Pages SPA redirect handler
     // Restore the URL from sessionStorage if we were redirected from 404.html
     (function () {

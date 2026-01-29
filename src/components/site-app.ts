@@ -56,11 +56,20 @@ class SiteApp extends HTMLElement {
 
   async connectedCallback() {
     // Initial loading state
+    // Note: Previous theme colors are restored via inline script in index.html
+    // to prevent white flash before first paint
     this.innerHTML = `<div class="loading">${this.renderer.getLoadingMessage()}</div>`;
 
     try {
       // Initialize config
       const config = await initConfig();
+
+      // Apply theme immediately after config loads (before auth) for faster transition
+      await applyTheme(config.theme);
+      this.isThemeReady = true;
+
+      // Add theme-ready class for smooth content fade-in
+      this.classList.add('theme-ready');
 
       // Initialize Auth (OAuth, Listeners)
       await this.auth.init();
@@ -87,13 +96,6 @@ class SiteApp extends HTMLElement {
       window.addEventListener('share-to-bluesky', () => {
         this.interactions.shareToBluesky();
       });
-
-      // Apply theme and wait for it to be fully applied before rendering
-      await applyTheme(config.theme);
-      this.isThemeReady = true;
-
-      // Add theme-ready class for smooth content fade-in
-      this.classList.add('theme-ready');
 
       // Render only after theme is ready
       await this.renderer.render();

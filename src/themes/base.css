@@ -96,6 +96,8 @@ body {
   line-height: 1.5;
   color: var(--color-text);
   background-color: var(--color-background);
+  /* Smooth color transitions when navigating between gardens */
+  transition: background-color 0.25s ease, color 0.25s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -1379,6 +1381,7 @@ site-app.theme-ready .header {
   padding: var(--spacing-xl);
   color: var(--color-text-muted);
   font-weight: 600;
+  font-size: var(--font-size-xl);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
