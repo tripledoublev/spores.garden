@@ -495,23 +495,23 @@ site-app.theme-ready .header {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  margin-top: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: calc(var(--border-width) * 0.25) var(--border-style, solid) var(--color-border-dark);
 }
 
 /* In edit mode, put the divider on the whole section, not the header */
 .section[data-edit-mode="true"] {
-  padding-bottom: var(--spacing-md);
-  border-bottom: var(--border-width) var(--border-style, solid) var(--color-border-dark);
+  padding: var(--spacing-md);
+  border: calc(var(--border-width) * 0.5) var(--border-style, solid) var(--color-border-dark);
 }
 
 .section-info {
   display: inline-flex;
   align-items: center;
   padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--color-surface);
   border: 2px var(--border-style, solid) var(--color-border);
   font-family: var(--font-mono);
-  font-size: 0.55rem;
   color: var(--color-text-muted);
   white-space: nowrap;
   max-width: 300px;
