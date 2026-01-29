@@ -61,44 +61,14 @@ class SiteApp extends HTMLElement {
     this.innerHTML = `<div class="loading">${this.renderer.getLoadingMessage()}</div>`;
 
     try {
-      // Initialize config
-      const config = await initConfig();
+      // Set up event listeners (only once)
+      this.setupEventListeners();
+      
+      // Set up client-side navigation (only once)
+      this.setupClientSideNavigation();
 
-      // Apply theme immediately after config loads (before auth) for faster transition
-      await applyTheme(config.theme);
-      this.isThemeReady = true;
-
-      // Add theme-ready class for smooth content fade-in
-      this.classList.add('theme-ready');
-
-      // Initialize Auth (OAuth, Listeners)
-      await this.auth.init();
-
-      // Listen for config updates
-      window.addEventListener('config-updated', async () => {
-        const config = getConfig();
-        // Only apply theme when viewing a garden page, not on home page
-        // We use SiteRouter for this check
-        if (SiteRouter.isViewingProfile()) {
-          await applyTheme(config.theme);
-        }
-        this.renderer.render();
-      });
-
-      // Listen for add section requests (e.g. from welcome modal or other parts)
-      window.addEventListener('add-section', (e: Event) => {
-        this.editor.editMode = true;
-        this.editor.showAddSectionModal((e as CustomEvent).detail?.type);
-        this.renderer.render();
-      });
-
-      // Listen for share to Bluesky requests
-      window.addEventListener('share-to-bluesky', () => {
-        this.interactions.shareToBluesky();
-      });
-
-      // Render only after theme is ready
-      await this.renderer.render();
+      // Initial load: initialize config, theme, auth, and render
+      await this.initializeAndRender(true);
     } catch (error) {
       console.error('Failed to initialize site:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -110,6 +80,143 @@ class SiteApp extends HTMLElement {
         </div>
       `;
     }
+  }
+
+  /**
+   * Shared initialization and rendering logic.
+   * Used for both initial load and navigation.
+   * @param isInitialLoad - If true, also initializes auth and sets theme-ready flag
+   */
+  private async initializeAndRender(isInitialLoad = false): Promise<void> {
+    // Show loading state
+    this.innerHTML = `<div class="loading">${this.renderer.getLoadingMessage()}</div>`;
+    
+    // Initialize config with current URL params
+    const config = await initConfig();
+    
+    // Apply theme if viewing a garden (preserves smooth transition)
+    if (SiteRouter.isViewingProfile()) {
+      await applyTheme(config.theme);
+    }
+    
+    // On initial load, set up auth and theme-ready state
+    if (isInitialLoad) {
+      this.isThemeReady = true;
+      this.classList.add('theme-ready');
+      await this.auth.init();
+    }
+    
+    // Render with current config
+    await this.renderer.render();
+  }
+
+  /**
+   * Set up event listeners for config updates and user actions.
+   * Only called once during initial load.
+   */
+  private setupEventListeners(): void {
+    // Listen for config updates
+    window.addEventListener('config-updated', async () => {
+      const config = getConfig();
+      // Only apply theme when viewing a garden page, not on home page
+      if (SiteRouter.isViewingProfile()) {
+        await applyTheme(config.theme);
+      }
+      this.renderer.render();
+    });
+
+    // Listen for add section requests (e.g. from welcome modal or other parts)
+    window.addEventListener('add-section', (e: Event) => {
+      this.editor.editMode = true;
+      this.editor.showAddSectionModal((e as CustomEvent).detail?.type);
+      this.renderer.render();
+    });
+
+    // Listen for share to Bluesky requests
+    window.addEventListener('share-to-bluesky', () => {
+      this.interactions.shareToBluesky();
+    });
+  }
+
+  /**
+   * Handle navigation by reloading config and re-rendering.
+   * Used for both programmatic navigation (click interception) and browser back/forward.
+   */
+  private async handleNavigation(): Promise<void> {
+    try {
+      await this.initializeAndRender(false);
+    } catch (error) {
+      console.error('Failed to handle navigation:', error);
+      // Fallback to full page reload on error
+      location.reload();
+    }
+  }
+
+  /**
+   * Set up client-side navigation to prevent GitHub Pages 404 redirects.
+   * Intercepts clicks on internal links (e.g., /@handle, /?did=...) and uses
+   * history.pushState instead of full page navigation, preserving theme transitions.
+   * Only called once during initial load.
+   */
+  private setupClientSideNavigation(): void {
+    // Intercept clicks on internal links
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      
+      // Don't intercept clicks on buttons, inputs, or other interactive elements
+      // This ensures modals and forms work correctly
+      if (
+        target.tagName === 'BUTTON' ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'SELECT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.closest('select') ||
+        target.closest('textarea')
+      ) {
+        return;
+      }
+      
+      const link = target.closest('a');
+      if (!link?.href) return;
+
+      try {
+        const url = new URL(link.href, location.origin);
+        // Only intercept internal navigation (same origin)
+        if (url.origin !== location.origin) return;
+
+        const pathname = url.pathname;
+        const search = url.search;
+
+        // Check if this is an internal app route (garden navigation)
+        // Patterns: /@handle, /@did, /?did=..., /?handle=..., or just / (home)
+        const isInternalRoute =
+          pathname === '/' ||
+          pathname.startsWith('/@') ||
+          search.includes('did=') ||
+          search.includes('handle=');
+
+        if (isInternalRoute) {
+          e.preventDefault();
+          // If the link lives inside a modal, close it before navigating.
+          // Previously, full page navigation implicitly cleared modals.
+          const modal = link.closest('.modal') as HTMLElement | null;
+          modal?.remove();
+          // Use pushState to update URL without page reload
+          history.pushState(null, '', url.pathname + url.search);
+          // Manually trigger navigation handler (pushState doesn't fire popstate)
+          void this.handleNavigation();
+        }
+      } catch {
+        // Invalid URL, let browser handle it normally
+      }
+    });
+
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', () => {
+      this.handleNavigation();
+    });
   }
 
   // Expose methods for console debugging/dev tools if needed

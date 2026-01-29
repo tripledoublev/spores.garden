@@ -14,6 +14,9 @@
                 document.body.innerHTML = '<h1>404 Not Found</h1>';
                 return;
             }
+            // Preserve theme during redirect to prevent white flash
+            // The theme is already in sessionStorage from previous page, but ensure it persists
+            // The inline script in index.html will restore it before first paint
             sessionStorage.redirect = location.href;
             location.replace('/');
         })();
