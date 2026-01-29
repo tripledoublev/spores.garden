@@ -48,16 +48,6 @@ export class SiteInteractions {
                 btn.title = 'You have already planted a flower in this garden';
             }
 
-            // Refresh only the flower bed sections
-            const sections = this.app.querySelectorAll('section-block');
-            sections.forEach(section => {
-                // Access existing section type - need to check if we can access the data
-                if (section.getAttribute('data-type') === 'flower-bed') {
-                    // Force re-render of just this section
-                    (section as any).render();
-                }
-            });
-
             // Refresh the header strip (create if it doesn't exist)
             const headerStrip = this.app.querySelector('.flower-bed.header-strip') as HTMLElement;
             const newHeaderStrip = await renderFlowerBed({}, true);

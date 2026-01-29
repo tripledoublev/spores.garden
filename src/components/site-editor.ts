@@ -75,10 +75,6 @@ export class SiteEditor {
             <span class="icon">📄</span>
             <span>leaflet.pub Article</span>
           </button>
-          <button data-type="flower-bed" class="section-type">
-            <span class="icon">🌸</span>
-            <span>Flower Bed</span>
-          </button>
           <button data-type="collected-flowers" class="section-type">
             <span class="icon">🌼</span>
             <span>Collected Flowers</span>
@@ -155,8 +151,8 @@ export class SiteEditor {
     const section = {
       id,
       type,
-      layout: type === 'profile' ? 'profile' : type === 'flower-bed' ? 'flower-bed' : type === 'collected-flowers' ? 'collected-flowers' : 'card',
-      title: type === 'flower-bed' ? 'Flower Bed' : type === 'collected-flowers' ? 'Collected Flowers' : ''
+      layout: type === 'profile' ? 'profile' : type === 'collected-flowers' ? 'collected-flowers' : 'card',
+      title: type === 'collected-flowers' ? 'Collected Flowers' : ''
     };
 
     config.sections = [...(config.sections || []), section];
@@ -270,10 +266,7 @@ export class SiteEditor {
       layout: params.type === 'profile' ? 'profile' : 'card',
     };
 
-    if (params.type === 'flower-bed') {
-      section.layout = 'flower-bed';
-      section.title = 'Flower Bed';
-    } else if (params.type === 'collected-flowers') {
+    if (params.type === 'collected-flowers') {
       section.layout = 'collected-flowers';
       section.title = 'Collected Flowers';
     }
