@@ -272,8 +272,12 @@ export function restorePreviousTheme(): void {
  * Apply a theme to the document
  * Returns a promise that resolves when the theme is fully applied and fonts are loaded
  */
-export function applyTheme(themeConfig: any = {}): Promise<void> {
+export function applyTheme(
+  themeConfig: any = {},
+  options?: { waitForFonts?: boolean }
+): Promise<void> {
   return new Promise(async (resolve) => {
+    const waitForFonts = options?.waitForFonts !== false;
     const preset = themeConfig.preset || 'minimal';
     const presetTheme = THEME_PRESETS[preset] || THEME_PRESETS.minimal;
 
@@ -293,8 +297,13 @@ export function applyTheme(themeConfig: any = {}): Promise<void> {
       }
     });
 
-    // Load fonts dynamically before applying theme
-    await loadGoogleFonts(fontNamesToLoad);
+    // Load fonts dynamically. For navigation we can avoid blocking on font load
+    // to keep route changes snappy; fonts will swap in when ready.
+    if (waitForFonts) {
+      await loadGoogleFonts(fontNamesToLoad);
+    } else {
+      void loadGoogleFonts(fontNamesToLoad);
+    }
 
     // Apply CSS custom properties
     const root = document.documentElement;
@@ -349,9 +358,9 @@ export function applyTheme(themeConfig: any = {}): Promise<void> {
       .trim();
     document.body.classList.add(`theme-${preset}`);
 
-    // Wait for fonts to load before marking theme as ready
-    // This prevents text flicker when custom fonts load
-    if (document.fonts && fontNamesToLoad.length > 0) {
+    // Wait for fonts to load before marking theme as ready (optional).
+    // This prevents text flicker when custom fonts load, but can slow navigation.
+    if (waitForFonts && document.fonts && fontNamesToLoad.length > 0) {
       // Wait for specific fonts to load
       const fontPromises = fontNamesToLoad.map(fontName => {
         return document.fonts.load(`1em "${fontName}"`).catch(() => {
@@ -386,7 +395,7 @@ export function applyTheme(themeConfig: any = {}): Promise<void> {
         }, 100);
       });
     } else {
-      // No custom fonts to load, or Font Loading API not available
+      // No custom fonts to load, Font Loading API not available, or we chose not to wait.
       document.body.classList.add('fonts-ready');
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {

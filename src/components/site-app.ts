@@ -94,10 +94,9 @@ class SiteApp extends HTMLElement {
     // Initialize config with current URL params
     const config = await initConfig();
     
-    // Apply theme if viewing a garden (preserves smooth transition)
-    if (SiteRouter.isViewingProfile()) {
-      await applyTheme(config.theme);
-    }
+    // Always apply theme (including home page) so fonts-ready is set and text isn't hidden.
+    // On navigation, don't block on font loading (big perf win when gardens use different fonts).
+    await applyTheme(config.theme, { waitForFonts: isInitialLoad });
     
     // On initial load, set up auth and theme-ready state
     if (isInitialLoad) {
