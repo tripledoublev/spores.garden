@@ -1,5 +1,6 @@
 import chroma from 'chroma-js';
 import { FONT_PAIRINGS } from './fonts.js';
+import { generateColorsFromDid } from './colors.js';
 
 /**
  * Theme Engine
@@ -79,8 +80,9 @@ const THEME_PRESETS = {
 
 /**
  * Simple hash function to convert a string to a number
+ * Used for generating deterministic values from DID
  */
-function stringToHash(str) {
+function stringToHash(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
@@ -93,74 +95,51 @@ function stringToHash(str) {
 /**
  * Generates a theme from a DID string
  */
-export function generateThemeFromDid(did) {
+export function generateThemeFromDid(did: string) {
   const hash = stringToHash(did);
   const hue = hash % 360;
 
-  // Generate a more saturated background color from the hash
-  const backgroundColor = chroma.hsl(hue, 0.8, 0.9);
+  // Generate colors using the dedicated color generation module
+  const colors = generateColorsFromDid(did);
 
-  // Ensure sufficient contrast for text color
-  const textColor = chroma.contrast(backgroundColor, 'white') > 4.5 ? 'white' : 'black';
-
-  // Generate a color palette
-  const palette = chroma.scale([backgroundColor, textColor]).mode('lch').colors(5);
-
-  const colors = {
-    background: backgroundColor.hex(),
-    text: textColor,
-    primary: chroma(palette[2]).saturate(2).hex(),
-    accent: chroma(palette[3]).saturate(2).hex(),
-    muted: chroma.mix(backgroundColor, textColor, 0.5).hex(),
-    border: chroma.mix(backgroundColor, textColor, 0.2).hex()
-  };
-
-  const fontPairingIndex = hash % FONT_PAIRINGS.length;
-  const fonts = FONT_PAIRINGS[fontPairingIndex];
-  const borderStyleIndex = hash % BORDER_STYLES.length;
-  const borderStyle = BORDER_STYLES[borderStyleIndex];
-  const borderWidthIndex = hash % BORDER_WIDTHS.length;
-  const borderWidth = BORDER_WIDTHS[borderWidthIndex];
-
-  // Deterministic shadow recipe per DID (used to make UI feel unique)
+  // Generate shadow
   const shadowOffsetIndex = hash % SHADOW_OFFSETS.length;
-  const shadowOffset = SHADOW_OFFSETS[shadowOffsetIndex];
   const shadowBlurIndex = (hash >> 3) % SHADOW_BLURS.length;
-  const shadowBlur = SHADOW_BLURS[shadowBlurIndex];
   const shadowSpreadIndex = (hash >> 6) % SHADOW_SPREADS.length;
-  const shadowSpread = SHADOW_SPREADS[shadowSpreadIndex];
   const shadowOpacityIndex = (hash >> 9) % SHADOW_OPACITIES.length;
-  const shadowOpacity = SHADOW_OPACITIES[shadowOpacityIndex];
   const shadowTypeIndex = (hash >> 12) % SHADOW_TYPES.length;
-  const shadowType = SHADOW_TYPES[shadowTypeIndex];
-
-  // Use accent (or text) as shadow tint so it feels tied to the garden palette
   const shadowColorBase = colors.accent || colors.primary || colors.text || '#000000';
-  const shadowColor = chroma(shadowColorBase).alpha(shadowOpacity).css();
-
+  
   const shadow = {
-    type: shadowType,
-    x: `${shadowOffset}px`,
-    y: `${shadowOffset}px`,
-    blur: `${shadowBlur}px`,
-    spread: `${shadowSpread}px`,
-    color: shadowColor,
+    type: SHADOW_TYPES[shadowTypeIndex],
+    x: `${SHADOW_OFFSETS[shadowOffsetIndex]}px`,
+    y: `${SHADOW_OFFSETS[shadowOffsetIndex]}px`,
+    blur: `${SHADOW_BLURS[shadowBlurIndex]}px`,
+    spread: `${SHADOW_SPREADS[shadowSpreadIndex]}px`,
+    color: chroma(shadowColorBase).alpha(SHADOW_OPACITIES[shadowOpacityIndex]).css()
   };
 
-  const metadata = {
-    hash,
-    hue,
-    fontPairingIndex,
-    borderStyleIndex,
-    borderWidthIndex,
-    shadowOffsetIndex,
-    shadowBlurIndex,
-    shadowSpreadIndex,
-    shadowOpacityIndex,
-    shadowTypeIndex,
+  return {
+    theme: {
+      colors,
+      fonts: FONT_PAIRINGS[hash % FONT_PAIRINGS.length],
+      borderStyle: BORDER_STYLES[hash % BORDER_STYLES.length],
+      borderWidth: BORDER_WIDTHS[hash % BORDER_WIDTHS.length],
+      shadow
+    },
+    metadata: {
+      hash,
+      hue,
+      fontPairingIndex: hash % FONT_PAIRINGS.length,
+      borderStyleIndex: hash % BORDER_STYLES.length,
+      borderWidthIndex: hash % BORDER_WIDTHS.length,
+      shadowOffsetIndex,
+      shadowBlurIndex,
+      shadowSpreadIndex,
+      shadowOpacityIndex,
+      shadowTypeIndex
+    }
   };
-
-  return { theme: { colors, fonts, borderStyle, borderWidth, shadow }, metadata };
 }
 
 

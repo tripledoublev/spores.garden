@@ -773,8 +773,8 @@ site-app.theme-ready .header {
 }
 
 .button-secondary {
-  background: var(--color-text-muted);
-  color: var(--color-background);
+  background: var(--color-button-secondary-bg, var(--color-text-muted));
+  color: var(--color-button-secondary-text, var(--color-background));
   border: var(--border-width) var(--border-style, solid) var(--color-border-muted);
 }
 
@@ -807,7 +807,7 @@ site-app.theme-ready .header {
 .button-accent {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: white;
+  color: var(--color-button-accent-text, white);
 }
 
 .button-accent:hover {
