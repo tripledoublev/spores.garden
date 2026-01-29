@@ -7,7 +7,9 @@
    Google Fonts Import
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@400;700&family=Roboto+Slab:wght@400;700&family=Playfair+Display:wght@400;700&family=Source+Sans+Pro:wght@400;700&family=Montserrat:wght@400;700&family=Lato:wght@400;700&family=Oswald:wght@400;700&display=swap');
+/* Fonts are loaded dynamically based on theme - see engine.ts */
+/* Only Inter and JetBrains Mono are loaded statically as fallbacks */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
 /* ============================================
    CSS Custom Properties
@@ -43,7 +45,7 @@
   --font-size-2xl: clamp(1.5rem, 5vw, 2.5rem);
 
   /* Typography */
-  --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Bungee', 'Rubik Wet Paint', 'Fredoka One', system-ui, -apple-system, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
@@ -97,6 +99,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Hide text until fonts are loaded to prevent flicker */
+body:not(.fonts-ready) h1,
+body:not(.fonts-ready) h2,
+body:not(.fonts-ready) h3,
+body:not(.fonts-ready) h4,
+body:not(.fonts-ready) h5,
+body:not(.fonts-ready) h6,
+body:not(.fonts-ready) .site-title,
+body:not(.fonts-ready) .section-title {
+  visibility: hidden;
+}
+
+body.fonts-ready h1,
+body.fonts-ready h2,
+body.fonts-ready h3,
+body.fonts-ready h4,
+body.fonts-ready h5,
+body.fonts-ready h6,
+body.fonts-ready .site-title,
+body.fonts-ready .section-title {
+  visibility: visible;
+  transition: opacity 200ms ease-in-out;
+}
+
 h1,
 h2,
 h3,
@@ -104,10 +130,10 @@ h4,
 h5,
 h6 {
   font-family: var(--font-heading);
-  font-weight: 800;
+  font-weight: 400;
   margin: 0 0 var(--spacing-md);
   line-height: 1.1;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.02em;
 }
 
 h1 {

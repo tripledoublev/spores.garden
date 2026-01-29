@@ -1,4 +1,5 @@
 import chroma from 'chroma-js';
+import { FONT_PAIRINGS } from './fonts.js';
 
 /**
  * Theme Engine
@@ -6,14 +7,6 @@ import chroma from 'chroma-js';
  * Handles applying themes (presets + custom overrides) to the site.
  * Uses CSS custom properties for easy runtime theming.
  */
-
-const FONT_PAIRINGS = [
-  { heading: "'Inter', sans-serif", body: "'Inter', sans-serif" },
-  { heading: "'Roboto Slab', serif", body: "'Roboto', sans-serif" },
-  { heading: "'Playfair Display', serif", body: "'Source Sans Pro', sans-serif" },
-  { heading: "'Montserrat', sans-serif", body: "'Lato', sans-serif" },
-  { heading: "'Oswald', sans-serif", body: "'Roboto', sans-serif" },
-];
 
 const BORDER_STYLES = ['solid', 'dashed', 'dotted', 'double', 'groove'];
 const BORDER_WIDTHS = ['1px', '2px', '3px', '4px'];
@@ -172,11 +165,113 @@ export function generateThemeFromDid(did) {
 
 
 /**
+ * Extract font family name from CSS font string
+ * e.g., "'Bungee', sans-serif" -> "Bungee"
+ * e.g., "'Press Start 2P', monospace" -> "Press Start 2P"
+ * Returns null for system fonts
+ */
+function extractFontName(fontString: string): string | null {
+  if (!fontString) return null;
+  
+  // Match quoted font names (single or double quotes)
+  const match = fontString.match(/['"]([^'"]+)['"]/);
+  if (!match) return null;
+  
+  const fontName = match[1];
+  
+  // Skip system fonts
+  const systemFonts = ['system-ui', 'apple-system', 'Georgia', 'Courier New'];
+  if (systemFonts.some(sys => fontName.includes(sys))) {
+    return null;
+  }
+  
+  return fontName;
+}
+
+/**
+ * Build Google Fonts URL for specific fonts
+ */
+function buildGoogleFontsUrl(fontNames: string[]): string {
+  if (fontNames.length === 0) return '';
+  
+  // Filter out Inter (already loaded statically) and system fonts
+  const fontsToLoad = fontNames.filter(name => name && name !== 'Inter');
+  
+  if (fontsToLoad.length === 0) return '';
+  
+  // Build URL with font families
+  // Most fonts use weight 400, some need specific weights
+  const fontSpecs = fontsToLoad.map(name => {
+    // Handle fonts that need specific weights
+    const weightMap: Record<string, string> = {
+      'Inter': 'wght@400;500;600;700;800',
+      'Orbitron': 'wght@400;700;900',
+      'Passion One': 'wght@400;700;900',
+      'Sniglet': 'wght@400;800',
+      'Stardos Stencil': 'wght@400;700',
+      'Trochut': 'wght@400;700',
+      'Amatic SC': 'wght@400;700',
+      'Caveat': 'wght@400;700',
+      'Dancing Script': 'wght@400;700',
+      'Shadows Into Light': 'wght@400',
+      'Zilla Slab Highlight': 'wght@400;700',
+      'Kalam': 'wght@300;400;700',
+      'Flamenco': 'wght@300;400',
+      'Cinzel Decorative': 'wght@400',
+      'Syncopate': 'wght@400;700',
+    };
+    
+    const weight = weightMap[name] || 'wght@400';
+    return `family=${encodeURIComponent(name)}:${weight}`;
+  });
+  
+  return `https://fonts.googleapis.com/css2?${fontSpecs.join('&')}&display=swap`;
+}
+
+// Track loaded fonts to avoid duplicates
+const loadedFonts = new Set<string>();
+
+/**
+ * Dynamically load Google Fonts
+ */
+function loadGoogleFonts(fontNames: string[]): Promise<void> {
+  return new Promise((resolve) => {
+    const url = buildGoogleFontsUrl(fontNames);
+    if (!url) {
+      resolve();
+      return;
+    }
+    
+    // Check if we already loaded these fonts
+    const allLoaded = fontNames.every(name => !name || name === 'Inter' || loadedFonts.has(name));
+    if (allLoaded) {
+      resolve();
+      return;
+    }
+    
+    // Mark fonts as loading
+    fontNames.forEach(name => {
+      if (name && name !== 'Inter') {
+        loadedFonts.add(name);
+      }
+    });
+    
+    // Create and inject link tag
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = url;
+    link.onload = () => resolve();
+    link.onerror = () => resolve(); // Resolve anyway to not block rendering
+    document.head.appendChild(link);
+  });
+}
+
+/**
  * Apply a theme to the document
- * Returns a promise that resolves when the theme is fully applied and painted
+ * Returns a promise that resolves when the theme is fully applied and fonts are loaded
  */
 export function applyTheme(themeConfig: any = {}): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const preset = themeConfig.preset || 'minimal';
     const presetTheme = THEME_PRESETS[preset] || THEME_PRESETS.minimal;
 
@@ -186,6 +281,18 @@ export function applyTheme(themeConfig: any = {}): Promise<void> {
     const borderStyle = themeConfig.borderStyle || 'solid';
     const borderWidth = themeConfig.borderWidth || '2px';
     const shadow = themeConfig.shadow || {};
+
+    // Extract font names that need to be loaded
+    const fontNamesToLoad: string[] = [];
+    Object.values(fonts).forEach((fontString) => {
+      const fontName = extractFontName(fontString as string);
+      if (fontName) {
+        fontNamesToLoad.push(fontName);
+      }
+    });
+
+    // Load fonts dynamically before applying theme
+    await loadGoogleFonts(fontNamesToLoad);
 
     // Apply CSS custom properties
     const root = document.documentElement;
@@ -228,15 +335,52 @@ export function applyTheme(themeConfig: any = {}): Promise<void> {
       .trim();
     document.body.classList.add(`theme-${preset}`);
 
-    // Mark theme as ready after CSS properties have been applied and painted
-    // Use double requestAnimationFrame to ensure CSS has been applied and painted
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Add data attribute to signal theme is ready
-        root.setAttribute('data-theme-ready', 'true');
-        resolve();
+    // Wait for fonts to load before marking theme as ready
+    // This prevents text flicker when custom fonts load
+    if (document.fonts && fontNamesToLoad.length > 0) {
+      // Wait for specific fonts to load
+      const fontPromises = fontNamesToLoad.map(fontName => {
+        return document.fonts.load(`1em "${fontName}"`).catch(() => {
+          // Ignore errors - font might already be loaded or might fail
+        });
       });
-    });
+      
+      Promise.all(fontPromises).then(() => {
+        // Double-check with fonts.ready for safety
+        return document.fonts.ready;
+      }).then(() => {
+        // Mark fonts as ready
+        document.body.classList.add('fonts-ready');
+        
+        // Mark theme as ready after CSS properties have been applied and painted
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            root.setAttribute('data-theme-ready', 'true');
+            resolve();
+          });
+        });
+      }).catch(() => {
+        // Fallback if font loading fails - show text anyway after a short delay
+        document.body.classList.add('fonts-ready');
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              root.setAttribute('data-theme-ready', 'true');
+              resolve();
+            });
+          });
+        }, 100);
+      });
+    } else {
+      // No custom fonts to load, or Font Loading API not available
+      document.body.classList.add('fonts-ready');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          root.setAttribute('data-theme-ready', 'true');
+          resolve();
+        });
+      });
+    }
   });
 }
 
