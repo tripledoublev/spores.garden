@@ -225,12 +225,9 @@ export class SiteRenderer {
                     controls.appendChild(viewMyGardenBtn);
                 }
             } else if (!isOwnerLoggedIn && isViewingProfile) {
-                // Check if user already interacted with this garden
+                // Check if user already took a seed from this garden
                 const currentDid = getCurrentDid();
-                const [hasPlantedFlower, hasTakenSeed] = await Promise.all([
-                    this.interactions.checkHasPlantedFlower(ownerDid!, currentDid),
-                    this.interactions.checkHasTakenSeed(currentDid, ownerDid!)
-                ]);
+                const hasTakenSeed = await this.interactions.checkHasTakenSeed(currentDid, ownerDid!);
 
                 // Guard against race conditions
                 if (this.renderId !== myRenderId) return;
@@ -246,22 +243,6 @@ export class SiteRenderer {
                     });
                     controls.appendChild(viewMyGardenBtn);
                 }
-
-                // "Plant a flower" button for visitors
-                const plantFlowerBtn = document.createElement('button');
-                plantFlowerBtn.className = 'button button-primary plant-flower-btn';
-                if (hasPlantedFlower) {
-                    plantFlowerBtn.textContent = 'Already planted';
-                    plantFlowerBtn.disabled = true;
-                    plantFlowerBtn.setAttribute('aria-label', 'You have already planted a flower in this garden');
-                    plantFlowerBtn.title = 'You have already planted a flower in this garden';
-                } else {
-                    plantFlowerBtn.textContent = 'Plant a flower';
-                    plantFlowerBtn.setAttribute('aria-label', 'Plant a flower in this garden');
-                    plantFlowerBtn.title = 'Leave your unique flower in this garden as a way to show appreciation';
-                    plantFlowerBtn.addEventListener('click', () => this.interactions.plantFlower());
-                }
-                controls.appendChild(plantFlowerBtn);
 
                 // "Take a seed" button for visitors
                 const takeFlowerBtn = document.createElement('button');

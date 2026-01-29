@@ -39,15 +39,6 @@ export class SiteInteractions {
             });
             this.showNotification('You planted a flower!.', 'success');
 
-            // Update button state directly without re-rendering the whole page (to avoid flicker)
-            const btn = this.app.querySelector('.plant-flower-btn') as HTMLButtonElement;
-            if (btn) {
-                btn.textContent = 'Already planted';
-                btn.disabled = true;
-                btn.setAttribute('aria-label', 'You have already planted a flower in this garden');
-                btn.title = 'You have already planted a flower in this garden';
-            }
-
             // Refresh the header strip (create if it doesn't exist)
             const headerStrip = this.app.querySelector('.flower-bed.header-strip') as HTMLElement;
             const newHeaderStrip = await renderFlowerBed({}, true);

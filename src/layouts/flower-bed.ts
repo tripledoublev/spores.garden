@@ -1,6 +1,5 @@
 import { getBacklinks, getProfile, listRecords, getRecord } from '../at-client';
 import { getSiteOwnerDid, isValidSpore } from '../config';
-import { generateThemeFromDid } from '../themes/engine';
 import { isLoggedIn, getCurrentDid } from '../oauth';
 import { generateSporeFlowerSVGString, generateFlowerSVGString } from '../utils/flower-svg';
 
@@ -12,14 +11,6 @@ interface SporeRecord {
   subject: string;
   uri: string;
   rkey: string;
-}
-
-/**
- * Get owner's theme generated deterministically from their DID
- */
-function getOwnerTheme(ownerDid: string) {
-  const generated = generateThemeFromDid(ownerDid);
-  return generated.theme;
 }
 
 /**
@@ -36,28 +27,10 @@ function getOwnerTheme(ownerDid: string) {
 export async function renderFlowerBed(section: any, excludeOwner: boolean = false): Promise<HTMLElement | null> {
   const ownerDid = getSiteOwnerDid();
   if (!ownerDid) {
-    if (excludeOwner) {
-      return null;
-    }
-    const el = document.createElement('div');
-    el.className = 'flower-bed';
-    el.textContent = 'Could not determine garden owner.';
-    return el;
+    // When excludeOwner is true (header strip mode), return null if no owner
+    // This is the only mode we use now
+    return null;
   }
-
-  // Get owner's unique theme (generated from DID)
-  const ownerTheme = getOwnerTheme(ownerDid);
-
-  // Get theme colors, border style, and border width
-  const colors = ownerTheme?.colors;
-  const borderStyle = ownerTheme?.borderStyle || 'solid';
-  const borderWidth = ownerTheme?.borderWidth || '4px';
-
-  // Use accent or primary color for the inset border to show uniqueness
-  const insetBorderColor = colors?.accent || colors?.primary || colors?.border || colors?.text || '#000000';
-  const borderColor = colors?.text || colors?.border || '#000000';
-  // Use background color, but lighten it slightly for surface effect
-  const backgroundColor = colors?.background || '#f8f9fa';
 
   try {
     const response = await getBacklinks(ownerDid, 'garden.spores.social.flower:subject', { limit: 100 });
@@ -107,16 +80,6 @@ export async function renderFlowerBed(section: any, excludeOwner: boolean = fals
       el.classList.add('header-strip');
     }
 
-    // Apply owner's unique styling to the flower bed via CSS custom properties
-    // (only needed for the full flower bed section, not header strip)
-    if (!excludeOwner) {
-      el.style.setProperty('--flower-bed-border-style', borderStyle);
-      el.style.setProperty('--flower-bed-border-width', borderWidth);
-      el.style.setProperty('--flower-bed-border-color', borderColor);
-      el.style.setProperty('--flower-bed-inset-color', insetBorderColor);
-      el.style.setProperty('--flower-bed-background', backgroundColor);
-    }
-
     // Determine flowers to render
     const flowersToRender = excludeOwner 
       ? visitorFlowers  // Only visitors
@@ -158,31 +121,12 @@ export async function renderFlowerBed(section: any, excludeOwner: boolean = fals
 
     el.appendChild(grid);
 
-    // Add a friendly hint if nobody else has planted here yet.
-    // Hide this hint if the user is logged in and viewing their own garden.
-    // Skip hint text when excludeOwner (header strip mode)
-    if (!excludeOwner) {
-      const isViewingOwnGarden = isLoggedIn() && getCurrentDid() === ownerDid;
-      if (visitorFlowers.length === 0 && !isViewingOwnGarden) {
-        const hint = document.createElement('p');
-        hint.style.marginTop = '1rem';
-        hint.style.color = 'var(--color-text-muted, #6b7280)';
-        hint.textContent = 'Be the first to plant a flower here! Your unique flower will appear in this garden.';
-        el.appendChild(hint);
-      }
-    }
-
     return el;
 
   } catch (error) {
     console.error('Failed to load flower bed:', error);
-    if (excludeOwner) {
-      return null;
-    }
-    const el = document.createElement('div');
-    el.className = 'flower-bed';
-    el.textContent = error instanceof Error ? error.message : 'Failed to load flower bed.';
-    return el;
+    // In header strip mode (excludeOwner: true), return null on error
+    return null;
   }
 }
 
