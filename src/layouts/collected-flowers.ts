@@ -112,8 +112,8 @@ export async function renderCollectedFlowers(
         flowerEl.appendChild(noteEl);
       }
 
-      // Edit and Remove (owner only) – icon buttons
-      if (canManageFlowers && rkey) {
+      // Edit and Remove (owner only, only in edit mode) – icon buttons
+      if (canManageFlowers && rkey && options?.editMode) {
         const actions = document.createElement('div');
         actions.className = 'flower-grid-item-actions';
 
