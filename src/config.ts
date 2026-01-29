@@ -130,6 +130,24 @@ function getDefaultConfig() {
 }
 
 /**
+ * Preview config when URL has a DID but no garden config record.
+ * Theme is generated from DID; sections are empty so the renderer shows garden preview UI.
+ */
+function buildPreviewConfig(did: string) {
+  const defaultConfig = getDefaultConfig();
+  const { theme: generatedTheme } = generateThemeFromDid(did);
+  return {
+    ...defaultConfig,
+    theme: {
+      ...generatedTheme,
+      preset: 'minimal',
+    },
+    sections: [],
+    isGardenPreview: true,
+  };
+}
+
+/**
  * Parse identifier from URL (supports both path-based and query params)
  * Supports: /@handle, /@did, /handle (legacy shorthand), ?handle=..., ?did=...
  */
@@ -205,7 +223,11 @@ export async function initConfig() {
     return currentConfig;
   }
 
-  await loadUserConfig(siteOwnerDid);
+  const loaded = await loadUserConfig(siteOwnerDid);
+  if (loaded === null) {
+    // No config record: set preview config so the app can render theme + flower
+    currentConfig = buildPreviewConfig(siteOwnerDid);
+  }
 
   return currentConfig;
 }

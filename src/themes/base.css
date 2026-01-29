@@ -1549,6 +1549,51 @@ site-app.theme-ready .header {
   margin-bottom: var(--spacing-md);
 }
 
+/* Garden preview: theme + flower + CTA when no config or empty garden */
+.garden-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--spacing-xl);
+  gap: var(--spacing-lg);
+  min-height: 40vh;
+}
+
+.garden-preview__flower-box {
+  border: var(--border-width) var(--border-style) var(--color-border);
+  padding: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.garden-preview__heading {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-xl);
+  margin: 0;
+  color: var(--color-text);
+}
+
+.garden-preview__subtext {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  max-width: 28ch;
+}
+
+.garden-preview__hint {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.5rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
 .add-section {
   display: block;
   width: 100%;

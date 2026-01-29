@@ -1,5 +1,6 @@
 import { getConfig, getSiteOwnerDid, isOwner } from '../config';
 import { isLoggedIn, getCurrentDid, logout } from '../oauth';
+import { getProfile } from '../at-client';
 import { escapeHtml } from '../utils/sanitize';
 import { SiteRouter } from './site-router';
 import { generateFlowerSVGString, generateSporeFlowerSVGString, generateMonochromeSporeFlowerSVGString } from '../utils/flower-svg';
@@ -391,42 +392,55 @@ export class SiteRenderer {
 
             main.appendChild(homepageView);
         } else if (sections.length === 0 && !this.editor.editMode) {
-            // Viewing a profile with no sections
-            const emptyState = document.createElement('div');
-            emptyState.className = 'empty-state';
+            // Garden preview: theme + flower + CTA when no sections (no config or empty garden)
+            const preview = document.createElement('div');
+            preview.className = 'garden-preview';
+
+            const flowerBox = document.createElement('div');
+            flowerBox.className = 'garden-preview__flower-box';
+            const flowerSize = 140;
+            flowerBox.innerHTML = generateFlowerSVGString(ownerDid!, flowerSize);
+            preview.appendChild(flowerBox);
+
+            const heading = document.createElement('h2');
+            heading.className = 'garden-preview__heading';
+            heading.textContent = "A garden could grow here.";
+            preview.appendChild(heading);
+
+            const subtext = document.createElement('p');
+            subtext.className = 'garden-preview__subtext';
+            subtext.textContent = "If this is your identity, you can login and claim your flower.";
+            preview.appendChild(subtext);
 
             if (isOwnerLoggedIn) {
-                const text = document.createElement('h2');
-                text.style.textAlign = 'center';
-                text.style.display = 'flex';
-                text.style.justifyContent = 'center';
-                text.style.alignItems = 'baseline';
-                text.style.flexWrap = 'wrap';
-
-                const span1 = document.createElement('span');
-                span1.textContent = 'Click ';
-                text.appendChild(span1);
-
-                const editButton = document.createElement('button');
-                editButton.className = 'button button-primary';
-                editButton.textContent = 'Edit';
-                editButton.style.margin = '0 0.5rem';
-                editButton.addEventListener('click', () => this.editor.toggleEditMode());
-                text.appendChild(editButton);
-
-                const span2 = document.createElement('span');
-                span2.textContent = ' to add sections.';
-                text.appendChild(span2);
-
-                emptyState.appendChild(text);
+                const editHint = document.createElement('p');
+                editHint.className = 'garden-preview__hint';
+                const editBtn = document.createElement('button');
+                editBtn.className = 'button button-primary';
+                editBtn.textContent = 'Edit';
+                editBtn.addEventListener('click', () => this.editor.toggleEditMode());
+                editHint.appendChild(document.createTextNode('Click '));
+                editHint.appendChild(editBtn);
+                editHint.appendChild(document.createTextNode(' to add sections and start gardening.'));
+                preview.appendChild(editHint);
             } else {
-                const heading = document.createElement('h2');
-                heading.style.textAlign = 'center';
-                heading.textContent = 'This garden is empty.';
-                emptyState.appendChild(heading);
+                const loginBtn = document.createElement('button');
+                loginBtn.className = 'button button-primary';
+                loginBtn.textContent = 'Login';
+                loginBtn.setAttribute('aria-label', 'Log in to claim your garden');
+                loginBtn.addEventListener('click', () => this.auth.showLoginModal());
+                preview.appendChild(loginBtn);
             }
 
-            main.appendChild(emptyState);
+            main.appendChild(preview);
+
+            // Resolve handle for heading: "@handle's garden could grow here"
+            getProfile(ownerDid!).then((profile) => {
+                if (this.renderId !== myRenderId) return;
+                if (profile?.handle) {
+                    heading.textContent = `@${profile.handle}'s garden could grow here`;
+                }
+            }).catch(() => { /* keep fallback heading */ });
         } else {
             // Viewing a profile with sections
             // Filter out deprecated section types (they're handled elsewhere)
