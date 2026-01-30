@@ -376,7 +376,9 @@ export function applyTheme(
     // Respect prefers-reduced-motion by not applying pattern
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (did && isolines && !prefersReducedMotion) {
-      const { dataUri } = getIsolineForDid(did, colors);
+      // Use the larger of viewport dimensions; minimum 2560 for denser isolines
+      const maxDimension = Math.max(window.innerWidth, window.innerHeight, 2560);
+      const { dataUri } = getIsolineForDid(did, colors, maxDimension, maxDimension);
       root.style.setProperty('--pattern-background', `url("${dataUri}")`);
       document.body.classList.add('has-pattern');
     } else {

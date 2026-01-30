@@ -6,7 +6,8 @@
  */
 
 export interface ContourPath {
-  d: string;           // SVG path data
+  d: string;           // SVG path data (all chains, for strokes)
+  dClosed?: string;    // Closed chains only (for fills); avoids straight-edge artifacts
   threshold: number;   // Contour level (0-1)
 }
 
@@ -132,6 +133,25 @@ function getCase(
   return caseIndex;
 }
 
+/** Saddle cases use straight diagonals; we bend them to avoid harsh lines. */
+const SADDLE_CASES = [5, 10];
+
+/**
+ * Replace a saddle diagonal with two segments meeting at an offset midpoint,
+ * so the contour bends instead of a straight diagonal.
+ */
+function saddleMidpoint(p1: Point, p2: Point, cellSize: number): Point {
+  const mx = (p1.x + p2.x) / 2;
+  const my = (p1.y + p2.y) / 2;
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const perpX = -dy / len;
+  const perpY = dx / len;
+  const k = cellSize * 0.22;
+  return { x: mx + k * perpX, y: my + k * perpY };
+}
+
 /**
  * Extract contour lines from a noise grid at specified thresholds
  *
@@ -166,19 +186,29 @@ export function extractContours(
         const edges = CASES[caseIndex];
 
         // Process edge pairs
+        const isSaddle = SADDLE_CASES.includes(caseIndex);
         for (let i = 0; i < edges.length; i += 2) {
           const p1 = getEdgePoint(x, y, edges[i], grid, threshold, cellSize);
           const p2 = getEdgePoint(x, y, edges[i + 1], grid, threshold, cellSize);
-          segments.push([p1, p2]);
+          if (isSaddle) {
+            const c = saddleMidpoint(p1, p2, cellSize);
+            segments.push([p1, c], [c, p2]);
+          } else {
+            segments.push([p1, p2]);
+          }
         }
       }
     }
 
     // Convert segments to SVG path
     if (segments.length > 0) {
-      const d = segmentsToPath(segments);
-      if (d) {
-        paths.push({ d, threshold });
+      const { full, closedOnly } = segmentsToPath(segments);
+      if (full) {
+        paths.push({
+          d: full,
+          ...(closedOnly && { dClosed: closedOnly }),
+          threshold
+        });
       }
     }
   }
@@ -186,11 +216,21 @@ export function extractContours(
   return paths;
 }
 
+/** Result of connecting segments: full path (strokes) and closed-only (fills). */
+export interface SegmentsToPathResult {
+  full: string;
+  closedOnly: string;
+}
+
 /**
- * Connect line segments into continuous paths
+ * Connect line segments into continuous paths.
+ * Returns both full path (for strokes) and closed-only path (for fills).
+ * Open contours that hit the grid edge would be implicitly closed by a straight
+ * line when filled, causing visible "non-curvy" artifacts—so we only fill closed chains.
  */
-function segmentsToPath(segments: [Point, Point][]): string {
-  if (segments.length === 0) return '';
+function segmentsToPath(segments: [Point, Point][]): SegmentsToPathResult {
+  const empty = { full: '', closedOnly: '' };
+  if (segments.length === 0) return empty;
 
   const chains: Point[][] = [];
   const used = new Set<number>();
@@ -256,8 +296,8 @@ function segmentsToPath(segments: [Point, Point][]): string {
     chains.push(chain);
   }
 
-  // Convert chains to SVG path
   const pathParts: string[] = [];
+  const closedParts: string[] = [];
 
   for (const chain of chains) {
     if (chain.length < 2) continue;
@@ -265,19 +305,28 @@ function segmentsToPath(segments: [Point, Point][]): string {
     const parts: string[] = [];
     parts.push(`M ${chain[0].x.toFixed(2)} ${chain[0].y.toFixed(2)}`);
 
+    // Use quadratic curves for smooth, rounded contours
     for (let i = 1; i < chain.length; i++) {
-      parts.push(`L ${chain[i].x.toFixed(2)} ${chain[i].y.toFixed(2)}`);
+      const prev = chain[i - 1];
+      const curr = chain[i];
+      
+      // Control point is the previous point for smooth flow
+      parts.push(`Q ${prev.x.toFixed(2)} ${prev.y.toFixed(2)} ${curr.x.toFixed(2)} ${curr.y.toFixed(2)}`);
     }
 
-    // Close the path if endpoints are close
-    if (pointsEqual(chain[0], chain[chain.length - 1])) {
+    const closed = pointsEqual(chain[0], chain[chain.length - 1]);
+    if (closed) {
       parts.push('Z');
+      closedParts.push(parts.join(' '));
     }
 
     pathParts.push(parts.join(' '));
   }
 
-  return pathParts.join(' ');
+  return {
+    full: pathParts.join(' '),
+    closedOnly: closedParts.length > 0 ? closedParts.join(' ') : ''
+  };
 }
 
 /**
