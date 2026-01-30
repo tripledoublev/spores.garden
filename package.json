@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "start": "vite",
     "publish-lexicons": "node scripts/publish-lexicons.js",
+    "theme-previews": "npx tsx scripts/generate-theme-previews.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run"

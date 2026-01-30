@@ -103,6 +103,8 @@ Built-in presets: `minimal`, `dark`, `bold`, `retro`
 
 Custom CSS supported for full control.
 
+**Theme preview generator:** Run `npm run theme-previews` to generate an HTML page of garden previews for many DIDs. Each card shows a full theme swatch (bg, text, primary, accent, muted, border, border-muted), accent button sample, flower in a bordered box with shadow, and "a garden could grow here" in the theme's heading font. It uses placeholder `did:plc:`. Default `--count=1000`; optional `--dids=path`, `--out=theme-previews.html`. Useful to audit the range of generative themes and flag fonts to remove.
+
 ## Testing
 
 ```bash
