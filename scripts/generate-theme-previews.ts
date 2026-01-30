@@ -279,7 +279,7 @@ ${fontLinks}
       -webkit-backdrop-filter: blur(80px);
       border: 1px solid rgba(var(--card-text-rgb), 0.1);
       padding: 0.75rem;
-      min-height: calc(280px - 1.5rem);
+      margin-bottom: 1rem;
     }
     .swatch { display: flex; gap: 2px; margin-bottom: 0.35rem; flex-wrap: wrap; }
     .chip { width: 14px; height: 14px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15); }
