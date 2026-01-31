@@ -38,24 +38,31 @@ function mixForContrast(color1: chroma.Color | string, color2: chroma.Color | st
   return mixed;
 }
 
+/** Minimum contrast ratio for normal text (WCAG AA). */
+const MIN_TEXT_CONTRAST = 4.5;
+
 /**
- * Generates a color palette from a DID string
- * Returns an object with all theme colors that meet contrast requirements
+ * Generates a color palette from a DID string.
+ * Restricted to light backgrounds only so that black text always has sufficient
+ * contrast for accessibility and layered elements.
  */
 export function generateColorsFromDid(did: string): Record<string, string> {
   const hash = stringToHash(did);
   const hue = hash % 360;
 
-  // Generate vibrant background color
-  const saturation = 0.85 + ((hash >> 8) % 16) / 100; // 0.85-1.0
-  const lightness = 0.4 + ((hash >> 12) % 30) / 100; // 0.4-0.7
-  const backgroundColor = chroma.hsl(hue, saturation, lightness);
+  // Wider range; safety check below ensures black text contrast
+  const saturation = 0.6 + ((hash >> 8) % 41) / 100; // 0.6–1.0
+  const lightness = 0.55 + ((hash >> 12) % 41) / 100; // 0.55–0.95
+  let backgroundColor = chroma.hsl(hue, saturation, lightness);
 
-  // Determine text color and background type
-  const whiteContrast = chroma.contrast(backgroundColor, 'white');
-  const blackContrast = chroma.contrast(backgroundColor, 'black');
-  const textColor = (whiteContrast > blackContrast && whiteContrast > 4.5) ? 'white' : 'black';
-  const isDarkBackground = whiteContrast > blackContrast;
+  // Ensure background meets minimum contrast with black; lighten if needed
+  while (chroma.contrast(backgroundColor, 'black') < MIN_TEXT_CONTRAST && backgroundColor.get('hsl.l') < 0.98) {
+    backgroundColor = backgroundColor.set('hsl.l', Math.min(0.98, backgroundColor.get('hsl.l') + 0.05));
+  }
+
+  // Black text only (theme restricted to light backgrounds for accessibility)
+  const textColor = 'black';
+  const isDarkBackground = false;
 
   // Primary and accent: palette-based – derived from bg→text gradient in LCH
   // palette[0]=bg, [1]=25%, [2]=50% (primary), [3]=75% (accent), [4]=text
