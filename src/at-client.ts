@@ -468,7 +468,7 @@ export async function getProfile(did) {
     },
   };
 
-  const url = new URL('/xrpc/app.bsky.actor.getProfile', 'https://public.api.bsky.app');
+  const url = new URL('/xrpc/app.bsky.actor.getProfile', ENDPOINTS.BLUESKY_API_URL);
   url.searchParams.set('actor', did);
 
   const response = await fetch(url, fetchOptions);
@@ -478,6 +478,46 @@ export async function getProfile(did) {
   }
 
   return response.json();
+}
+
+/** Max actors per getProfiles request (Bluesky API limit) */
+const GET_PROFILES_BATCH_SIZE = 25;
+
+/**
+ * Get multiple Bluesky profiles in one or more batch requests.
+ * Returns a Map of did -> profile (or null if not found / error). Fails gracefully per-actor.
+ */
+export async function getProfiles(actors: string[]): Promise<Map<string, unknown | null>> {
+  const result = new Map<string, unknown | null>();
+  const unique = [...new Set(actors)].filter(Boolean);
+  if (unique.length === 0) return result;
+
+  const fetchOptions: RequestInit = {
+    headers: { 'Cache-Control': 'no-cache' },
+  };
+
+  for (let i = 0; i < unique.length; i += GET_PROFILES_BATCH_SIZE) {
+    const batch = unique.slice(i, i + GET_PROFILES_BATCH_SIZE);
+    const url = new URL('/xrpc/app.bsky.actor.getProfiles', ENDPOINTS.BLUESKY_API_URL);
+    batch.forEach((actor) => url.searchParams.append('actors', actor));
+
+    try {
+      const response = await fetch(url, fetchOptions);
+      if (!response.ok) {
+        batch.forEach((did) => result.set(did, null));
+        continue;
+      }
+      const data = await response.json();
+      const profiles: unknown[] = data?.profiles ?? [];
+      batch.forEach((did, idx) => {
+        result.set(did, profiles[idx] ?? null);
+      });
+    } catch {
+      batch.forEach((did) => result.set(did, null));
+    }
+  }
+
+  return result;
 }
 
 /**

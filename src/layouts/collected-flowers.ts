@@ -1,4 +1,4 @@
-import { listRecords, getRecord, getProfile } from '../at-client';
+import { listRecords, getProfiles } from '../at-client';
 import { getCurrentDid, isLoggedIn, deleteRecord, putRecord } from '../oauth';
 import { getSiteOwnerDid } from '../config';
 import { showConfirmModal } from '../utils/confirm-modal';
@@ -47,6 +47,9 @@ export async function renderCollectedFlowers(
     const grid = document.createElement('div');
     grid.className = 'flower-grid'; // Re-use flower-grid style
 
+    const uniqueDids = [...new Set(takenFlowers.map((r) => r.value.sourceDid).filter(Boolean))];
+    const profileMap = await getProfiles(uniqueDids);
+
     for (const flowerRecord of takenFlowers) {
       const sourceDid = flowerRecord.value.sourceDid;
       const createdAt = flowerRecord.value.createdAt;
@@ -57,46 +60,17 @@ export async function renderCollectedFlowers(
       flowerEl.className = 'flower-grid-item';
 
       const link = document.createElement('a');
-      link.href = `/@${sourceDid}`; // Link back to the source garden
+      link.href = `/@${sourceDid}`;
       link.title = `View ${sourceDid}'s garden`;
 
-      // Async fetch of display name and handle
-      (async () => {
-        try {
-          let displayName = sourceDid;
-
-          // Fetch profiles
-          let bskyProfile = null;
-          try {
-            bskyProfile = await getProfile(sourceDid);
-          } catch (e) { /* ignore */ }
-
-          let gardenProfile = null;
-          try {
-            gardenProfile = await getRecord(sourceDid, 'garden.spores.site.profile', 'self');
-          } catch (e) { /* ignore */ }
-
-          // Update URL if handle is available
-          if (bskyProfile?.handle) {
-            link.href = `/@${bskyProfile.handle}`;
-          }
-
-          // Resolve display name: Garden Profile -> Bluesky Display Name -> Bluesky Handle
-          if (gardenProfile?.value?.displayName) {
-            displayName = gardenProfile.value.displayName;
-          } else if (bskyProfile?.displayName) {
-            displayName = bskyProfile.displayName;
-          } else if (bskyProfile?.handle) {
-            displayName = bskyProfile.handle;
-          }
-
-          if (displayName !== sourceDid) {
-            link.title = `View ${displayName}'s garden`;
-          }
-        } catch (e) {
-          console.warn('Failed to resolve metadata for collected flower', e);
-        }
-      })();
+      const profile = profileMap.get(sourceDid) as { handle?: string; displayName?: string } | null | undefined;
+      if (profile?.handle) {
+        link.href = `/@${profile.handle}`;
+      }
+      const displayName = profile?.displayName ?? profile?.handle ?? sourceDid;
+      if (displayName !== sourceDid) {
+        link.title = `View ${displayName}'s garden`;
+      }
 
       const viz = document.createElement('did-visualization');
       viz.setAttribute('did', sourceDid);

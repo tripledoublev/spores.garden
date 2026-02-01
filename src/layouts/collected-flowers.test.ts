@@ -7,8 +7,7 @@ import * as config from '../config';
 // Mock dependencies
 vi.mock('../at-client', () => ({
     listRecords: vi.fn(),
-    getRecord: vi.fn(),
-    getProfile: vi.fn()
+    getProfiles: vi.fn()
 }));
 
 vi.mock('../oauth', () => ({
@@ -72,6 +71,7 @@ describe('Collected Flowers Layout', () => {
             }
         ];
         vi.mocked(atClient.listRecords).mockResolvedValue({ records: mockFlowers, cursor: '' });
+        vi.mocked(atClient.getProfiles).mockResolvedValue(new Map());
 
         const section = { type: 'collected-flowers' };
         const el = await renderCollectedFlowers(section);
@@ -100,6 +100,7 @@ describe('Collected Flowers Layout', () => {
             }
         ];
         vi.mocked(atClient.listRecords).mockResolvedValue({ records: mockFlowers, cursor: '' });
+        vi.mocked(atClient.getProfiles).mockResolvedValue(new Map());
 
         const section = { type: 'collected-flowers' };
         const el = await renderCollectedFlowers(section);
@@ -107,6 +108,7 @@ describe('Collected Flowers Layout', () => {
         const grid = el.querySelector('.flower-grid');
         expect(grid).toBeTruthy();
         expect(atClient.listRecords).toHaveBeenCalledWith(mockOwnerDid, 'garden.spores.social.takenFlower', expect.anything());
+        expect(atClient.getProfiles).toHaveBeenCalledWith(['did:plc:source1']);
     });
 
     it('should show empty state when no flowers collected', async () => {

@@ -118,25 +118,26 @@ export class SiteData {
 
     /**
      * Get display name for a DID
-     * First checks for custom spores.garden profile, then falls back to Bluesky profile
+     * Prefer Bluesky profile (most users have it); optionally use garden.spores.site.profile for custom name
      */
     async getDisplayNameForDid(did: string): Promise<string | null> {
         try {
-            // First, check for custom garden.spores.site.profile record with rkey 'self'
+            const bskyProfile = await getProfile(did).catch(() => null);
+            if (bskyProfile?.displayName) {
+                return bskyProfile.displayName;
+            }
+
             const customProfile = await getRecord(did, 'garden.spores.site.profile', 'self');
             if (customProfile?.value?.displayName) {
                 return customProfile.value.displayName;
             }
 
-            // Fall back to Bluesky profile
-            const bskyProfile = await getProfile(did);
-            if (bskyProfile?.displayName) {
-                return bskyProfile.displayName;
+            if (bskyProfile?.handle) {
+                return bskyProfile.handle;
             }
 
             return null;
-        } catch (error) {
-            console.warn('Failed to get display name for DID:', error);
+        } catch {
             return null;
         }
     }
