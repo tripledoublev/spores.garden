@@ -3681,6 +3681,11 @@ body.has-pattern .garden-preview__flower-box {
   }
 }
 
+/* Flower garden CTAs use each garden's theme colors (like recent-gardens) */
+.flower-garden-cta:hover {
+  filter: brightness(0.95);
+}
+
 /* ============================================
    Flower Bed Header Strip
    ============================================ */

@@ -1,6 +1,7 @@
 import { getBacklinks, getProfile, listRecords, getRecord } from '../at-client';
 import { getSiteOwnerDid, isValidSpore } from '../config';
 import { isLoggedIn, getCurrentDid } from '../oauth';
+import { generateThemeFromDid } from '../themes/engine';
 import { generateSporeFlowerSVGString, generateFlowerSVGString } from '../utils/flower-svg';
 
 const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
@@ -190,6 +191,7 @@ async function findGardensWithFlower(flowerDid: string): Promise<Array<{ gardenD
 
 /**
  * Create a clickable link element for a garden
+ * Uses the garden DID to generate its unique theme colors (like recent-gardens)
  */
 function createGardenLink(
   gardenDid: string,
@@ -197,9 +199,12 @@ function createGardenLink(
   displayName: string,
   profile: any
 ): HTMLAnchorElement {
+  const { theme } = generateThemeFromDid(gardenDid);
+  const { colors, borderStyle, borderWidth } = theme;
+
   const visitLink = document.createElement('a');
   visitLink.href = `/@${profile?.handle || gardenDid}`;
-  visitLink.className = 'button button-primary';
+  visitLink.className = 'button flower-garden-cta';
   visitLink.style.display = 'flex';
   visitLink.style.alignItems = 'center';
   visitLink.style.gap = '0.75rem';
@@ -208,6 +213,9 @@ function createGardenLink(
   visitLink.style.marginBottom = '0.5rem';
   visitLink.style.padding = '0.75rem 1rem';
   visitLink.style.textDecoration = 'none';
+  visitLink.style.background = colors.background;
+  visitLink.style.color = colors.text;
+  visitLink.style.border = `${borderWidth} ${borderStyle} ${colors.border}`;
   visitLink.setAttribute('aria-label', `Visit ${gardenHandle}'s garden`);
   visitLink.title = `Visit ${gardenHandle}'s garden`;
 
@@ -235,18 +243,19 @@ function createGardenLink(
   primary.style.fontWeight = '700';
   primary.style.fontSize = '0.875rem';
   primary.style.letterSpacing = '0.02em';
+  primary.style.color = colors.text;
   const labelName = displayName || gardenHandle;
   primary.textContent = `Visit ${labelName}'s garden`;
   textWrap.appendChild(primary);
 
   const secondary = document.createElement('div');
   secondary.style.fontWeight = '400';
-  secondary.style.opacity = '0.85';
   secondary.style.fontSize = '0.75rem';
   secondary.style.overflow = 'hidden';
   secondary.style.textOverflow = 'ellipsis';
   secondary.style.whiteSpace = 'nowrap';
   secondary.style.maxWidth = '100%';
+  secondary.style.color = colors.muted;
   secondary.textContent = gardenHandle;
   textWrap.appendChild(secondary);
 
