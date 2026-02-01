@@ -81,10 +81,16 @@ export async function renderFlowerBed(section: any, excludeOwner: boolean = fals
       el.classList.add('header-strip');
     }
 
-    // Determine flowers to render
-    const flowersToRender = excludeOwner 
-      ? visitorFlowers  // Only visitors
-      : [{ did: ownerDid }, ...visitorFlowers];  // Include owner
+    // Determine flowers to render 
+    const raw = excludeOwner
+      ? visitorFlowers
+      : [{ did: ownerDid }, ...visitorFlowers];
+    const seen = new Set<string>();
+    const flowersToRender = raw.filter((f) => {
+      if (seen.has(f.did)) return false;
+      seen.add(f.did);
+      return true;
+    });
 
     const grid = document.createElement('div');
     grid.className = 'flower-grid';
