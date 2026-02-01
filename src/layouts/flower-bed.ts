@@ -303,7 +303,7 @@ async function showFlowerGardensModal(flowerDid: string) {
         Visit other gardens where this flower grows
       </p>
       <div id="flower-gardens-list" style="min-height: 100px;">
-        <p>Loading gardens...</p>
+        <h2 style="margin: 0; font-family: var(--font-heading); font-size: 1.25rem; line-height: 1.3;">Loading gardens...</h2>
       </div>
     </div>
   `;
