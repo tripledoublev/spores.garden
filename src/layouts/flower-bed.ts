@@ -340,7 +340,7 @@ async function showFlowerGardensModal(flowerDid: string) {
     const gardens = await findGardensWithFlower(flowerDid);
 
     if (gardens.length === 0) {
-      if (gardensList) gardensList.innerHTML = '<p>This flower hasn\'t been planted in any other garden yet.</p>';
+      if (gardensList) gardensList.innerHTML = '<h2>This flower hasn\'t been planted in any other garden yet</h2>';
       return;
     }
 
@@ -361,7 +361,7 @@ async function showFlowerGardensModal(flowerDid: string) {
     }
 
     if (gardensList?.children.length === 0) {
-      gardensList.innerHTML = '<p>This flower hasn\'t been planted in any other garden yet.</p>';
+      gardensList.innerHTML = '<h2>This flower hasn\'t been planted in any other garden yet</h2>';
     }
   } catch (error) {
     console.error('Failed to load gardens:', error);
