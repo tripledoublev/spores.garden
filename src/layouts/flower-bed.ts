@@ -3,6 +3,7 @@ import { getSiteOwnerDid, isValidSpore } from '../config';
 import { isLoggedIn, getCurrentDid } from '../oauth';
 import { generateThemeFromDid } from '../themes/engine';
 import { generateSporeFlowerSVGString, generateFlowerSVGString } from '../utils/flower-svg';
+import { escapeHtml } from '../utils/sanitize';
 
 const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
 
@@ -222,8 +223,9 @@ function createGardenLink(
   visitLink.style.background = colors.background;
   visitLink.style.color = colors.text;
   visitLink.style.border = `${borderWidth} ${borderStyle} ${colors.border}`;
-  visitLink.setAttribute('aria-label', `Visit ${gardenHandle}'s garden`);
-  visitLink.title = `Visit ${gardenHandle}'s garden`;
+  const labelName = displayName || gardenHandle;
+  visitLink.setAttribute('aria-label', `Go to ${labelName}'s garden`);
+  visitLink.title = `Go to ${labelName}'s garden`;
 
   const vizWrap = document.createElement('div');
   vizWrap.style.width = '40px';
@@ -250,8 +252,7 @@ function createGardenLink(
   primary.style.fontSize = '0.875rem';
   primary.style.letterSpacing = '0.02em';
   primary.style.color = colors.text;
-  const labelName = displayName || gardenHandle;
-  primary.textContent = `Visit ${labelName}'s garden`;
+  primary.textContent = labelName;
   textWrap.appendChild(primary);
 
   const secondary = document.createElement('div');
@@ -285,6 +286,7 @@ async function showFlowerGardensModal(flowerDid: string) {
   }
 
   const flowerHandle = flowerProfile?.handle || flowerDid.substring(0, 20) + '...';
+  const flowerDisplayName = flowerProfile?.displayName || `${flowerHandle}`;
   const isFlowerGardenCurrentPage = currentPageDid && flowerDid === currentPageDid;
 
   // Create modal
@@ -294,7 +296,7 @@ async function showFlowerGardensModal(flowerDid: string) {
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem;">
         <h2 style="margin: 0; font-size: 1.25rem; line-height: 1.3;">
-          This flower is originally from <span style="white-space: nowrap;">@${flowerHandle}</span>'s garden
+          This flower is originally from <span style="white-space: nowrap;">${escapeHtml(flowerDisplayName)}</span>'s garden
         </h2>
         <button class="button button-ghost modal-close" aria-label="Close" style="font-size: 1.5rem; line-height: 1; padding: 0; width: 2rem; height: 2rem; flex-shrink: 0;">×</button>
       </div>
@@ -303,7 +305,7 @@ async function showFlowerGardensModal(flowerDid: string) {
         Visit other gardens where this flower grows
       </p>
       <div id="flower-gardens-list" style="min-height: 100px;">
-        <p>Loading gardens...</p>
+        <h2 style="margin: 0; font-family: var(--font-heading); font-size: 1.25rem; line-height: 1.3;">Loading gardens...</h2>
       </div>
     </div>
   `;

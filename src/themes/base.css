@@ -400,6 +400,28 @@ site-app.theme-ready .header {
   align-items: stretch;
 }
 
+/* Header controls: match home button pattern (outline default, filled on hover) */
+.header .controls .button,
+.header .controls .button-primary,
+.header .controls .button-secondary,
+.header .controls .button-ghost {
+  color: var(--color-text);
+  background: var(--color-background);
+  border: var(--border-width) var(--border-style, solid) var(--color-border-dark);
+}
+
+.header .controls .button:hover,
+.header .controls .button-primary:hover,
+.header .controls .button-secondary:hover,
+.header .controls .button-ghost:hover {
+  background: var(--color-text);
+  color: var(--color-background);
+}
+
+.header .controls .button-ghost:hover {
+  border-color: var(--color-border-dark);
+}
+
 /* Mobile Menu Toggle (Hamburger) */
 .mobile-menu-toggle {
   display: none;
@@ -1692,6 +1714,7 @@ body.has-pattern .header:has(.controls.open) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--spacing-md);
 }
 
 /* Liquid glass effect for flower box when isoline pattern is active */
@@ -1720,6 +1743,7 @@ body.has-pattern .garden-preview__flower-box {
 
 .garden-preview__hint {
   margin: 0;
+  margin-top: var(--spacing-sm);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1727,6 +1751,10 @@ body.has-pattern .garden-preview__flower-box {
   gap: 0.25rem 0.5rem;
   color: var(--color-text-muted);
   font-size: var(--font-size-base);
+}
+
+.garden-preview__flower-box > .button {
+  margin-top: var(--spacing-sm);
 }
 
 .add-section {
@@ -3072,7 +3100,11 @@ body.has-pattern .garden-preview__flower-box {
 
 @media (max-width: 640px) {
   .main {
-    padding: var(--spacing-lg) var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .garden-preview {
+    padding: var(--spacing-md) var(--spacing-lg);
   }
 
   /* .record-grid now uses mobile-first approach - see Grid Systems section */
@@ -3192,9 +3224,8 @@ body.has-pattern .garden-preview__flower-box {
 
 .notification {
   position: fixed;
-  /* Mobile: full-width with spacing */
-  bottom: calc(var(--spacing-md) + 80px + var(--safe-area-inset-bottom));
-  /* Account for save bar */
+  /* Mobile: full-width with spacing (no save bar by default) */
+  bottom: calc(var(--spacing-md) + var(--safe-area-inset-bottom));
   right: calc(var(--spacing-md) + var(--safe-area-inset-right));
   left: calc(var(--spacing-md) + var(--safe-area-inset-left));
   z-index: 3000;
@@ -3204,12 +3235,22 @@ body.has-pattern .garden-preview__flower-box {
   transition: opacity var(--transition);
 }
 
+/* When save bar is present, push notification up so it sits above the bar */
+body:has(.save-bar) .notification {
+  bottom: calc(var(--spacing-md) + 80px + var(--safe-area-inset-bottom));
+}
+@media (min-width: 480px) {
+  body:has(.save-bar) .notification {
+    bottom: calc(var(--spacing-lg) + 80px);
+  }
+}
+
 /* Desktop: constrained width, right-aligned */
 @media (min-width: 480px) {
   .notification {
     left: auto;
     right: var(--spacing-lg);
-    bottom: calc(var(--spacing-lg) + 80px);
+    bottom: var(--spacing-lg);
     max-width: 400px;
   }
 }
@@ -3490,7 +3531,6 @@ body.has-pattern .garden-preview__flower-box {
 
 .recent-gardens {
   padding: var(--spacing-lg) 0;
-  border-bottom: var(--border-width) var(--border-style, solid) var(--color-border-dark);
 }
 
 .recent-gardens-title {
@@ -3544,7 +3584,6 @@ body.has-pattern .garden-preview__flower-box {
 .recent-garden-display-name {
   font-size: 0.9rem;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: -0.01em;
   line-height: 1.2;
   white-space: nowrap;
@@ -3678,6 +3717,9 @@ body.has-pattern .garden-preview__flower-box {
 }
 
 /* Flower garden CTAs use each garden's theme colors (like recent-gardens) */
+.flower-garden-cta {
+  text-transform: none;
+}
 .flower-garden-cta:hover {
   filter: brightness(0.95);
 }

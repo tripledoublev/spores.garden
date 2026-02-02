@@ -46,6 +46,17 @@ export class SiteRenderer {
         const isOwnerLoggedIn = isOwner();
         const isHomePage = !SiteRouter.isViewingProfile();
 
+        // Show notification if a handle couldn't be found (user was redirected to homepage)
+        if (config.handleNotFound) {
+            // Use setTimeout to show notification after render completes
+            const handle = config.handleNotFound;
+            setTimeout(() => {
+                this.showNotification(`Garden not found: @${handle}`, 'error');
+            }, 100);
+            // Clear the flag so we don't show it again on re-renders
+            delete config.handleNotFound;
+        }
+
         // Update favicon
         if (!isHomePage && ownerDid) {
             this.updateFavicon(ownerDid);
@@ -416,8 +427,6 @@ export class SiteRenderer {
             subtext.textContent = "If this is your identity, you can login and claim your flower.";
             flowerBox.appendChild(subtext);
 
-            preview.appendChild(flowerBox);
-
             if (isOwnerLoggedIn) {
                 const editHint = document.createElement('p');
                 editHint.className = 'garden-preview__hint';
@@ -428,15 +437,17 @@ export class SiteRenderer {
                 editHint.appendChild(document.createTextNode('Click '));
                 editHint.appendChild(editBtn);
                 editHint.appendChild(document.createTextNode(' to add sections and start gardening.'));
-                preview.appendChild(editHint);
+                flowerBox.appendChild(editHint);
             } else {
                 const loginBtn = document.createElement('button');
                 loginBtn.className = 'button button-primary';
                 loginBtn.textContent = 'Login';
                 loginBtn.setAttribute('aria-label', 'Log in to claim your garden');
                 loginBtn.addEventListener('click', () => this.auth.showLoginModal());
-                preview.appendChild(loginBtn);
+                flowerBox.appendChild(loginBtn);
             }
+
+            preview.appendChild(flowerBox);
 
             main.appendChild(preview);
 

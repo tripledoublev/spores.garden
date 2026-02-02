@@ -213,8 +213,14 @@ export async function initConfig() {
       try {
         siteOwnerDid = await resolveHandle(identifier.value);
       } catch (error) {
-        console.error('Failed to resolve handle:', error);
-        throw new Error(`Failed to resolve handle "${identifier.value}": ${error.message}`);
+        console.warn('Failed to resolve handle, redirecting to homepage:', error);
+        // Update URL to homepage (removes the invalid handle from URL)
+        history.replaceState(null, '', '/');
+        // Return homepage config with notification flag
+        siteOwnerDid = null;
+        currentConfig = getDefaultConfig();
+        currentConfig.handleNotFound = identifier.value;
+        return currentConfig;
       }
     }
   } else {
