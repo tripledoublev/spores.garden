@@ -682,7 +682,8 @@ body.has-pattern .header:has(.controls.open) {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   }
 
-  body.has-pattern .garden-preview__flower-box {
+  body.has-pattern .garden-preview__flower-box,
+  body.has-pattern .flower-grid-item {
     background: rgba(var(--color-background-rgb), 0.85) !important;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   }
@@ -1717,14 +1718,19 @@ body.has-pattern .header:has(.controls.open) {
   gap: var(--spacing-md);
 }
 
-/* Liquid glass effect for flower box when isoline pattern is active */
-body.has-pattern .garden-preview__flower-box {
+/* Liquid glass effect for flower box and flower grid items when isoline pattern is active */
+body.has-pattern .garden-preview__flower-box,
+body.has-pattern .flower-grid-item {
   background: rgba(var(--color-background-rgb), 0.25) !important;
   border-radius: var(--border-radius);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(80px);
   -webkit-backdrop-filter: blur(80px);
   border: 1px solid rgba(var(--color-text-rgb), 0.1);
+}
+
+body.has-pattern .flower-grid-item {
+  margin-top: var(--spacing-sm);
 }
 
 .garden-preview__heading {
