@@ -3584,7 +3584,6 @@ body:has(.save-bar) .notification {
 .recent-garden-display-name {
   font-size: 0.9rem;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: -0.01em;
   line-height: 1.2;
   white-space: nowrap;
@@ -3718,6 +3717,9 @@ body:has(.save-bar) .notification {
 }
 
 /* Flower garden CTAs use each garden's theme colors (like recent-gardens) */
+.flower-garden-cta {
+  text-transform: none;
+}
 .flower-garden-cta:hover {
   filter: brightness(0.95);
 }
