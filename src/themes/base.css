@@ -2091,11 +2091,65 @@ body.has-pattern .flower-grid-item {
   font-size: 0.9em;
 }
 
+.share-modal .share-post-text {
+  margin-top: var(--spacing-lg);
+}
+
+.share-modal .share-post-text label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  font-size: 0.875rem;
+}
+
+.share-modal .share-post-text-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.share-modal .share-post-text-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 4em;
+}
+
+.share-modal .share-post-text-meta {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: var(--spacing-sm);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  padding-right: var(--spacing-sm);
+}
+
+.share-modal .share-post-text-count.over-limit {
+  color: var(--error-color);
+  font-weight: 600;
+}
+
+.share-modal .share-post-text-reset {
+  margin-left: auto;
+  padding: 0 var(--spacing-xs);
+  font-size: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--color-link);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.share-modal .share-post-text-reset:hover {
+  color: var(--color-link-hover);
+}
+
 /* Share modal mobile padding */
 @media (max-width: 479px) {
 
   .share-modal .share-preview,
-  .share-modal .share-preview-hint {
+  .share-modal .share-preview-hint,
+  .share-modal .share-post-text {
     padding-left: var(--spacing-md);
     padding-right: var(--spacing-md);
   }

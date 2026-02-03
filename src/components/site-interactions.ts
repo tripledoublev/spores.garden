@@ -1,6 +1,6 @@
 import { getSiteOwnerDid } from '../config';
 import { isLoggedIn, getCurrentDid, createRecord, uploadBlob, post } from '../oauth';
-import { listRecords, getBacklinks } from '../at-client';
+import { listRecords, getBacklinks, getProfile } from '../at-client';
 import { escapeHtml } from '../utils/sanitize';
 import { generateSocialCardImage } from '../utils/social-card';
 import { renderFlowerBed } from '../layouts/flower-bed';
@@ -215,6 +215,25 @@ export class SiteInteractions {
         let imageBlob: Blob | null = null;
         let dataUrl: string | null = null;
 
+        const BLUESKY_GRAPHEME_LIMIT = 300;
+        const profile = await getProfile(currentDid).catch(() => null);
+        const handle = (profile as { handle?: string } | null)?.handle;
+        const gardenUrl = handle
+            ? `${window.location.origin}/@${handle}`
+            : window.location.origin;
+        const shareLines = [
+            `We all get a garden on spores.garden! ${gardenUrl}`,
+            `Check out my unique garden on spores.garden! ${gardenUrl}`,
+            `Grow your garden on spores.garden! ${gardenUrl}`,
+            `Come see my garden on spores.garden! ${gardenUrl}`,
+        ];
+        const defaultText = shareLines[Math.floor(Math.random() * shareLines.length)];
+
+        function countGraphemes(s: string): number {
+            const segmenter = new (Intl as any).Segmenter('en', { granularity: 'grapheme' });
+            return [...segmenter.segment(s)].length;
+        }
+
         try {
             // Generate social card
             imageBlob = await generateSocialCardImage();
@@ -227,18 +246,57 @@ export class SiteInteractions {
                 reader.readAsDataURL(imageBlob!);
             });
 
-            // Show preview
+            // Show preview and editable post text
             modalBody.innerHTML = `
         <div class="share-preview">
           <img src="${dataUrl}" alt="Social card preview">
+        </div>
+        <div class="share-post-text">
+          <label for="share-post-text-input">Post text</label>
+          <div class="share-post-text-controls">
+            <textarea
+              id="share-post-text-input"
+              class="textarea share-post-text-input"
+              rows="3"
+              maxlength="2000"
+              placeholder="What will be posted with the image..."
+            >${escapeHtml(defaultText)}</textarea>
+            <div class="share-post-text-meta">
+              <span class="share-post-text-count" data-count="">0</span>/300
+              <button type="button" class="share-post-text-reset" hidden title="Reset to default">Reset</button>
+            </div>
+          </div>
           <p class="share-preview-hint">
-            This card will be posted to your Bluesky feed along with a link to your garden.
+            This text and the image above will be posted to your Bluesky feed.
           </p>
         </div>
       `;
 
-            // Enable confirm button
-            confirmBtn.disabled = false;
+            const textInput = modalBody.querySelector('#share-post-text-input') as HTMLTextAreaElement;
+            const countEl = modalBody.querySelector('.share-post-text-count') as HTMLElement;
+            const resetBtn = modalBody.querySelector('.share-post-text-reset') as HTMLButtonElement;
+
+            function updateState() {
+                const text = textInput.value;
+                const count = countGraphemes(text);
+                const isOverLimit = count > BLUESKY_GRAPHEME_LIMIT;
+                const isModified = text !== defaultText;
+
+                countEl.textContent = String(count);
+                countEl.classList.toggle('over-limit', isOverLimit);
+                resetBtn.hidden = !isModified;
+                confirmBtn.disabled = isOverLimit;
+            }
+
+            textInput.addEventListener('input', updateState);
+            resetBtn.addEventListener('click', () => {
+                textInput.value = defaultText;
+                updateState();
+                textInput.focus();
+            });
+
+            updateState();
+            textInput.focus();
 
         } catch (error) {
             console.error('Failed to generate social card preview:', error);
@@ -254,6 +312,9 @@ export class SiteInteractions {
         confirmBtn.addEventListener('click', async () => {
             if (!imageBlob) return;
 
+            const textInput = modalBody.querySelector('#share-post-text-input') as HTMLTextAreaElement | null;
+            const text = textInput?.value?.trim() || defaultText;
+
             // Show posting state
             confirmBtn.disabled = true;
             confirmBtn.textContent = 'Posting...';
@@ -264,7 +325,6 @@ export class SiteInteractions {
                 const uploadedImage = await uploadBlob(imageBlob, 'image/png');
 
                 // 2. Compose post
-                const text = `Check out my unique garden on spores.garden! ${window.location.origin}/@${currentDid}`;
                 const postRecord = {
                     $type: 'app.bsky.feed.post',
                     text: text,
