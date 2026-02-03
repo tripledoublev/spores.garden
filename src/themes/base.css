@@ -913,6 +913,21 @@ body.has-pattern .header:has(.controls.open) {
   min-height: 120px;
 }
 
+/* Text selection - inverted colors for sufficient contrast */
+.textarea::selection,
+.content::selection,
+.input::selection {
+  background-color: var(--color-text);
+  color: var(--color-background);
+}
+
+.textarea::-moz-selection,
+.content::-moz-selection,
+.input::-moz-selection {
+  background-color: var(--color-text);
+  color: var(--color-background);
+}
+
 /* ============================================
    Buttons
    ============================================ */
