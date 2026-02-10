@@ -249,6 +249,26 @@ export class SiteInteractions {
             return [...segmenter.segment(s)].length;
         }
 
+        function detectUrlFacets(text: string) {
+            const encoder = new TextEncoder();
+            const facets: Array<{
+                index: { byteStart: number; byteEnd: number };
+                features: Array<{ $type: 'app.bsky.richtext.facet#link'; uri: string }>;
+            }> = [];
+            const urlRegex = /https?:\/\/[^\s\)\]\}>"']+/g;
+            let match;
+            while ((match = urlRegex.exec(text)) !== null) {
+                const url = match[0];
+                const byteStart = encoder.encode(text.slice(0, match.index)).byteLength;
+                const byteEnd = byteStart + encoder.encode(url).byteLength;
+                facets.push({
+                    index: { byteStart, byteEnd },
+                    features: [{ $type: 'app.bsky.richtext.facet#link' as const, uri: url }],
+                });
+            }
+            return facets;
+        }
+
         try {
             // Generate social card
             imageBlob = await generateSocialCardImage();
@@ -340,10 +360,12 @@ export class SiteInteractions {
                 const uploadedImage = await uploadBlob(imageBlob, 'image/png');
 
                 // 2. Compose post
+                const facets = detectUrlFacets(text);
                 const postRecord = {
                     $type: 'app.bsky.feed.post',
                     text: text,
                     createdAt: new Date().toISOString(),
+                    ...(facets.length > 0 ? { facets } : {}),
                     embed: {
                         $type: 'app.bsky.embed.images',
                         images: [
