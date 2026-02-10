@@ -56,29 +56,36 @@ class SiteApp extends HTMLElement {
 
   async connectedCallback() {
     // Initial loading state
-    // Note: Previous theme colors are restored via inline script in index.html
-    // to prevent white flash before first paint
     this.innerHTML = `<div class="loading">${this.renderer.getLoadingMessage()}</div>`;
 
-    try {
-      // Set up event listeners (only once)
-      this.setupEventListeners();
-      
-      // Set up client-side navigation (only once)
-      this.setupClientSideNavigation();
+    window.addEventListener('auth-ready', async () => {
+        try {
+            // Set up event listeners (only once)
+            this.setupEventListeners();
 
-      // Initial load: initialize config, theme, auth, and render
-      await this.initializeAndRender(true);
+            // Set up client-side navigation (only once)
+            this.setupClientSideNavigation();
+
+            // Initial load: initialize config, theme, auth, and render
+            await this.initializeAndRender(true);
+        } catch (error) {
+            console.error('Failed to initialize site:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.innerHTML = `
+              <div class="error">
+                <h2>Failed to load site</h2>
+                <p>${escapeHtml(errorMessage)}</p>
+                <button onclick="location.reload()">Try Again</button>
+              </div>
+            `;
+        }
+    });
+
+    // Kick off auth initialization — dispatches 'auth-ready' when done
+    try {
+      await this.auth.init();
     } catch (error) {
-      console.error('Failed to initialize site:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.innerHTML = `
-        <div class="error">
-          <h2>Failed to load site</h2>
-          <p>${escapeHtml(errorMessage)}</p>
-          <button onclick="location.reload()">Try Again</button>
-        </div>
-      `;
+      console.error('Failed to initialize auth:', error);
     }
   }
 
@@ -95,16 +102,16 @@ class SiteApp extends HTMLElement {
     const config = await initConfig();
     
     // Always apply theme (including home page) so fonts-ready is set and text isn't hidden.
+    // On the homepage, use default theme — never apply a garden's custom colors or background.
     // On navigation, don't block on font loading (big perf win when gardens use different fonts).
-    // Pass DID for isoline pattern generation
-    const did = getSiteOwnerDid();
-    await applyTheme(config.theme, { waitForFonts: isInitialLoad, did: did || undefined });
+    const isGardenPage = SiteRouter.isViewingProfile();
+    const did = isGardenPage ? getSiteOwnerDid() : undefined;
+    await applyTheme(isGardenPage ? config.theme : {}, { waitForFonts: isInitialLoad, did: did || undefined });
     
-    // On initial load, set up auth and theme-ready state
+    // On initial load, set up theme-ready state
     if (isInitialLoad) {
       this.isThemeReady = true;
       this.classList.add('theme-ready');
-      await this.auth.init();
     }
     
     // Render with current config

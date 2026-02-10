@@ -285,11 +285,11 @@ class SectionBlock extends HTMLElement {
       if (confirmed) {
         // If this is a content/block with a PDS record, delete it
         if ((this.section.type === 'content' || this.section.type === 'block') &&
-          this.section.collection === 'garden.spores.site.content' &&
+          this.section.collection === 'garden.spores.content.text' &&
           this.section.rkey) {
           try {
             const { deleteRecord } = await import('../oauth');
-            await deleteRecord('garden.spores.site.content', this.section.rkey);
+            await deleteRecord('garden.spores.content.text', this.section.rkey);
           } catch (error) {
             console.error('Failed to delete content record from PDS:', error);
             // Continue with section removal even if PDS delete fails
@@ -320,7 +320,7 @@ class SectionBlock extends HTMLElement {
             }
           }
         }
-        removeSection(this.section.id);
+        await removeSection(this.section.id);
 
         // Save the updated sections to PDS
         try {
@@ -381,7 +381,7 @@ class SectionBlock extends HTMLElement {
 
     // Load existing block data
     const ownerDid = getSiteOwnerDid();
-    if (this.section.collection === 'garden.spores.site.content' && this.section.rkey && ownerDid) {
+    if (this.section.collection === 'garden.spores.content.text' && this.section.rkey && ownerDid) {
       try {
         const record = await getRecord(ownerDid, this.section.collection, this.section.rkey);
         if (record && record.value) {
@@ -426,12 +426,13 @@ class SectionBlock extends HTMLElement {
 
     // Load existing profile data
     const ownerDid = getSiteOwnerDid();
-    if (this.section.collection === 'garden.spores.site.profile' && this.section.rkey && ownerDid) {
+    const profileRkey = this.section.rkey || (this.section.collection === 'garden.spores.site.profile' ? 'self' : undefined);
+    if (this.section.collection === 'garden.spores.site.profile' && profileRkey && ownerDid) {
       try {
-        const record = await getRecord(ownerDid, this.section.collection, this.section.rkey);
+        const record = await getRecord(ownerDid, this.section.collection, profileRkey);
         if (record && record.value) {
           modal.editProfile({
-            rkey: this.section.rkey,
+            rkey: profileRkey,
             sectionId: this.section.id,
             displayName: record.value.displayName || '',
             description: record.value.description || '',
@@ -554,25 +555,26 @@ class SectionBlock extends HTMLElement {
     container.appendChild(loadingEl);
 
     try {
-      // Try to load from profile record first
       let profileData = null;
-      let useSporesProfile = false;
+      let collectionToFetch = this.section.collection;
+      let rkeyToFetch = this.section.rkey;
 
-      if (this.section.collection === 'garden.spores.site.profile' && this.section.rkey) {
+      // Profile records are singletons at rkey 'self'
+      if (collectionToFetch === 'garden.spores.site.profile' && !rkeyToFetch) {
+        rkeyToFetch = 'self';
+      }
+
+      if (collectionToFetch === 'garden.spores.site.profile' && rkeyToFetch) {
         try {
-          const record = await getRecord(ownerDid, this.section.collection, this.section.rkey);
+          const record = await getRecord(ownerDid, collectionToFetch, rkeyToFetch);
           if (record && record.value) {
-            // Convert blob references to URLs if present
             let avatarUrl = null;
             let bannerUrl = null;
 
             if (record.value.avatar && (record.value.avatar.ref || record.value.avatar.$link)) {
-              // Avatar is a blob reference - convert to URL
               avatarUrl = await getBlobUrl(ownerDid, record.value.avatar);
             }
-
             if (record.value.banner && (record.value.banner.ref || record.value.banner.$link)) {
-              // Banner is a blob reference - convert to URL
               bannerUrl = await getBlobUrl(ownerDid, record.value.banner);
             }
 
@@ -582,15 +584,14 @@ class SectionBlock extends HTMLElement {
               avatar: avatarUrl,
               banner: bannerUrl
             };
-            useSporesProfile = true;
           }
         } catch (error) {
-          console.warn('Failed to load profile record, falling back to Bluesky profile:', error);
+          console.warn(`Failed to load custom profile from ${collectionToFetch}/${rkeyToFetch}, falling back to Bluesky profile:`, error);
         }
       }
 
-      // Fall back to Bluesky profile if no record found
-      if (!profileData) {
+      // If no profileData yet, or if explicitly configured to use Bluesky profile, fetch Bluesky profile
+      if (!profileData || collectionToFetch === 'app.bsky.actor.profile') {
         const profile = await getProfile(ownerDid);
         if (!profile) {
           throw new Error('Could not load profile');
@@ -704,7 +705,7 @@ class SectionBlock extends HTMLElement {
     let title = '';
 
     // If section references a content record, load it from PDS
-    if (this.section.collection === 'garden.spores.site.content' && this.section.rkey && ownerDid) {
+    if (this.section.collection === 'garden.spores.content.text' && this.section.rkey && ownerDid) {
       // Show loading state
       const loadingEl = createLoadingSpinner('Loading content...');
       container.innerHTML = '';

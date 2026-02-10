@@ -39,7 +39,7 @@ Your content stays in your PDS. The website is just a view.
 - Sections - Generated deterministically from DID via `generateInitialSections()`
 
 **User Content:**
-- `garden.spores.site.content` - Custom content blocks (user-authored, written to PDS)
+- `garden.spores.content.text` - Text content records (written to PDS)
 
 **Social/Interactive:**
 - `garden.spores.item.specialSpore` - Special spore items (capture-the-flag mechanic, written to PDS)

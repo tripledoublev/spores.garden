@@ -3,9 +3,10 @@
  * Supports drag & drop and file selection.
  */
 
-import { createRecord, putRecord, uploadBlob } from '../oauth';
+import { createRecord, putRecord, uploadBlob, getCurrentDid } from '../oauth';
 import { addSection, getSiteOwnerDid, updateSection } from '../config';
 import { clearCache } from '../records/loader';
+import { setCachedActivity } from './recent-gardens';
 
 class CreateImage extends HTMLElement {
     private onClose: (() => void) | null = null;
@@ -74,8 +75,8 @@ class CreateImage extends HTMLElement {
           <label>Current Image</label>
           <div class="image-preview">
             ${currentPreview && !this.imageCleared
-                ? `<img src="${currentPreview}" alt="Current image" />`
-                : '<div class="image-preview-empty">No image selected</div>'}
+                    ? `<img src="${currentPreview}" alt="Current image" />`
+                    : '<div class="image-preview-empty">No image selected</div>'}
           </div>
           <div class="image-preview-actions">
             <button class="button button-secondary button-small" id="clear-image-btn" ${!currentPreview || this.imageCleared ? 'disabled' : ''}>Clear Image</button>
@@ -313,6 +314,12 @@ class CreateImage extends HTMLElement {
 
         addSection(section);
 
+        // Record local activity
+        const currentDid = getCurrentDid();
+        if (currentDid) {
+            setCachedActivity(currentDid, 'edit', new Date());
+        }
+
         // Trigger re-render
         window.dispatchEvent(new CustomEvent('config-updated'));
     }
@@ -357,6 +364,12 @@ class CreateImage extends HTMLElement {
             updateSection(this.editSectionId, {
                 title: this.imageTitle || ''
             });
+        }
+
+        // Record local activity
+        const currentDid = getCurrentDid();
+        if (currentDid) {
+            setCachedActivity(currentDid, 'edit', new Date());
         }
 
         window.dispatchEvent(new CustomEvent('config-updated'));

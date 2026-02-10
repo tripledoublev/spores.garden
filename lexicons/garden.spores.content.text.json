@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "garden.spores.site.content",
+  "id": "garden.spores.content.text",
   "defs": {
     "main": {
       "type": "record",

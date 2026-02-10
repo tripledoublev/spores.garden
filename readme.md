@@ -34,7 +34,7 @@ You can also directly view gardens by URL:
 - `garden.spores.site.config` - Site configuration (title, subtitle)
 
 **User Content:**
-- `garden.spores.site.content` - Custom content blocks (user-authored)
+- `garden.spores.content.text` - Text content records
 - `garden.spores.content.image` - Image content records
 
 **Social/Interactive:**

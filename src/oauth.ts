@@ -41,6 +41,8 @@ import {
 import { Client } from '@atcute/client';
 import type { OAuthConfig, OAuthSession, ATClientOptions } from './types';
 
+export let authReady = false;
+
 const SESSION_STORAGE_KEY = 'spores_garden_oauth_session';
 
 let oauthConfig: OAuthConfig | null = null;
@@ -78,11 +80,7 @@ export async function initOAuth(config: OAuthConfig) {
 
   // Check for OAuth callback first (takes precedence)
   await handleOAuthCallback();
-
-  // If no callback and not logged in, try to restore session from storage
-  if (!currentAgent && !currentSession) {
-    await restoreSession();
-  }
+  await restoreSession();
 }
 
 /**
@@ -156,6 +154,9 @@ async function handleOAuthCallback() {
     window.dispatchEvent(new CustomEvent('auth-error', {
       detail: { error }
     }));
+  } finally {
+    authReady = true;
+    window.dispatchEvent(new CustomEvent('auth-ready'));
   }
 }
 
@@ -260,6 +261,9 @@ async function restoreSession() {
     } catch {
       // Ignore cleanup errors
     }
+  } finally {
+    authReady = true;
+    window.dispatchEvent(new CustomEvent('auth-ready'));
   }
 }
 
