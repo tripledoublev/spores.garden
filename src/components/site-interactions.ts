@@ -1,6 +1,7 @@
 import { getSiteOwnerDid } from '../config';
 import { isLoggedIn, getCurrentDid, createRecord, uploadBlob, post } from '../oauth';
 import { listRecords, getBacklinks, getProfile } from '../at-client';
+import { setCachedActivity, registerGarden } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
 import { generateSocialCardImage } from '../utils/social-card';
 import { renderFlowerBed } from '../layouts/flower-bed';
@@ -39,10 +40,17 @@ export class SiteInteractions {
             });
             this.showNotification('You planted a flower!.', 'success');
 
+            // Record local activity
+            const currentDid = getCurrentDid();
+            if (currentDid) {
+                setCachedActivity(currentDid, 'flower', new Date());
+                registerGarden(ownerDid);
+            }
+
             // Refresh the header strip (create if it doesn't exist)
             const headerStrip = this.app.querySelector('.flower-bed.header-strip') as HTMLElement;
             const newHeaderStrip = await renderFlowerBed({}, true);
-            
+
             if (newHeaderStrip) {
                 if (headerStrip) {
                     // Replace the old header strip with the new one
@@ -60,7 +68,7 @@ export class SiteInteractions {
                 // If no flowers to show, remove the header strip
                 headerStrip.remove();
             }
-            
+
             // Remove the CTA button if it exists (user has now planted)
             const ctaButton = this.app.querySelector('.header-strip-cta') as HTMLElement;
             if (ctaButton) {
@@ -132,6 +140,13 @@ export class SiteInteractions {
 
                 await createRecord('garden.spores.social.takenFlower', recordData);
                 this.showNotification('Flower picked! View it in your Collected Flowers section.', 'success');
+
+                // Record local activity
+                const currentDid = getCurrentDid();
+                if (currentDid) {
+                    setCachedActivity(currentDid, 'seedling', new Date());
+                    registerGarden(ownerDid);
+                }
 
                 // Update button state directly
                 const btn = this.app.querySelector('.take-flower-btn') as HTMLButtonElement;

@@ -173,7 +173,7 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
   },
 
   // Spores.garden Content Block
-  'garden.spores.site.content': {
+  'garden.spores.content.text': {
     title: 'title',
     content: 'content',
     date: 'createdAt',
@@ -336,7 +336,7 @@ const KNOWN_LEXICONS = new Set([
   'com.whtwnd.blog.entry',
   'blue.linkat.board',
   'garden.spores.site.config',
-  'garden.spores.site.content',
+  'garden.spores.content.text',
   'garden.spores.content.image',
   'garden.spores.site.profile',
   'garden.spores.social.flower',

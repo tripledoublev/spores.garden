@@ -58,16 +58,4 @@ export function validateContent(content: string, maxLength = 50000): ValidationR
   return { valid: true, sanitized: trimmed };
 }
 
-/**
- * Validate custom CSS
- */
-export function validateCustomCss(css: string): ValidationResult {
-  if (!css) return { valid: true, sanitized: '' };
 
-  const trimmed = css.trim();
-  if (trimmed.length > 50000) {
-    return { valid: false, error: 'Custom CSS must be 50,000 characters or less' };
-  }
-
-  return { valid: true, sanitized: trimmed };
-}

@@ -10,14 +10,12 @@ export interface SiteConfig {
   $type: string;
   title: string;
   subtitle?: string;
-  sections: Section[];
   theme?: ThemeConfig;
-  customCss?: string;
 }
 
 export interface Section {
   id: string;
-  type: 'profile' | 'records' | 'content' | 'block' | 'share-to-bluesky';
+  type: 'profile' | 'records' | 'content' | 'block' | 'share-to-bluesky' | 'collected-flowers';
   layout?: string;
   title?: string;
   collection?: string;
@@ -25,6 +23,7 @@ export interface Section {
   records?: string[];
   content?: string;
   format?: 'text' | 'markdown' | 'html';
+  hideHeader?: boolean;
 }
 
 export interface ThemeConfig {

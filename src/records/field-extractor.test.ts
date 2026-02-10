@@ -209,10 +209,10 @@ describe('Field Extractor', () => {
       expect(fields.content).toBeTruthy();
     });
 
-    it('should extract fields from spores.garden content', () => {
+    it('should extract fields from spores.garden text content', () => {
       const record = {
         value: {
-          $type: 'garden.spores.site.content',
+          $type: 'garden.spores.content.text',
           title: 'My Content',
           content: 'Content body',
           createdAt: '2024-12-20T10:00:00Z'
@@ -451,7 +451,7 @@ describe('Field Extractor', () => {
       expect(isKnownLexicon('app.bsky.feed.post')).toBe(true);
       expect(isKnownLexicon('app.bsky.actor.profile')).toBe(true);
       expect(isKnownLexicon('pub.leaflet.document')).toBe(true);
-      expect(isKnownLexicon('garden.spores.site.content')).toBe(true);
+      expect(isKnownLexicon('garden.spores.content.text')).toBe(true);
     });
 
     it('should identify unknown lexicons', () => {

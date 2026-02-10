@@ -1,6 +1,7 @@
 import { getConfig, saveConfig, getSiteOwnerDid, setSiteOwnerDid } from '../config';
 import { getCurrentDid, putRecord, uploadBlob, createRecord, post, isLoggedIn } from '../oauth';
 import { getRecord, getProfile } from '../at-client';
+import { setCachedActivity } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
 import { SiteRouter } from './site-router';
 import './create-content';
@@ -29,6 +30,13 @@ export class SiteEditor {
   async saveAndExitEdit() {
     try {
       await saveConfig();
+
+      // Record local activity
+      const currentDid = getCurrentDid();
+      if (currentDid) {
+        setCachedActivity(currentDid, 'edit', new Date());
+      }
+
       this.editMode = false;
       this.showNotification('Changes saved!', 'success');
       this.renderCallback();

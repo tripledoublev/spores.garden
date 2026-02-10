@@ -57,12 +57,12 @@ export class SiteData {
                 console.error('Failed to describe repo, using fallback collection list:', error);
                 // Fallback to known collections if describeRepo fails
                 gardenCollections = [
-                    'garden.spores.config',
                     'garden.spores.site.config',
-                    'garden.spores.site.sections',
+                    'garden.spores.site.layout',
+                    'garden.spores.site.section',
                     'garden.spores.social.flower',
                     'garden.spores.social.takenFlower',
-                    'garden.spores.content.block',
+                    'garden.spores.content.text',
                     'garden.spores.content.image'
                 ];
             }

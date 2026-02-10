@@ -62,16 +62,16 @@ function getCachedActivity(did: string): CachedActivity | null {
 /**
  * Save activity to cache
  */
-function setCachedActivity(did: string, updateType: GardenMetadata['updateType'], timestamp: Date) {
+export function setCachedActivity(did: string, updateType: GardenMetadata['updateType'], timestamp: Date) {
   try {
     const stored = localStorage.getItem('spores.garden.activityCache');
     const cache: Record<string, CachedActivity> = stored ? JSON.parse(stored) : {};
-    
+
     cache[did] = {
       updateType: updateType || 'flower',
       timestamp: timestamp.getTime()
     };
-    
+
     // Keep cache size reasonable (max 50 entries)
     const entries = Object.entries(cache);
     if (entries.length > 50) {
@@ -95,7 +95,7 @@ export function registerGarden(did: string) {
   try {
     const stored = localStorage.getItem('spores.garden.knownGardens');
     const dids: string[] = stored ? JSON.parse(stored) : [];
-    
+
     if (!dids.includes(did)) {
       dids.push(did);
       localStorage.setItem('spores.garden.knownGardens', JSON.stringify(dids));
@@ -143,7 +143,7 @@ class RecentGardens extends HTMLElement {
   private jetstreamUnsubscribe: (() => void) | null = null;
   private visibilityHandler: (() => void) | null = null;
   private lastLoadTime = 0;
-  
+
   // Batching for efficient historical event processing
   private pendingEvents: Map<string, GardenDiscoveryEvent> = new Map();
   private batchTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -181,7 +181,7 @@ class RecentGardens extends HTMLElement {
    */
   private setupJetstream() {
     const client = getJetstreamClient();
-    
+
     this.jetstreamUnsubscribe = client.onDiscovery((event: GardenDiscoveryEvent) => {
       this.handleJetstreamEvent(event);
     });
@@ -208,7 +208,7 @@ class RecentGardens extends HTMLElement {
     const gardenDid = event.did;
     const eventAge = Date.now() - event.timestamp.getTime();
     const isRealTime = eventAge < 60000; // Event from last 60 seconds = real-time
-    
+
     // Once we see a real-time event, historical replay is done
     if (isRealTime && !this.historicalReplayDone) {
       this.historicalReplayDone = true;
@@ -221,19 +221,19 @@ class RecentGardens extends HTMLElement {
         this.processBatchedEvents();
       }
     }
-    
+
     // Real-time: process immediately
     if (this.historicalReplayDone) {
       this.processEventImmediate(event);
       return;
     }
-    
+
     // Historical: batch and deduplicate by DID (keep most recent per DID)
     const existing = this.pendingEvents.get(gardenDid);
     if (!existing || event.timestamp > existing.timestamp) {
       this.pendingEvents.set(gardenDid, event);
     }
-    
+
     // Longer debounce for historical events (2 seconds)
     if (this.batchTimeout) clearTimeout(this.batchTimeout);
     this.batchTimeout = setTimeout(() => {
@@ -251,37 +251,37 @@ class RecentGardens extends HTMLElement {
     console.log('[RecentGardens] Processing batched events:', events.length);
 
     if (events.length === 0) return;
-    
+
     // Sort by timestamp (most recent first)
     events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    
+
     // Filter out DIDs we already have with newer data
     const newEvents = events.filter(event => {
       const existing = this.gardens.find(g => g.did === event.did);
       return !existing || event.timestamp > existing.lastUpdated;
     });
-    
+
     if (newEvents.length === 0) return;
-    
+
     const limit = parseInt(this.getAttribute('data-limit') || '12', 10);
     const topEvents = newEvents.slice(0, limit);
-    
+
     // Process all events in parallel
     const gardenPromises = topEvents.map(async (event) => {
       const updateType = this.getUpdateTypeFromCollection(event.collection);
-      
+
       if (!this.knownGardenDids.includes(event.did)) {
         this.knownGardenDids.push(event.did);
       }
-      
+
       const garden: GardenMetadata = {
         did: event.did,
         lastUpdated: event.timestamp,
         updateType,
       };
-      
+
       setCachedActivity(event.did, updateType, event.timestamp);
-      
+
       // Reuse existing profile if we have it
       const existing = this.gardens.find(g => g.did === event.did);
       if (existing?.handle) {
@@ -298,12 +298,12 @@ class RecentGardens extends HTMLElement {
           garden.title = event.did;
         }
       }
-      
+
       return garden;
     });
-    
+
     const newGardens = await Promise.all(gardenPromises);
-    
+
     // Merge: update existing or add new
     for (const garden of newGardens) {
       const existingIndex = this.gardens.findIndex(g => g.did === garden.did);
@@ -313,11 +313,11 @@ class RecentGardens extends HTMLElement {
         this.gardens.push(garden);
       }
     }
-    
+
     // Sort and trim
     this.gardens.sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime());
     this.gardens = this.gardens.slice(0, limit);
-    
+
     saveKnownGardens(this.knownGardenDids);
     this.render();
   }
@@ -347,7 +347,7 @@ class RecentGardens extends HTMLElement {
 
     // Find existing or create new
     const existingIndex = this.gardens.findIndex(g => g.did === gardenDid);
-    
+
     const newGarden: GardenMetadata = {
       did: gardenDid,
       lastUpdated: event.timestamp,
