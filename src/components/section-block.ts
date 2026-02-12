@@ -11,6 +11,7 @@ import { renderRecord, getAvailableLayouts } from '../layouts/index';
 import { renderCollectedFlowers } from '../layouts/collected-flowers';
 import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
 import { showConfirmModal } from '../utils/confirm-modal';
+import { createHelpTooltip } from '../utils/help-tooltip';
 import './create-profile'; // Register profile editor component
 import './create-image'; // Register image editor component
 
@@ -70,6 +71,11 @@ class SectionBlock extends HTMLElement {
     // editMode will still ensure the header container exists to hold the controls
     const shouldShowTitle = this.section.title &&
       (!isBlueskyPostSection && !this.section.hideHeader);
+    const isCollectedFlowers = this.section.type === 'collected-flowers';
+    const collectedFlowersHelp = isCollectedFlowers
+      ? createHelpTooltip('Collected flowers are a way to lead people to other gardens that you\u2019ve enjoyed visiting. You can collect a flower from someone\u2019s garden by visiting it and clicking \u201cPick A Flower\u201d.')
+      : null;
+
     let editControls: HTMLElement | null = null;
     if (shouldShowTitle || this.editMode) {
       const header = document.createElement('div');
@@ -84,6 +90,11 @@ class SectionBlock extends HTMLElement {
         title.className = 'section-title';
         title.textContent = this.section.title;
         titleContainer.appendChild(title);
+
+        // Place help tooltip inline with the title
+        if (collectedFlowersHelp) {
+          titleContainer.appendChild(collectedFlowersHelp);
+        }
       }
 
       header.appendChild(titleContainer);

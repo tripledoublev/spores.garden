@@ -27,11 +27,9 @@ interface SporeRecord {
  */
 
 
-export async function renderFlowerBed(section: any, excludeOwner: boolean = false): Promise<HTMLElement | null> {
+export async function renderFlowerBed(section: any, headerStripMode: boolean = false): Promise<HTMLElement | null> {
   const ownerDid = getSiteOwnerDid();
   if (!ownerDid) {
-    // When excludeOwner is true (header strip mode), return null if no owner
-    // This is the only mode we use now
     return null;
   }
 
@@ -71,22 +69,15 @@ export async function renderFlowerBed(section: any, excludeOwner: boolean = fals
       }
     }
 
-    // Early return if excludeOwner and no visitors
-    if (excludeOwner && visitorFlowers.length === 0) {
-      return null;
-    }
-
     // Create element and apply classes
     const el = document.createElement('div');
     el.className = 'flower-bed';
-    if (excludeOwner) {
+    if (headerStripMode) {
       el.classList.add('header-strip');
     }
 
-    // Determine flowers to render 
-    const raw = excludeOwner
-      ? visitorFlowers
-      : [{ did: ownerDid }, ...visitorFlowers];
+    // Always include the owner's flower first, then visitors
+    const raw = [{ did: ownerDid, isOwner: true }, ...visitorFlowers];
     const seen = new Set<string>();
     const flowersToRender = raw.filter((f) => {
       if (seen.has(f.did)) return false;
@@ -98,9 +89,12 @@ export async function renderFlowerBed(section: any, excludeOwner: boolean = fals
     grid.className = 'flower-grid';
 
     // Render flowers with async handle resolution
-    const flowerPromises = flowersToRender.map(async (flower) => {
+    const flowerPromises = flowersToRender.map(async (flower: any) => {
       const flowerEl = document.createElement('div');
       flowerEl.className = 'flower-grid-item';
+      if (flower.isOwner) {
+        flowerEl.classList.add('flower-grid-item--owner');
+      }
 
       const container = document.createElement('div');
       container.style.position = 'relative';
@@ -134,7 +128,6 @@ export async function renderFlowerBed(section: any, excludeOwner: boolean = fals
 
   } catch (error) {
     console.error('Failed to load flower bed:', error);
-    // In header strip mode (excludeOwner: true), return null on error
     return null;
   }
 }

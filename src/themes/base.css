@@ -617,8 +617,8 @@ site-app.theme-ready .header {
   text-align: center;
   color: var(--color-text-muted);
   font-size: 0.875rem;
-  margin-top: var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
 }
 
 .footer a {
@@ -641,7 +641,7 @@ site-app.theme-ready .header {
 .footer .hypha-credit-link:hover,
 .footer .hypha-credit-link:focus-visible,
 .footer .hypha-credit-link:active {
-  color: #000;
+  color: #9900FC;
   text-decoration-line: underline;
   text-decoration-color: #000;
   text-decoration-style: solid;
@@ -732,6 +732,12 @@ body.has-pattern .header:has(.controls.open) {
   gap: var(--spacing-md);
   flex-wrap: wrap;
   margin-bottom: var(--spacing-md);
+}
+
+.section-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .section-title {
@@ -1718,11 +1724,62 @@ body.has-pattern .header:has(.controls.open) {
   padding: var(--spacing-xl);
   border: var(--border-width-thick) groove var(--color-border-dark);
   margin: auto 0;
+  background-color: #ffffff;
 }
 
 .homepage-view h2 {
   margin-bottom: var(--spacing-md);
   font-weight: 500;
+}
+
+/* Homepage hero */
+.homepage-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.homepage-hero__greeting {
+  font-size: 1.5rem;
+  color: #000000;
+  margin: 0;
+}
+
+.homepage-hero__heading {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.homepage-features {
+  list-style: none;
+  padding: 0;
+  margin: var(--spacing-sm) 0 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.homepage-features__item {
+  position: relative;
+  padding-left: 1.5em;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.homepage-features__item::before {
+  content: '\2022';
+  position: absolute;
+  left: 0;
+}
+
+.homepage-teaser {
+  font-style: italic;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  margin: var(--spacing-md) 0 0;
 }
 
 /* Homepage Mobile Responsive (Phase 10) - Extra small screens (< 480px) */
@@ -1732,6 +1789,17 @@ body.has-pattern .header:has(.controls.open) {
     text-align: center;
   }
 
+  .homepage-hero__heading {
+    font-size: 1.25rem;
+  }
+
+  .homepage-hero__greeting {
+    font-size: 1.25rem;
+  }
+
+  .homepage-features {
+    text-align: left;
+  }
 }
 
 .empty-state {
@@ -3943,6 +4011,65 @@ body:has(.save-bar) .notification {
     width: 44px !important;
     height: 44px !important;
   }
+}
+
+/* Owner flower in header strip – circular clip with accent ring */
+.flower-bed.header-strip .flower-grid-item--owner {
+  width: 56px;
+  height: 56px;
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.flower-bed.header-strip .flower-grid-item--owner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--color-accent, var(--color-primary, var(--color-border-dark)));
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.flower-bed.header-strip .flower-grid-item--owner did-visualization,
+.flower-bed.header-strip .flower-grid-item--owner did-visualization svg {
+  width: 56px;
+  height: 56px;
+  max-width: 56px;
+  transform: translateY(-3px);
+}
+
+@media (max-width: 479px) {
+  .flower-bed.header-strip .flower-grid-item--owner {
+    width: 52px;
+    height: 52px;
+  }
+
+  .flower-bed.header-strip .flower-grid-item--owner did-visualization,
+  .flower-bed.header-strip .flower-grid-item--owner did-visualization svg {
+    width: 52px;
+    height: 52px;
+    max-width: 52px;
+    transform: translateY(-2px);
+  }
+}
+
+/* Help tooltips – fixed positioning, viewport-aware */
+.help-tooltip {
+  position: fixed;
+  z-index: 1000;
+  display: none;
+  background: var(--color-background, #fff);
+  border: var(--border-width) var(--border-style, solid) var(--color-border-dark);
+  padding: var(--spacing-md);
+  max-width: min(360px, calc(100vw - 1rem));
+  width: max-content;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+  white-space: normal;
 }
 
 /* ============================================

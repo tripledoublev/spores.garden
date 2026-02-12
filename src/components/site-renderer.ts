@@ -14,6 +14,8 @@ import type { SiteData } from './site-data';
 import './recent-gardens';
 import './section-block';
 import { findAllHeldSpores } from '../utils/special-spore';
+import { createHelpTooltip } from '../utils/help-tooltip';
+import { getIsolineSVGStringForDid } from '../themes/isolines';
 
 /**
  * Handles the main rendering logic for the site application.
@@ -379,40 +381,97 @@ export class SiteRenderer {
             const homepageView = document.createElement('div');
             homepageView.className = 'homepage-view';
 
-            if (!isLoggedIn()) {
-                const heading = document.createElement('h2');
-                heading.style.textAlign = 'center';
-                heading.textContent = 'Login to start gardening!';
-                homepageView.appendChild(heading);
+            // Monochrome isoline contour on the page body
+            const root = document.documentElement;
+            const isoW = document.documentElement.clientWidth || 1200;
+            const isoH = document.documentElement.clientHeight || 800;
+            const isoSvg = getIsolineSVGStringForDid(
+                'did:web:spores.garden',
+                { background: '#ffffff', text: '#000000' },
+                isoW, isoH
+            );
+            const isoBlob = new Blob([isoSvg], { type: 'image/svg+xml' });
+            const isoUrl = URL.createObjectURL(isoBlob);
+            root.style.setProperty('--pattern-background', `url("${isoUrl}")`);
+            root.style.setProperty('--pattern-width', `${isoW}px`);
+            root.style.setProperty('--pattern-height', `${isoH}px`);
+            document.body.classList.add('has-pattern');
 
-                const loginBtn = document.createElement('button');
-                loginBtn.className = 'button';
-                loginBtn.style.marginTop = 'var(--spacing-md)';
-                loginBtn.textContent = 'Login';
-                loginBtn.addEventListener('click', () => this.auth.showLoginModal());
-                homepageView.appendChild(loginBtn);
-            } else {
+            // Hero section
+            const hero = document.createElement('div');
+            hero.className = 'homepage-hero';
+
+            const loggedIn = isLoggedIn();
+
+            // Personalised greeting for logged-in users
+            if (loggedIn) {
                 const currentDid = getCurrentDid();
                 if (currentDid) {
-                    const heading = document.createElement('h2');
-                    heading.style.textAlign = 'center';
-                    heading.textContent = 'Welcome back!';
-                    homepageView.appendChild(heading);
+                    const greeting = document.createElement('p');
+                    greeting.className = 'homepage-hero__greeting';
+                    greeting.textContent = 'Welcome back!';
+                    hero.appendChild(greeting);
 
                     this.data.getDisplayNameForDid(currentDid).then(displayName => {
                         if (displayName && this.renderId === myRenderId) {
-                            heading.textContent = `Welcome back, ${displayName}!`;
+                            greeting.textContent = `Welcome back, ${displayName}!`;
                         }
                     });
                 }
             }
 
+            if (!loggedIn) {
+                const heading = document.createElement('h2');
+                heading.className = 'homepage-hero__heading';
+                heading.textContent = 'Your garden is waiting for you!';
+                hero.appendChild(heading);
+            }
+
+            // Feature list
+            const features = document.createElement('ul');
+            features.className = 'homepage-features';
+            const featureItems = [
+                'Plant your ideas from across the Atmosphere',
+                'Explore a neighbourhood of interconnected gardens',
+                'Collect and leave flowers for other gardeners to follow',
+            ];
+            for (const text of featureItems) {
+                const li = document.createElement('li');
+                li.className = 'homepage-features__item';
+                li.textContent = text;
+                features.appendChild(li);
+            }
+            hero.appendChild(features);
+
+            // Teaser
+            const teaser = document.createElement('p');
+            teaser.className = 'homepage-teaser';
+            teaser.textContent = 'Can you find a special spore hiding amongst the gardens?';
+            hero.appendChild(teaser);
+
+            // Login CTA (only if not logged in)
+            if (!loggedIn) {
+                const loginBtn = document.createElement('button');
+                loginBtn.className = 'button';
+                loginBtn.textContent = 'Login to start gardening';
+                loginBtn.addEventListener('click', () => this.auth.showLoginModal());
+                hero.appendChild(loginBtn);
+            }
+
+            homepageView.appendChild(hero);
+
+            // Recent gardens
             const recentGardens = document.createElement('recent-gardens');
             recentGardens.setAttribute('data-limit', '12');
             recentGardens.setAttribute('data-show-empty', 'true');
             recentGardens.style.marginTop = 'var(--spacing-xl)';
             recentGardens.style.textAlign = 'left';
             homepageView.appendChild(recentGardens);
+
+            const footer = document.createElement('footer');
+            footer.className = 'footer';
+            footer.innerHTML = 'Made with 🌱 by <a class="hypha-credit-link" href="https://bsky.app/profile/hypha.coop" target="_blank" rel="noopener noreferrer">Hypha Coop</a>';
+            homepageView.appendChild(footer);
 
             main.appendChild(homepageView);
         } else if (sections.length === 0 && !this.editor.editMode) {
@@ -513,13 +572,6 @@ export class SiteRenderer {
 
         this.app.appendChild(main);
 
-        if (isHomePage) {
-            const footer = document.createElement('footer');
-            footer.className = 'footer';
-            footer.innerHTML = 'Made with 🌱 by <a class="hypha-credit-link" href="https://bsky.app/profile/hypha.coop" target="_blank" rel="noopener noreferrer">Hypha Coop</a>';
-            this.app.appendChild(footer);
-        }
-
         // Dev tool reset button
         const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         if (isLocalDev && isLoggedIn()) {
@@ -578,10 +630,15 @@ export class SiteRenderer {
                     plantCTA.title = 'Leave your unique flower in this garden';
                     plantCTA.addEventListener('click', () => this.interactions.plantFlower());
 
+                    const plantHelp = createHelpTooltip(
+                        'Leave your flower to show you\u2019ve been here! Others will be able to see it and follow it back to your garden.'
+                    );
+
                     // Add CTA to the flower grid
                     const grid = flowerBedStrip.querySelector('.flower-grid');
                     if (grid) {
                         grid.appendChild(plantCTA);
+                        grid.appendChild(plantHelp);
                     }
                 }
             }
