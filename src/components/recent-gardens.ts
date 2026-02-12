@@ -6,7 +6,7 @@
  * - Constellation backlinks: Historical flower interactions
  */
 
-import { getProfile, getRecord } from '../at-client';
+import { getProfile, getRecord, listReposByCollection } from '../at-client';
 import { hasGardenIdentifierInUrl } from '../config';
 import { generateThemeFromDid } from '../themes/engine';
 import { getJetstreamClient, type GardenDiscoveryEvent } from '../jetstream';
@@ -24,23 +24,17 @@ interface GardenMetadata {
   updateType?: 'flower' | 'seedling' | 'edit' | 'spore';
 }
 
-// Hypha's own gardens for bootstrapping discovery
-// These are known active gardens that help kickstart the discovery network
-const SEED_GARDENS = [
-  'did:plc:hkjuufd7obvrorwc4fjynbwr', // andia.bsky.social
-  'did:plc:y3lae7hmqiwyq7w2v3bcb2c2', // charlebois.info
-  'did:plc:rxduhzsfgfpl2glle7vagcwl', // hypha.coop
-  'did:plc:2qt2kdxo6viizgglawlm4l3n', // lexa.fyi
-  'did:plc:gspui4hkqdes4maykfp7cm5y', // udit.bsky.social
 
-];
+/** How long before cached data is considered stale */
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 /**
  * Cached activity for a garden (persists across page loads)
  */
 interface CachedActivity {
   updateType: GardenMetadata['updateType'];
-  timestamp: number; // ms since epoch
+  timestamp: number; // ms since epoch — when the activity happened
+  checkedAt: number; // ms since epoch — when we last fetched/verified this
 }
 
 /**
@@ -69,16 +63,17 @@ export function setCachedActivity(did: string, updateType: GardenMetadata['updat
 
     cache[did] = {
       updateType: updateType || 'flower',
-      timestamp: timestamp.getTime()
+      timestamp: timestamp.getTime(),
+      checkedAt: Date.now(),
     };
 
-    // Keep cache size reasonable (max 50 entries)
+    // Keep cache size reasonable (max 500 entries)
     const entries = Object.entries(cache);
-    if (entries.length > 50) {
-      // Remove oldest entries
-      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    if (entries.length > 500) {
+      // Remove oldest entries by checkedAt
+      entries.sort((a, b) => (a[1].checkedAt || 0) - (b[1].checkedAt || 0));
       const newCache: Record<string, CachedActivity> = {};
-      entries.slice(-50).forEach(([k, v]) => newCache[k] = v);
+      entries.slice(-500).forEach(([k, v]) => newCache[k] = v);
       localStorage.setItem('spores.garden.activityCache', JSON.stringify(newCache));
     } else {
       localStorage.setItem('spores.garden.activityCache', JSON.stringify(cache));
@@ -423,7 +418,8 @@ class RecentGardens extends HTMLElement {
   }
 
   /**
-   * Load recent gardens from flower interactions
+   * Load recent gardens by discovering all gardens via relay,
+   * then checking activity to find the most recent ones.
    */
   private async loadGardens() {
     if (!this.isMainPage()) {
@@ -436,37 +432,49 @@ class RecentGardens extends HTMLElement {
     this.render();
 
     try {
-      // Load known gardens, seeding if needed
-      this.knownGardenDids = loadKnownGardens();
-      console.log('[RecentGardens] Known gardens from localStorage:', this.knownGardenDids.length);
-      if (this.knownGardenDids.length === 0) {
-        this.knownGardenDids = [...SEED_GARDENS];
-        saveKnownGardens(this.knownGardenDids);
-        console.log('[RecentGardens] Seeded with:', SEED_GARDENS);
+      // Step 1: Discover all garden DIDs — use cached list if fresh, otherwise fetch from relay
+      let allGardenDids: string[];
+      const didListFetchedAt = parseInt(localStorage.getItem('spores.garden.didListFetchedAt') || '0', 10);
+      const didListFresh = (Date.now() - didListFetchedAt) < CACHE_TTL;
+
+      if (didListFresh) {
+        allGardenDids = loadKnownGardens();
+        console.log('[RecentGardens] Using cached DID list:', allGardenDids.length, 'gardens');
+      } else {
+        try {
+          allGardenDids = await listReposByCollection('garden.spores.site.config');
+          console.log('[RecentGardens] Discovered gardens from relay:', allGardenDids.length);
+          saveKnownGardens(allGardenDids);
+          localStorage.setItem('spores.garden.didListFetchedAt', Date.now().toString());
+        } catch (error) {
+          console.warn('[RecentGardens] Failed to fetch from relay, using cached gardens:', error);
+          allGardenDids = loadKnownGardens();
+        }
       }
+      this.knownGardenDids = allGardenDids;
 
       // Add current user if logged in
       try {
         const { getCurrentDid } = await import('../oauth');
         const currentDid = getCurrentDid();
-        if (currentDid && !this.knownGardenDids.includes(currentDid)) {
-          this.knownGardenDids.push(currentDid);
+        if (currentDid && !allGardenDids.includes(currentDid)) {
+          allGardenDids.push(currentDid);
+          this.knownGardenDids = allGardenDids;
           saveKnownGardens(this.knownGardenDids);
         }
       } catch {
         // Not logged in
       }
 
-      // Discover gardens from flower records
+      // Step 2: Check activity for ALL DIDs and find the most recent
       const limit = parseInt(this.getAttribute('data-limit') || '12', 10);
-      const discovered = await this.discoverGardensFromFlowers(limit);
-      console.log('[RecentGardens] Discovered from flowers:', discovered.length);
+      const discovered = await this.checkAllGardenActivity(allGardenDids, limit);
+      console.log('[RecentGardens] Top gardens by activity:', discovered.length);
 
-      // Merge with any gardens already found via Jetstream (don't overwrite)
+      // Merge with any gardens already found via Jetstream (don't overwrite newer)
       for (const garden of discovered) {
         const existingIndex = this.gardens.findIndex(g => g.did === garden.did);
         if (existingIndex >= 0) {
-          // Keep the newer one
           if (garden.lastUpdated > this.gardens[existingIndex].lastUpdated) {
             this.gardens[existingIndex] = garden;
           }
@@ -494,161 +502,96 @@ class RecentGardens extends HTMLElement {
   }
 
   /**
-   * Discover gardens by finding flower plantings (PARALLEL)
-   * Activity is attributed to the FLOWER PLANTER (record creator), not the recipient
-   *
-   * IMPORTANT: Always returns verified seed gardens as fallback, even without flowers
+   * Check activity for all garden DIDs and return the most recent ones.
+   * DIDs are already verified as having garden.spores.site.config (from relay).
+   * Fetches flower/takenFlower/spore records in parallel for each DID.
    */
-  private async discoverGardensFromFlowers(limit: number): Promise<GardenMetadata[]> {
+  private async checkAllGardenActivity(gardenDids: string[], limit: number): Promise<GardenMetadata[]> {
     try {
       const { listRecords } = await import('../at-client');
-      const gardensToCheck = this.knownGardenDids.slice(0, 10);
 
-      // Step 1: Verify ALL seed gardens have valid configs + fetch flower records IN PARALLEL
-      const verificationResults = await Promise.all(
-        gardensToCheck.map(async (gardenDid) => {
-          try {
-            // Check for config record (verifies it's a real garden)
-            const configRecord = await getRecord(gardenDid, 'garden.spores.site.config', 'self', { useSlingshot: true });
-            const hasConfig = !!configRecord?.value;
+      // Partition DIDs: use cache for fresh entries, fetch for stale/missing
+      const results: GardenMetadata[] = [];
+      const staleDids: string[] = [];
 
-            // Get config creation time from record metadata (indexedAt) or value
-            let configTimestamp: Date | null = null;
-            if (hasConfig && configRecord) {
-              // Try indexedAt from record metadata first, then createdAt from value
-              const indexedAt = (configRecord as any).indexedAt;
-              const createdAt = (configRecord.value as any)?.createdAt;
-              if (indexedAt) {
-                configTimestamp = new Date(indexedAt);
-              } else if (createdAt) {
-                configTimestamp = new Date(createdAt);
-              }
-            }
-
-            // Fetch all activity types in parallel
-            let flowerRecords = null;
-            let takenFlowerRecords = null;
-            let sporeRecords = null;
-            if (hasConfig) {
-              const [flowers, takenFlowers, spores] = await Promise.all([
-                listRecords(gardenDid, 'garden.spores.social.flower', { limit: 5 }, null).catch(() => null),
-                listRecords(gardenDid, 'garden.spores.social.takenFlower', { limit: 5 }, null).catch(() => null),
-                listRecords(gardenDid, 'garden.spores.item.specialSpore', { limit: 5 }, null).catch(() => null),
-              ]);
-              flowerRecords = flowers;
-              takenFlowerRecords = takenFlowers;
-              sporeRecords = spores;
-            }
-
-            return { gardenDid, hasConfig, configTimestamp, flowerRecords, takenFlowerRecords, sporeRecords };
-          } catch {
-            return { gardenDid, hasConfig: false, configTimestamp: null, flowerRecords: null, takenFlowerRecords: null, sporeRecords: null };
-          }
-        })
-      );
-
-      // Step 2: Collect verified gardens and discover new DIDs from flower subjects
-      const verifiedGardens: GardenMetadata[] = [];
-      const newKnownDids: string[] = [];
-
-      for (const { gardenDid, hasConfig, configTimestamp, flowerRecords, takenFlowerRecords, sporeRecords } of verificationResults) {
-        if (!hasConfig) continue; // Not a real garden
-
-        // Check cached activity
-        const cached = getCachedActivity(gardenDid);
-
-        // Collect all activity timestamps with their types
-        const activities: Array<{ timestamp: Date; type: GardenMetadata['updateType'] }> = [];
-
-        // Check flower records
-        if (flowerRecords?.records && flowerRecords.records.length > 0) {
-          const mostRecentFlower = flowerRecords.records[0];
-          const createdAt = mostRecentFlower.value?.createdAt;
-          if (createdAt) {
-            activities.push({ timestamp: new Date(createdAt), type: 'flower' });
-          }
-
-          // Collect flower subjects for future discovery
-          for (const record of flowerRecords.records) {
-            const subjectDid = record.value?.subject;
-            if (subjectDid && subjectDid !== gardenDid && !this.knownGardenDids.includes(subjectDid)) {
-              newKnownDids.push(subjectDid);
-            }
-          }
-        }
-
-        // Check takenFlower records
-        if (takenFlowerRecords?.records && takenFlowerRecords.records.length > 0) {
-          const mostRecentTaken = takenFlowerRecords.records[0];
-          const createdAt = mostRecentTaken.value?.createdAt;
-          if (createdAt) {
-            activities.push({ timestamp: new Date(createdAt), type: 'seedling' });
-          }
-        }
-
-        // Check specialSpore records
-        if (sporeRecords?.records && sporeRecords.records.length > 0) {
-          const mostRecentSpore = sporeRecords.records[0];
-          const createdAt = mostRecentSpore.value?.createdAt;
-          if (createdAt) {
-            activities.push({ timestamp: new Date(createdAt), type: 'spore' });
-          }
-        }
-
-        // Check config timestamp
-        if (configTimestamp) {
-          activities.push({ timestamp: configTimestamp, type: 'edit' });
-        }
-
-        // Check cached activity
-        if (cached) {
-          activities.push({ timestamp: new Date(cached.timestamp), type: cached.updateType });
-        }
-
-        // Determine most recent activity
-        let lastUpdated: Date;
-        let updateType: GardenMetadata['updateType'] = undefined;
-
-        if (activities.length > 0) {
-          // Sort by timestamp descending and pick the most recent
-          activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-          lastUpdated = activities[0].timestamp;
-          updateType = activities[0].type;
+      for (const did of gardenDids) {
+        const cached = getCachedActivity(did);
+        if (cached && cached.checkedAt && (Date.now() - cached.checkedAt) < CACHE_TTL) {
+          results.push({ did, lastUpdated: new Date(cached.timestamp), updateType: cached.updateType });
         } else {
-          // No timestamp available - use epoch to indicate unknown
-          lastUpdated = new Date(0);
-          updateType = 'edit';
+          staleDids.push(did);
         }
-
-        verifiedGardens.push({
-          did: gardenDid,
-          lastUpdated,
-          updateType,
-        });
       }
 
-      // Add new known DIDs
-      if (newKnownDids.length > 0) {
-        this.knownGardenDids.push(...newKnownDids);
-        saveKnownGardens(this.knownGardenDids);
+      console.log('[RecentGardens] Activity cache: %d fresh, %d stale/new', results.length, staleDids.length);
+
+      // Fetch activity for stale/new DIDs in batches of 20
+      const BATCH_SIZE = 20;
+
+      for (let i = 0; i < staleDids.length; i += BATCH_SIZE) {
+        const batch = staleDids.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async (did) => {
+            const cached = getCachedActivity(did);
+
+            try {
+              // Fetch most recent activity record of each type in parallel
+              const [flowers, takenFlowers, spores] = await Promise.all([
+                listRecords(did, 'garden.spores.social.flower', { limit: 1 }, null).catch(() => null),
+                listRecords(did, 'garden.spores.social.takenFlower', { limit: 1 }, null).catch(() => null),
+                listRecords(did, 'garden.spores.item.specialSpore', { limit: 1 }, null).catch(() => null),
+              ]);
+
+              const activities: Array<{ timestamp: Date; type: GardenMetadata['updateType'] }> = [];
+
+              if (flowers?.records?.[0]?.value?.createdAt) {
+                activities.push({ timestamp: new Date(flowers.records[0].value.createdAt), type: 'flower' });
+              }
+              if (takenFlowers?.records?.[0]?.value?.createdAt) {
+                activities.push({ timestamp: new Date(takenFlowers.records[0].value.createdAt), type: 'seedling' });
+              }
+              if (spores?.records?.[0]?.value?.createdAt) {
+                activities.push({ timestamp: new Date(spores.records[0].value.createdAt), type: 'spore' });
+              }
+              if (cached) {
+                activities.push({ timestamp: new Date(cached.timestamp), type: cached.updateType });
+              }
+
+              if (activities.length > 0) {
+                activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+                const best = activities[0];
+                setCachedActivity(did, best.type, best.timestamp);
+                return { did, lastUpdated: best.timestamp, updateType: best.type } as GardenMetadata;
+              }
+
+              // No activity found — still mark as checked so we don't re-fetch
+              setCachedActivity(did, 'edit', new Date(0));
+              return { did, lastUpdated: new Date(0), updateType: 'edit' as const } as GardenMetadata;
+            } catch {
+              // On fetch failure, fall back to cached activity
+              if (cached) {
+                return { did, lastUpdated: new Date(cached.timestamp), updateType: cached.updateType } as GardenMetadata;
+              }
+              return { did, lastUpdated: new Date(0), updateType: 'edit' as const } as GardenMetadata;
+            }
+          })
+        );
+        results.push(...batchResults);
       }
 
-      console.log('[RecentGardens] Verified gardens:', verifiedGardens.length);
-
-      // Sort by activity (gardens with activity first, then by timestamp)
-      verifiedGardens.sort((a, b) => {
-        // Gardens with real activity come first
+      // Sort by activity (real activity first, then by timestamp)
+      results.sort((a, b) => {
         const aHasActivity = a.lastUpdated.getTime() > 0;
         const bHasActivity = b.lastUpdated.getTime() > 0;
         if (aHasActivity && !bHasActivity) return -1;
         if (!aHasActivity && bHasActivity) return 1;
-        // Then sort by timestamp
         return b.lastUpdated.getTime() - a.lastUpdated.getTime();
       });
 
-      return verifiedGardens.slice(0, limit);
+      console.log('[RecentGardens] Checked activity for', results.length, 'gardens');
+      return results.slice(0, limit);
     } catch (error) {
-      console.warn('Error discovering gardens from flowers:', error);
+      console.warn('Error checking garden activity:', error);
       return [];
     }
   }
