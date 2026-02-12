@@ -129,7 +129,7 @@ export class SiteInteractions {
 
             try {
                 const recordData: any = {
-                    sourceDid: ownerDid,
+                    subject: ownerDid,
                     createdAt: new Date().toISOString()
                 };
 
@@ -455,7 +455,7 @@ export class SiteInteractions {
         try {
             const response = await listRecords(currentDid, 'garden.spores.social.takenFlower', { limit: 100 });
             const takenFlowers = response.records || [];
-            return takenFlowers.some(record => record.value?.sourceDid === ownerDid);
+            return takenFlowers.some(record => (record.value?.subject ?? record.value?.sourceDid) === ownerDid);
         } catch (error) {
             console.error('Failed to check if user picked a flower:', error);
             return false;

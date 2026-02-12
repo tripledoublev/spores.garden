@@ -48,11 +48,11 @@ export async function renderCollectedFlowers(
     const grid = document.createElement('div');
     grid.className = 'flower-grid'; // Re-use flower-grid style
 
-    const uniqueDids = [...new Set(takenFlowers.map((r: any) => r.value.sourceDid).filter((d: any) => typeof d === 'string'))] as string[];
+    const uniqueDids = [...new Set(takenFlowers.map((r: any) => r.value.subject ?? r.value.sourceDid).filter((d: any) => typeof d === 'string'))] as string[];
     const profileMap = await getProfiles(uniqueDids);
 
     for (const flowerRecord of takenFlowers) {
-      const sourceDid = flowerRecord.value.sourceDid;
+      const sourceDid = flowerRecord.value.subject ?? flowerRecord.value.sourceDid;
       const createdAt = flowerRecord.value.createdAt;
       const note = flowerRecord.value.note;
       const rkey = flowerRecord.uri?.split('/').pop();
@@ -103,7 +103,7 @@ export async function renderCollectedFlowers(
         editBtn.addEventListener('click', () => {
           openEditNoteModal(note ?? '', (newNote) => {
             putRecord('garden.spores.social.takenFlower', rkey, {
-              sourceDid,
+              subject: sourceDid,
               createdAt,
               note: newNote,
             })
