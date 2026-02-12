@@ -6,10 +6,7 @@
  * - Subtitle (H2)
  */
 
-import { getConfig, updateConfig, updateTheme } from '../config';
-import { getThemePresets, getThemePreset, getPresetColors, generateThemeFromDid } from '../themes/engine';
-import { applyTheme } from '../themes/engine';
-import { getCurrentDid } from '../oauth';
+import { getConfig, updateConfig } from '../config';
 
 class SiteConfig extends HTMLElement {
   constructor() {
@@ -22,23 +19,6 @@ class SiteConfig extends HTMLElement {
 
   render() {
     const config = getConfig();
-    const theme = config.theme || { preset: 'minimal' };
-    const presets = getThemePresets();
-
-    // Get preset defaults for the current preset
-    const presetTheme = getThemePreset(theme.preset) || getThemePreset('minimal');
-    const presetColors = presetTheme?.colors || {};
-
-    // Helper to get effective color value (custom override or preset default)
-    // This is what the color picker should show
-    const getEffectiveColor = (colorName: string) => {
-      return theme.colors?.[colorName] || presetColors[colorName] || '#000000';
-    };
-
-    // Helper to get display value for text input (empty if using preset default)
-    const getDisplayColor = (colorName: string) => {
-      return theme.colors?.[colorName] || '';
-    };
 
     this.innerHTML = `
       <div class="site-config">

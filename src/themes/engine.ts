@@ -1,5 +1,5 @@
 import chroma from 'chroma-js';
-import { FONT_PAIRINGS } from './fonts.js';
+import { getDefaultFontPairing } from './fonts.js';
 import { generateColorsFromDid } from './colors.js';
 import { generateIsolineConfigFromDid, getIsolineSVGStringForDid, clearIsolineCache, type IsolineConfig } from './isolines.js';
 
@@ -48,7 +48,7 @@ function ensureResizeListener(): void {
 /**
  * Theme Engine
  *
- * Handles applying themes (presets + custom overrides) to the site.
+ * Handles applying themes to the site.
  * Uses CSS custom properties for easy runtime theming.
  */
 
@@ -62,64 +62,6 @@ const SHADOW_TYPES: Array<'normal' | 'inset'> = ['normal', 'normal', 'normal', '
 
 const LAST_THEME_STORAGE_KEY = 'spores.lastTheme';
 
-const THEME_PRESETS = {
-  minimal: {
-    colors: {
-      background: '#ffffff',
-      text: '#1a1a1a',
-      primary: '#0066cc',
-      accent: '#0066cc',
-      muted: '#666666',
-      border: '#e0e0e0'
-    },
-    fonts: {
-      heading: 'system-ui, -apple-system, sans-serif',
-      body: 'system-ui, -apple-system, sans-serif'
-    }
-  },
-  dark: {
-    colors: {
-      background: '#0a0a0a',
-      text: '#f0f0f0',
-      primary: '#60a5fa',
-      accent: '#60a5fa',
-      muted: '#a0a0a0',
-      border: '#333333'
-    },
-    fonts: {
-      heading: 'system-ui, -apple-system, sans-serif',
-      body: 'system-ui, -apple-system, sans-serif'
-    }
-  },
-  bold: {
-    colors: {
-      background: '#fef3c7',
-      text: '#1c1917',
-      primary: '#dc2626',
-      accent: '#dc2626',
-      muted: '#78716c',
-      border: '#d6d3d1'
-    },
-    fonts: {
-      heading: 'Georgia, serif',
-      body: 'system-ui, -apple-system, sans-serif'
-    }
-  },
-  retro: {
-    colors: {
-      background: '#000080',
-      text: '#00ff00',
-      primary: '#ff00ff',
-      accent: '#ffff00',
-      muted: '#00ffff',
-      border: '#ff00ff'
-    },
-    fonts: {
-      heading: '"Courier New", monospace',
-      body: '"Courier New", monospace'
-    }
-  }
-};
 
 
 
@@ -170,7 +112,7 @@ export function generateThemeFromDid(did: string) {
   return {
     theme: {
       colors,
-      fonts: FONT_PAIRINGS[hash % FONT_PAIRINGS.length],
+      fonts: getDefaultFontPairing(),
       borderStyle: BORDER_STYLES[hash % BORDER_STYLES.length],
       borderWidth: BORDER_WIDTHS[hash % BORDER_WIDTHS.length],
       shadow,
@@ -179,7 +121,6 @@ export function generateThemeFromDid(did: string) {
     metadata: {
       hash,
       hue,
-      fontPairingIndex: hash % FONT_PAIRINGS.length,
       borderStyleIndex: hash % BORDER_STYLES.length,
       borderWidthIndex: hash % BORDER_WIDTHS.length,
       shadowOffsetIndex,
@@ -208,7 +149,7 @@ function extractFontName(fontString: string): string | null {
   const fontName = match[1];
   
   // Skip system fonts
-  const systemFonts = ['system-ui', 'apple-system', 'Georgia', 'Courier New'];
+  const systemFonts = ['system-ui', 'apple-system', 'Georgia', 'Courier New', 'JetBrains Mono', 'Work Sans'];
   if (systemFonts.some(sys => fontName.includes(sys))) {
     return null;
   }
@@ -326,12 +267,8 @@ export function applyTheme(
   return new Promise(async (resolve) => {
     const waitForFonts = options?.waitForFonts !== false;
     const did = options?.did;
-    const preset = themeConfig.preset || 'minimal';
-    const presetTheme = THEME_PRESETS[preset] || THEME_PRESETS.minimal;
-
-    // Merge preset with custom overrides
-    const colors = { ...presetTheme.colors, ...themeConfig.colors };
-    const fonts = { ...presetTheme.fonts, ...themeConfig.fonts };
+    const colors = themeConfig.colors || {};
+    const fonts = { ...getDefaultFontPairing(), ...themeConfig.fonts };
     const borderStyle = themeConfig.borderStyle || 'solid';
     const borderWidth = themeConfig.borderWidth || '2px';
     const shadow = themeConfig.shadow || {};
@@ -381,7 +318,7 @@ export function applyTheme(
     // Set border-dark to be inverted for dark mode (use text color for borders in dark mode)
     // In dark mode: dark background -> light borders (text color)
     // In light mode: light background -> dark borders (text color)
-    const borderDark = colors.text || presetTheme.colors.text || '#000000';
+    const borderDark = colors.text || '#000000';
     root.style.setProperty('--color-border-dark', borderDark);
 
     // Persist theme colors for next page load to enable smooth color transitions
@@ -448,12 +385,11 @@ export function applyTheme(
       document.body.classList.remove('has-pattern');
     }
 
-    // Add theme class to body (preserve has-pattern if present)
+    // Clean up stale theme classes (preserve has-pattern if present)
     const hasPattern = document.body.classList.contains('has-pattern');
     document.body.className = document.body.className
       .replace(/theme-\w+/g, '')
       .trim();
-    document.body.classList.add(`theme-${preset}`);
     if (hasPattern) {
       document.body.classList.add('has-pattern');
     }
@@ -505,99 +441,6 @@ export function applyTheme(
       });
     }
   });
-}
-
-/**
- * Get available theme presets
- */
-export function getThemePresets() {
-  return Object.keys(THEME_PRESETS);
-}
-
-/**
- * Get a specific theme preset
- */
-export function getThemePreset(name) {
-  return THEME_PRESETS[name];
-}
-
-/**
- * Map a theme preset name to its color values for PDS storage
- * 
- * This function returns the color mapping for a given preset, which can be
- * written directly to the PDS. The preset name itself is not saved to PDS,
- * only the color values are persisted.
- * 
- * @param presetName - The name of the theme preset (e.g., 'minimal', 'dark', 'bold', 'retro')
- * @returns An object with color values, or null if preset doesn't exist
- * 
- * @example
- * const colors = getPresetColors('dark');
- * // Returns: { background: '#0a0a0a', text: '#f0f0f0', primary: '#60a5fa', ... }
- */
-export function getPresetColors(presetName) {
-  const preset = THEME_PRESETS[presetName];
-  if (!preset) {
-    return null;
-  }
-  // Return a copy of the colors object
-  return { ...preset.colors };
-}
-
-/**
- * Check if a theme config has custom overrides beyond generated defaults
- * 
- * This determines whether we need to write theme data to PDS or if we can
- * rely on client-side generation from the DID.
- * 
- * @param did - The DID to compare against
- * @param themeConfig - The theme configuration to check
- * @returns true if theme has custom overrides, false if it matches generated defaults
- */
-export function hasCustomThemeOverrides(did: string, themeConfig: any): boolean {
-  if (!themeConfig || !did) {
-    return false;
-  }
-
-  const { theme: generated } = generateThemeFromDid(did);
-
-  // Check if any colors differ from generated
-  if (themeConfig.colors) {
-    for (const [key, value] of Object.entries(themeConfig.colors)) {
-      if (generated.colors[key] !== value) {
-        return true;
-      }
-    }
-  }
-
-  // Check if any fonts differ from generated
-  if (themeConfig.fonts) {
-    for (const [key, value] of Object.entries(themeConfig.fonts)) {
-      if (generated.fonts[key] !== value) {
-        return true;
-      }
-    }
-  }
-
-  // Check border style/width
-  if (themeConfig.borderStyle && themeConfig.borderStyle !== generated.borderStyle) {
-    return true;
-  }
-  if (themeConfig.borderWidth && themeConfig.borderWidth !== generated.borderWidth) {
-    return true;
-  }
-
-  // Check shadow overrides
-  if (themeConfig.shadow) {
-    const genShadow = generated.shadow || {};
-    for (const [key, value] of Object.entries(themeConfig.shadow)) {
-      if (genShadow[key] !== value) {
-        return true;
-      }
-    }
-  }
-
-  return false;
 }
 
 // Re-export isoline utilities for external use

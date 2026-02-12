@@ -18,6 +18,16 @@
             "type": "string",
             "maxLength": 200,
             "description": "Site subtitle"
+          },
+          "fontHeading": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "Heading font ID"
+          },
+          "fontBody": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "Body font ID"
           }
         }
       }

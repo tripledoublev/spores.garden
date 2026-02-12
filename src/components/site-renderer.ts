@@ -224,6 +224,17 @@ export class SiteRenderer {
                 editBtn.addEventListener('click', () => this.editor.editMode ? this.editor.saveAndExitEdit() : this.editor.toggleEditMode());
                 controls.appendChild(editBtn);
 
+                // Fonts button (only in edit mode)
+                if (this.editor.editMode) {
+                    const fontBtn = document.createElement('button');
+                    fontBtn.className = 'button button-secondary';
+                    fontBtn.textContent = 'Fonts';
+                    fontBtn.addEventListener('click', () => {
+                        import('./font-modal').then(m => m.showFontModal());
+                    });
+                    controls.appendChild(fontBtn);
+                }
+
                 // Share on Bluesky button
                 const shareBtn = document.createElement('button');
                 shareBtn.className = 'button button-secondary';

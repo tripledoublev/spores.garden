@@ -27,7 +27,6 @@ export interface Section {
 }
 
 export interface ThemeConfig {
-  preset?: string;
   colors?: Record<string, string>;
   fonts?: Record<string, string>;
 }

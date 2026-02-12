@@ -1,6 +1,7 @@
 import { getRecord, listRecords, resolveHandle, parseAtUri } from './at-client';
 import { createRecord, putRecord, getCurrentDid, isLoggedIn, deleteRecord } from './oauth';
-import { getThemePreset, generateThemeFromDid } from './themes/engine';
+import { generateThemeFromDid } from './themes/engine';
+import { getHeadingFontOption, getBodyFontOption } from './themes/fonts';
 import { registerGarden } from './components/recent-gardens';
 
 const CONFIG_COLLECTION = 'garden.spores.site.config';
@@ -114,18 +115,10 @@ function generateInitialSections(did: string): any[] {
  * Default configuration for new sites
  */
 function getDefaultConfig() {
-  const defaultPreset = getThemePreset('minimal');
   return {
     title: 'spores.garden',
     subtitle: '',
-    theme: {
-      preset: 'minimal',
-      colors: { ...defaultPreset.colors },
-      fonts: { ...defaultPreset.fonts },
-      borderStyle: 'solid',
-      borderWidth: '2px',
-    },
-
+    theme: {},
     sections: [],
   };
 }
@@ -141,7 +134,6 @@ function buildPreviewConfig(did: string) {
     ...defaultConfig,
     theme: {
       ...generatedTheme,
-      preset: 'minimal',
     },
     sections: [],
     isGardenPreview: true,
@@ -382,6 +374,14 @@ export async function loadUserConfig(did) {
     const { theme: generatedTheme } = generateThemeFromDid(did);
     const theme = { ...generatedTheme };
 
+    // Override fonts from saved config if present
+    if (config.fontHeading || config.fontBody) {
+      theme.fonts = {
+        heading: getHeadingFontOption(config.fontHeading).css,
+        body: getBodyFontOption(config.fontBody).css,
+      };
+    }
+
     let sections = [];
 
     if (layoutRecord && layoutRecord.value && Array.isArray(layoutRecord.value.sections) && layoutRecord.value.sections.length > 0) {
@@ -442,7 +442,6 @@ export async function loadUserConfig(did) {
       ...config,
       theme: {
         ...theme,
-        preset: 'minimal'
       },
       sections,
     };
@@ -519,6 +518,8 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
     $type: CONFIG_COLLECTION,
     title: currentConfig.title,
     subtitle: currentConfig.subtitle,
+    fontHeading: currentConfig.fontHeading || undefined,
+    fontBody: currentConfig.fontBody || undefined,
   };
   promises.push(putRecord(CONFIG_COLLECTION, CONFIG_RKEY, configToSave));
 
@@ -672,7 +673,7 @@ export function moveSectionDown(sectionId) {
  */
 export function updateTheme(themeUpdates) {
   if (!currentConfig.theme) {
-    currentConfig.theme = { preset: 'minimal', colors: {}, fonts: {}, borderStyle: 'solid' };
+    currentConfig.theme = { colors: {}, fonts: {}, borderStyle: 'solid' };
   }
 
   currentConfig.theme = {
