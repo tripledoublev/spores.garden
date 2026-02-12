@@ -16,5 +16,8 @@ export const ENDPOINTS = {
   CONSTELLATION_URL: env.VITE_CONSTELLATION_URL || 'https://constellation.microcosm.blue',
 
   /** Bluesky public API */
-  BLUESKY_API_URL: env.VITE_BLUESKY_API_URL || 'https://public.api.bsky.app'
+  BLUESKY_API_URL: env.VITE_BLUESKY_API_URL || 'https://public.api.bsky.app',
+
+  /** AT Protocol relay (for sync endpoints like listReposByCollection) */
+  RELAY_URL: env.VITE_RELAY_URL || 'https://relay1.us-east.bsky.network'
 } as const;

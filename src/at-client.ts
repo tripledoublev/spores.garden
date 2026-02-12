@@ -521,6 +521,36 @@ export async function getProfiles(actors: string[]): Promise<Map<string, unknown
 }
 
 /**
+ * List all repos (DIDs) that have records in a given collection.
+ * Calls the relay's com.atproto.sync.listReposByCollection endpoint.
+ * Paginates through all results automatically.
+ */
+export async function listReposByCollection(collection: string): Promise<string[]> {
+  const allDids: string[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const url = new URL('/xrpc/com.atproto.sync.listReposByCollection', ENDPOINTS.RELAY_URL);
+    url.searchParams.set('collection', collection);
+    if (cursor) url.searchParams.set('cursor', cursor);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to list repos by collection: ${response.status}`);
+    }
+
+    const data = await response.json();
+    for (const repo of data.repos || []) {
+      if (repo.did) allDids.push(repo.did);
+    }
+    cursor = data.cursor;
+  } while (cursor);
+
+  return allDids;
+}
+
+/**
  * Parse an AT URI into components
  */
 export function parseAtUri(uri) {
