@@ -9,6 +9,8 @@ import { isValidSpore } from '../config';
 import { showConfirmModal, showAlertModal } from './confirm-modal';
 
 const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
+const OPTIMISTIC_OWNER_TTL_MS = 2 * 60 * 1000;
+const optimisticSporeOwners = new Map<string, { ownerDid: string; updatedAt: number }>();
 
 export interface SporeInfo {
   originGardenDid: string;
@@ -16,11 +18,32 @@ export interface SporeInfo {
   currentRecord: any;
 }
 
+function getOptimisticSporeOwner(originGardenDid: string): string | null {
+  const optimistic = optimisticSporeOwners.get(originGardenDid);
+  if (!optimistic) return null;
+
+  if (Date.now() - optimistic.updatedAt > OPTIMISTIC_OWNER_TTL_MS) {
+    optimisticSporeOwners.delete(originGardenDid);
+    return null;
+  }
+
+  return optimistic.ownerDid;
+}
+
+export function setOptimisticSporeOwner(originGardenDid: string, ownerDid: string): void {
+  optimisticSporeOwners.set(originGardenDid, {
+    ownerDid,
+    updatedAt: Date.now()
+  });
+}
+
 /**
  * Find spore info by its origin garden DID (current holder from latest record).
  */
 export async function findSporeByOrigin(originGardenDid: string): Promise<SporeInfo | null> {
   try {
+    const optimisticOwnerDid = getOptimisticSporeOwner(originGardenDid);
+
     const backlinksResponse = await getBacklinks(
       originGardenDid,
       `${SPECIAL_SPORE_COLLECTION}:subject`,
@@ -28,7 +51,16 @@ export async function findSporeByOrigin(originGardenDid: string): Promise<SporeI
     );
     const backlinks = backlinksResponse.records || backlinksResponse.links || [];
 
-    if (backlinks.length === 0) return null;
+    if (backlinks.length === 0) {
+      if (optimisticOwnerDid) {
+        return {
+          originGardenDid,
+          currentOwnerDid: optimisticOwnerDid,
+          currentRecord: null
+        };
+      }
+      return null;
+    }
 
     const records = await Promise.all(
       backlinks.map(async (bl) => {
@@ -51,7 +83,8 @@ export async function findSporeByOrigin(originGardenDid: string): Promise<SporeI
 
     const currentRecord = validRecords[0];
     const currentOwnerIndex = records.findIndex(r => r === currentRecord);
-    const currentOwnerDid = backlinks[currentOwnerIndex]?.did;
+    const currentOwnerDid = optimisticOwnerDid || backlinks[currentOwnerIndex]?.did;
+    if (!currentOwnerDid) return null;
     return {
       originGardenDid,
       currentOwnerDid,
@@ -113,6 +146,7 @@ export async function stealSpore(
       subject: originGardenDid,
       createdAt: new Date().toISOString()
     });
+    setOptimisticSporeOwner(originGardenDid, newOwnerDid);
   } catch (error) {
     console.error('Failed to steal spore:', error);
     throw new Error('Failed to steal spore.');
