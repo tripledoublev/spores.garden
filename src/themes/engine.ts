@@ -303,6 +303,9 @@ export function applyTheme(
         : null;
     };
 
+    // Clear all previous inline overrides so CSS :root defaults apply
+    root.removeAttribute('style');
+
     // Colors
     Object.entries(colors).forEach(([key, value]) => {
       if (value) {

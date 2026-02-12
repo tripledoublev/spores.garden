@@ -3891,7 +3891,8 @@ body:has(.save-bar) .notification {
 .header-strip-cta {
   /* Slightly smaller than 48px flowers on desktop */
   height: 44px;
-  margin: 2px 0;
+  margin-top: var(--spacing-sm);
+  margin-bottom: 2px;
   padding: 0 1rem;
   font-size: 0.8rem;
   font-weight: 600;
