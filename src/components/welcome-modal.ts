@@ -14,6 +14,7 @@ import { addSection, getConfig, updateConfig, updateTheme, saveConfig } from '..
 import { getProfile } from '../at-client';
 import { generateThemeFromDid } from '../themes/engine';
 import { getSafeHandle, getDisplayHandle } from '../utils/identity';
+import { SiteRouter } from './site-router';
 import type { ATRecord } from '../types';
 import './did-visualization';
 import './theme-metadata';
@@ -153,7 +154,7 @@ class WelcomeModal extends HTMLElement {
         // Navigate to the user's garden after onboarding completes
         // This ensures they see their garden with the new theme, not the home page
         if (this.did) {
-          window.location.href = `/@${this.did}`;
+          await SiteRouter.navigateToGardenDid(this.did);
         } else {
           this.close();
         }

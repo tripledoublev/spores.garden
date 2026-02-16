@@ -1,6 +1,9 @@
 /**
  * Handles routing and navigation logic for the site.
  */
+import { getProfile } from '../at-client';
+import { buildGardenPath } from '../config';
+
 export class SiteRouter {
     /**
      * Navigates to a garden based on user input (DID or handle).
@@ -10,15 +13,17 @@ export class SiteRouter {
         if (!input) return;
 
         const withoutAt = input.startsWith('@') ? input.slice(1) : input;
+        location.href = buildGardenPath(withoutAt);
+    }
 
-        // DID form: did:plc:...
-        if (withoutAt.startsWith('did:')) {
-            location.href = `/?did=${encodeURIComponent(withoutAt)}`;
-            return;
+    static async navigateToGardenDid(did: string) {
+        if (!did) return;
+        try {
+            const profile = await getProfile(did);
+            location.href = buildGardenPath(profile?.handle || did);
+        } catch {
+            location.href = buildGardenPath(did);
         }
-
-        // Handle form: example.bsky.social or just handle
-        location.href = `/?handle=${encodeURIComponent(withoutAt)}`;
     }
 
     /**

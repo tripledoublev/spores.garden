@@ -254,7 +254,7 @@ export class SiteRenderer {
                     viewMyGardenBtn.textContent = 'View My Garden';
                     viewMyGardenBtn.setAttribute('aria-label', 'Go to your garden');
                     viewMyGardenBtn.addEventListener('click', () => {
-                        location.href = `/@${currentDid}`;
+                        void SiteRouter.navigateToGardenDid(currentDid);
                     });
                     controls.appendChild(viewMyGardenBtn);
                 }
@@ -273,7 +273,7 @@ export class SiteRenderer {
                     viewMyGardenBtn.textContent = 'My Garden';
                     viewMyGardenBtn.setAttribute('aria-label', 'Go to your garden');
                     viewMyGardenBtn.addEventListener('click', () => {
-                        location.href = `/@${currentDid}`;
+                        void SiteRouter.navigateToGardenDid(currentDid);
                     });
                     controls.appendChild(viewMyGardenBtn);
                 }
