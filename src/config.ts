@@ -24,6 +24,10 @@ import {
   normalizeSectionForNamespace,
   rewriteRecordPayloadForNamespace,
 } from './config/section-persistence';
+import {
+  migrateLegacySectionsRecordImpl,
+  migrateOwnerNsidRecordsImpl,
+} from './config/nsid-migration';
 
 const CONFIG_RKEY = 'self';
 
@@ -208,130 +212,36 @@ export function setSiteOwnerDid(did) {
   siteOwnerDid = did;
 }
 
-async function listAllRecordsForCollection(did: string, collection: string): Promise<any[]> {
-  const all: any[] = [];
-  let cursor: string | undefined;
-  let loops = 0;
-  while (loops < 50) {
-    loops += 1;
-    const response = await listRecords(did, collection, { limit: 100, cursor }).catch(() => null);
-    if (!response?.records?.length) break;
-    all.push(...response.records);
-    if (!response.cursor) break;
-    cursor = response.cursor;
-  }
-  return all;
-}
-
 export async function migrateOwnerNsidRecords(did: string): Promise<void> {
-  if (!isNsidMigrationEnabled()) return;
-  if (!isLoggedIn() || getCurrentDid() !== did) return;
-
-  const newCollections = getCollections('new');
-  const oldCollections = getCollections('old');
-
-  try {
-    const existingNewConfig = await getRecord(did, newCollections.CONFIG_COLLECTION, CONFIG_RKEY);
-    if (existingNewConfig?.value?.nsidMigrationVersion >= NSID_MIGRATION_VERSION) {
-      return;
-    }
-
-    for (const key of SPORE_COLLECTION_KEYS) {
-      const oldCollection = getCollection(key, 'old');
-      const newCollection = getCollection(key, 'new');
-
-      if (key === 'siteConfig' || key === 'siteLayout' || key === 'siteProfile') {
-        const oldRecord = await getRecord(did, oldCollection, CONFIG_RKEY);
-        if (!oldRecord?.value) continue;
-        const rewritten = rewriteRecordPayloadForNamespace(oldCollection, oldRecord.value, 'new');
-        await putRecord(newCollection, CONFIG_RKEY, {
-          ...rewritten,
-          $type: newCollection,
-        });
-        continue;
-      }
-
-      const oldRecords = await listAllRecordsForCollection(did, oldCollection);
-      for (const record of oldRecords) {
-        const rkey = record?.uri?.split('/').pop();
-        if (!rkey || !record?.value) continue;
-        const rewritten = rewriteRecordPayloadForNamespace(oldCollection, record.value, 'new');
-        await putRecord(newCollection, rkey, {
-          ...rewritten,
-          $type: newCollection,
-        });
-      }
-    }
-
-    const latestNewConfig = await getRecord(did, newCollections.CONFIG_COLLECTION, CONFIG_RKEY);
-    const oldConfig = await getRecord(did, oldCollections.CONFIG_COLLECTION, CONFIG_RKEY);
-    const baseConfig = latestNewConfig?.value || oldConfig?.value || {
-      title: 'My Garden',
-      subtitle: '',
-    };
-
-    await putRecord(newCollections.CONFIG_COLLECTION, CONFIG_RKEY, {
-      ...baseConfig,
-      $type: newCollections.CONFIG_COLLECTION,
-      nsidMigrationVersion: NSID_MIGRATION_VERSION,
-    });
-    debugLog(`[nsid-migration] Completed migration for ${did}`);
-  } catch (error) {
-    console.error(`[nsid-migration] Failed migration for ${did}:`, error);
-  }
+  return migrateOwnerNsidRecordsImpl(did, {
+    isNsidMigrationEnabled,
+    isLoggedIn,
+    getCurrentDid,
+    getCollections,
+    getCollection,
+    SPORE_COLLECTION_KEYS,
+    getRecord,
+    putRecord,
+    listRecords,
+    rewriteRecordPayloadForNamespace,
+    CONFIG_RKEY,
+    NSID_MIGRATION_VERSION,
+    debugLog,
+  });
 }
 
 async function migrateSections(did: string) {
-  // Only attempt migration if logged in and viewing own garden
-  if (!isLoggedIn() || getCurrentDid() !== did) {
-    debugLog(`Skipping migration for ${did}: Not logged in or not owner.`);
-    return;
-  }
-  const OLD_SECTIONS_COLLECTION = 'garden.spores.site.sections';
-  const collections = getCollections();
-  try {
-    const oldSectionsRecord = await getRecord(did, OLD_SECTIONS_COLLECTION, CONFIG_RKEY);
-    if (oldSectionsRecord && oldSectionsRecord.value && oldSectionsRecord.value.sections) {
-      debugLog(`Migrating old sections record for user: ${did}`);
-
-      const sections = oldSectionsRecord.value.sections as any[];
-      const sectionUris: string[] = [];
-
-      for (const section of sections) {
-        const sectionRecord = {
-          $type: collections.SECTION_COLLECTION,
-          type: section.type,
-          title: section.title || undefined,
-          layout: section.layout || undefined,
-          collection: section.collection || undefined,
-          rkey: section.rkey || undefined,
-          records: section.records || undefined,
-          content: section.content || undefined,
-          format: section.format || undefined,
-          limit: section.limit || undefined,
-          hideHeader: section.hideHeader || undefined,
-        };
-
-        const response = await createRecord(collections.SECTION_COLLECTION, sectionRecord);
-        sectionUris.push(response.uri);
-      }
-
-      const layoutRecord = {
-        $type: collections.LAYOUT_COLLECTION,
-        sections: sectionUris,
-      };
-      await putRecord(collections.LAYOUT_COLLECTION, CONFIG_RKEY, layoutRecord);
-
-      await deleteRecord(OLD_SECTIONS_COLLECTION, CONFIG_RKEY);
-      debugLog(`Migration successful for user: ${did}`);
-    }
-  } catch (error) {
-    if (error.message.includes('not found')) {
-        // This is expected if the user has already been migrated or is a new user.
-    } else {
-        console.error(`Error during sections migration check for user ${did}:`, error);
-    }
-  }
+  return migrateLegacySectionsRecordImpl(did, {
+    isLoggedIn,
+    getCurrentDid,
+    getCollections: () => getCollections(),
+    getRecord,
+    createRecord,
+    putRecord,
+    deleteRecord,
+    CONFIG_RKEY,
+    debugLog,
+  });
 }
 
 /**
