@@ -135,3 +135,31 @@ During stabilization:
 - Section/layout URI rewrites are correct.
 - App remains functional if migration is interrupted.
 - Read fallback still works for non-migrated users.
+
+## Launch Checklist
+
+Use this checklist when you are ready to cut over from `garden.spores.*` to `coop.hypha.spores.*`.
+
+1. Publish lexicons in the authoritative repo DID:
+   - `coop.hypha.spores.site.config`
+   - `coop.hypha.spores.site.layout`
+   - `coop.hypha.spores.site.section`
+   - `coop.hypha.spores.site.profile`
+   - `coop.hypha.spores.content.text`
+   - `coop.hypha.spores.content.image`
+   - `coop.hypha.spores.social.flower`
+   - `coop.hypha.spores.social.takenFlower`
+   - `coop.hypha.spores.item.specialSpore`
+2. Configure DNS `_lexicon` TXT records for each NSID authority group:
+   - `_lexicon.site.spores.hypha.coop TXT "did=<authoritative-did>"`
+   - `_lexicon.content.spores.hypha.coop TXT "did=<authoritative-did>"`
+   - `_lexicon.social.spores.hypha.coop TXT "did=<authoritative-did>"`
+   - `_lexicon.item.spores.hypha.coop TXT "did=<authoritative-did>"`
+3. Verify resolution:
+   - DNS TXT records resolve publicly.
+   - Lexicon records are fetchable by NSID from the mapped DID repo.
+4. Merge and deploy app code containing namespace migration support.
+5. Enable rollout switch in `src/config/nsid.ts`:
+   - set `nsidMigrationEnabled = true`
+6. Monitor migration logs and owner-session migrations.
+7. After stabilization window, move to sunset policy (read new only).
