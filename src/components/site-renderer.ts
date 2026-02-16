@@ -496,7 +496,11 @@ export class SiteRenderer {
             const flowerSize = 140;
             const svgWrapper = document.createElement('div');
             svgWrapper.className = 'garden-preview__flower-svg';
-            svgWrapper.innerHTML = generateFlowerSVGString(ownerDid!, flowerSize);
+            if (ownerDid) {
+                svgWrapper.innerHTML = generateFlowerSVGString(ownerDid, flowerSize);
+            } else {
+                svgWrapper.innerHTML = this.getDandelionIcon();
+            }
             flowerBox.appendChild(svgWrapper);
 
             const subtext = document.createElement('p');
@@ -529,12 +533,14 @@ export class SiteRenderer {
             main.appendChild(preview);
 
             // Resolve handle for heading: "@handle's garden could grow here"
-            getProfile(ownerDid!).then((profile) => {
-                if (this.renderId !== myRenderId) return;
-                const safeHandle = getSafeHandle(profile?.handle, ownerDid!);
-                const displayHandle = safeHandle === ownerDid ? truncateDid(ownerDid!) : `@${safeHandle}`;
-                heading.textContent = `${displayHandle}'s garden could grow here`;
-            }).catch(() => { /* keep fallback heading */ });
+            if (ownerDid) {
+                getProfile(ownerDid).then((profile) => {
+                    if (this.renderId !== myRenderId) return;
+                    const safeHandle = getSafeHandle(profile?.handle, ownerDid);
+                    const displayHandle = safeHandle === ownerDid ? truncateDid(ownerDid) : `@${safeHandle}`;
+                    heading.textContent = `${displayHandle}'s garden could grow here`;
+                }).catch(() => { /* keep fallback heading */ });
+            }
         } else {
             // Viewing a profile with sections
             // Filter out deprecated section types (they're handled elsewhere)
