@@ -1,4 +1,5 @@
 import { extractFields } from '../records/field-extractor';
+import { getRecordByUri } from '../records/loader';
 import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
 
 /**
@@ -53,7 +54,6 @@ async function fetchAndRenderRsvp(el: HTMLElement, fields: ReturnType<typeof ext
   const subjectUri = $raw.subject?.uri;
 
   try {
-    const { getRecordByUri } = await import('../records/loader');
     const eventRecord = await getRecordByUri(subjectUri);
 
     if (eventRecord?.value) {

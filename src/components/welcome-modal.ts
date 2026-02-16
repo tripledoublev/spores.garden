@@ -8,7 +8,7 @@
  * - Select Bluesky posts to showcase
  */
 
-import { getCollections } from '../records/loader';
+import { getCollections, getCollectionRecords } from '../records/loader';
 import { getCurrentDid } from '../oauth';
 import { addSection, updateConfig, updateTheme, saveConfig } from '../config';
 import { getProfile } from '../at-client';
@@ -196,7 +196,6 @@ class WelcomeModal extends HTMLElement {
 
     try {
       // Use the same method that works in "Explore your data"
-      const { getCollectionRecords } = await import('../records/loader');
       const posts = await getCollectionRecords(this.did, 'app.bsky.feed.post', { limit: 50 });
 
       if (posts.length === 0) {
@@ -290,7 +289,6 @@ class WelcomeModal extends HTMLElement {
         this.showLoading(`Loading records from ${collection}...`);
 
         try {
-          const { getCollectionRecords } = await import('../records/loader');
           const records = await getCollectionRecords(this.did, collection, { limit: 20 });
 
           if (records.length === 0) {

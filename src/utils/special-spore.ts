@@ -3,7 +3,7 @@
  * Shared by header display (site-renderer) and steal UI (spore-modal).
  */
 
-import { getBacklinks, getRecord } from '../at-client';
+import { getBacklinks, getRecord, listRecords } from '../at-client';
 import { createRecord } from '../oauth';
 import { isValidSpore } from '../config';
 import { getBacklinkQueries, getCollection, getReadCollections } from '../config/nsid';
@@ -101,7 +101,6 @@ export async function findAllHeldSpores(gardenOwnerDid: string): Promise<SporeIn
       }
     }
 
-    const { listRecords } = await import('../at-client');
     const ownedResponses = await Promise.all(
       getReadCollections('itemSpecialSpore').map((collection) =>
         listRecords(gardenOwnerDid, collection, { limit: 10 }).catch(() => ({ records: [] }))

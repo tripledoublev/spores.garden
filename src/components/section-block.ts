@@ -4,9 +4,10 @@
  * Provides edit controls for section management.
  */
 
-import { getRecordsByUris } from '../records/loader';
+import { getRecordByUri, getRecordsByUris } from '../records/loader';
 import { getSiteOwnerDid, getConfig, updateSection, removeSection, moveSectionUp, moveSectionDown, saveConfig } from '../config';
 import { getProfile, getRecord, getBlobUrl, parseAtUri } from '../at-client';
+import { deleteRecord } from '../oauth';
 import { renderRecord } from '../layouts/index';
 import { renderCollectedFlowers } from '../layouts/collected-flowers';
 import { isContentImageCollection, isContentTextCollection, isProfileCollection } from '../config/nsid';
@@ -303,7 +304,6 @@ class SectionBlock extends HTMLElement {
 
           if (isContentTextCollection(collection) && rkey) {
             try {
-              const { deleteRecord } = await import('../oauth');
               await deleteRecord(collection, rkey);
             } catch (error) {
               console.error('Failed to delete content record from PDS:', error);
@@ -329,7 +329,6 @@ class SectionBlock extends HTMLElement {
 
           if (isContentImageCollection(collection) && rkey) {
             try {
-              const { deleteRecord } = await import('../oauth');
               await deleteRecord(collection, rkey);
             } catch (error) {
               console.error('Failed to delete image record from PDS:', error);
@@ -371,11 +370,10 @@ class SectionBlock extends HTMLElement {
 
     infoBox.textContent = typeInfo;
 
-    // For records, fetch the actual $type asynchronously
-    if (this.section.type === 'records' && this.section.records && this.section.records.length > 0) {
-      try {
-        const { getRecordByUri } = await import('../records/loader');
-        const record = await getRecordByUri(this.section.records[0]);
+      // For records, fetch the actual $type asynchronously
+      if (this.section.type === 'records' && this.section.records && this.section.records.length > 0) {
+        try {
+          const record = await getRecordByUri(this.section.records[0]);
         if (record && record.value && record.value.$type) {
           infoBox.textContent = record.value.$type;
         } else {

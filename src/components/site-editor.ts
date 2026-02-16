@@ -1,6 +1,7 @@
 import { getConfig, saveConfig, getSiteOwnerDid } from '../config';
 import { getCurrentDid, putRecord, uploadBlob } from '../oauth';
 import { getRecord, getProfile, buildAtUri } from '../at-client';
+import { getCollectionRecords, getCollections, getRecordByUri } from '../records/loader';
 import { getCollection } from '../config/nsid';
 import { setCachedActivity } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
@@ -315,7 +316,6 @@ export class SiteEditor {
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     try {
-      const { getCollectionRecords } = await import('../records/loader');
       const posts = await getCollectionRecords(did, 'app.bsky.feed.post', { limit: 50 });
 
       if (posts.length === 0) {
@@ -402,7 +402,6 @@ export class SiteEditor {
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     try {
-      const { getCollections } = await import('../records/loader');
       const collections = await getCollections(did);
 
       if (collections.length === 0) {
@@ -451,7 +450,6 @@ export class SiteEditor {
         `;
 
         try {
-          const { getCollectionRecords } = await import('../records/loader');
           const records = await getCollectionRecords(did, collection, { limit: 20 });
 
           if (records.length === 0) {
@@ -603,7 +601,6 @@ export class SiteEditor {
     document.body.appendChild(modal);
 
     try {
-      const { getCollectionRecords, getRecordByUri } = await import('../records/loader');
       const records = await getCollectionRecords(currentDid, collection, { limit: 50 });
 
       if (records.length === 0) {
@@ -776,7 +773,6 @@ export class SiteEditor {
     document.body.appendChild(modal);
 
     try {
-      const { getCollectionRecords } = await import('../records/loader');
       const collections = ['site.standard.document', 'pub.leaflet.document'];
 
       const recordSets = await Promise.all(collections.map(async (collection) => {

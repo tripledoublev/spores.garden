@@ -6,12 +6,13 @@
  * - Constellation backlinks: Historical flower interactions
  */
 
-import { getProfile, getRecord, listReposByCollection } from '../at-client';
+import { getProfile, getRecord, listReposByCollection, listRecords } from '../at-client';
 import { hasGardenIdentifierInUrl } from '../config';
 import { getCollection, getReadCollections } from '../config/nsid';
 import { generateThemeFromDid } from '../themes/engine';
 import { getJetstreamClient, type GardenDiscoveryEvent } from '../jetstream';
 import { debugLog } from '../utils/logger';
+import { getCurrentDid } from '../oauth';
 import './did-visualization';
 
 /**
@@ -461,16 +462,11 @@ class RecentGardens extends HTMLElement {
       this.knownGardenDids = allGardenDids;
 
       // Add current user if logged in
-      try {
-        const { getCurrentDid } = await import('../oauth');
-        const currentDid = getCurrentDid();
-        if (currentDid && !allGardenDids.includes(currentDid)) {
-          allGardenDids.push(currentDid);
-          this.knownGardenDids = allGardenDids;
-          saveKnownGardens(this.knownGardenDids);
-        }
-      } catch {
-        // Not logged in
+      const currentDid = getCurrentDid();
+      if (currentDid && !allGardenDids.includes(currentDid)) {
+        allGardenDids.push(currentDid);
+        this.knownGardenDids = allGardenDids;
+        saveKnownGardens(this.knownGardenDids);
       }
 
       // Step 2: Check activity for ALL DIDs and find the most recent
@@ -515,8 +511,6 @@ class RecentGardens extends HTMLElement {
    */
   private async checkAllGardenActivity(gardenDids: string[], limit: number): Promise<GardenMetadata[]> {
     try {
-      const { listRecords } = await import('../at-client');
-
       // Partition DIDs: use cache for fresh entries, fetch for stale/missing
       const results: GardenMetadata[] = [];
       const staleDids: string[] = [];
