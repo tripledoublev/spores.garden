@@ -1,4 +1,4 @@
-import { getSiteOwnerDid } from '../config';
+import { getSiteOwnerDid, buildGardenPath } from '../config';
 import { isLoggedIn, getCurrentDid, createRecord, uploadBlob, post } from '../oauth';
 import { listRecords, getBacklinks, getProfile } from '../at-client';
 import { setCachedActivity, registerGarden } from './recent-gardens';
@@ -233,9 +233,7 @@ export class SiteInteractions {
         const BLUESKY_GRAPHEME_LIMIT = 300;
         const profile = await getProfile(currentDid).catch(() => null);
         const handle = (profile as { handle?: string } | null)?.handle;
-        const gardenUrl = handle
-            ? `${window.location.origin}/@${handle}`
-            : window.location.origin;
+        const gardenUrl = `${window.location.origin}${buildGardenPath(handle || currentDid)}`;
         const shareLines = [
             `We all get a garden on spores.garden! ${gardenUrl}`,
             `Check out my unique garden on spores.garden! ${gardenUrl}`,

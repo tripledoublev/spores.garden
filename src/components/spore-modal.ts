@@ -1,5 +1,6 @@
 import { getBacklinks, getProfile, getRecord } from '../at-client';
 import { getCurrentDid, isLoggedIn } from '../oauth';
+import { buildGardenPath } from '../config';
 import { getSafeHandle, truncateDid } from '../utils/identity';
 import { generateFlowerSVGString, generateSporeFlowerSVGString } from '../utils/flower-svg';
 import { stealSpore } from '../utils/special-spore';
@@ -118,7 +119,7 @@ function buildLineageContent(
 
   const getLink = (did: string) => {
     const profile = profileMap.get(did);
-    return `/@${getSafeHandle(profile?.handle, did)}`;
+    return buildGardenPath(getSafeHandle(profile?.handle, did));
   };
 
   const formatDate = (timestamp?: string) => {

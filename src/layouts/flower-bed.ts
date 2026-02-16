@@ -1,5 +1,5 @@
 import { getBacklinks, getProfile, listRecords, getRecord } from '../at-client';
-import { getSiteOwnerDid, isValidSpore } from '../config';
+import { getSiteOwnerDid, isValidSpore, buildGardenPath } from '../config';
 import { isLoggedIn, getCurrentDid } from '../oauth';
 import { getSafeHandle, truncateDid } from '../utils/identity';
 import { generateThemeFromDid } from '../themes/engine';
@@ -204,7 +204,7 @@ function createGardenLink(
   const { colors, borderStyle, borderWidth } = theme;
 
   const visitLink = document.createElement('a');
-  visitLink.href = `/@${profile?.handle || gardenDid}`;
+  visitLink.href = buildGardenPath(profile?.handle || gardenDid);
   visitLink.className = 'button flower-garden-cta';
   visitLink.style.display = 'flex';
   visitLink.style.alignItems = 'center';

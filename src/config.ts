@@ -26,7 +26,11 @@ export type UrlIdentifier =
   | { type: 'handle'; value: string };
 
 export function buildGardenPath(identifier: string): string {
-  return `/@${encodeURIComponent(identifier)}`;
+  const normalized = (identifier || '').trim();
+  if (normalized.startsWith('did:')) {
+    return `/${encodeURIComponent(normalized)}`;
+  }
+  return `/@${encodeURIComponent(normalized)}`;
 }
 
 function replaceUrlWithCanonicalGardenPath(identifier: string): void {
@@ -162,7 +166,7 @@ function buildPreviewConfig(did: string) {
 
 /**
  * Parse identifier from URL (supports both path-based and query params)
- * Supports: /@handle, /@did, /handle (legacy shorthand), ?handle=..., ?did=...
+ * Supports: /@handle, /did:plc:..., /@did:... (legacy), /handle (legacy), ?handle=..., ?did=...
  */
 export function parseIdentifierFromUrl(loc: Location = location): UrlIdentifier | null {
   const pathMatch = loc.pathname.match(/^\/@(.+)$/);

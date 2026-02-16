@@ -7,7 +7,7 @@
  */
 
 import { getProfile, getRecord, listReposByCollection } from '../at-client';
-import { hasGardenIdentifierInUrl } from '../config';
+import { hasGardenIdentifierInUrl, buildGardenPath } from '../config';
 import { generateThemeFromDid } from '../themes/engine';
 import { getJetstreamClient, type GardenDiscoveryEvent } from '../jetstream';
 import './did-visualization';
@@ -677,7 +677,7 @@ class RecentGardens extends HTMLElement {
     }
 
     const gardensHTML = this.gardens.map(garden => {
-      const gardenUrl = garden.handle ? `/@${garden.handle}` : `/@${garden.did}`;
+      const gardenUrl = buildGardenPath(garden.handle || garden.did);
       const updateIcon = this.getUpdateTypeIcon(garden.updateType);
       // Only show time if we have a real timestamp (not epoch)
       const hasRealTimestamp = garden.lastUpdated.getTime() > 0;

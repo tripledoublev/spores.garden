@@ -1,6 +1,6 @@
 import { listRecords, getProfiles } from '../at-client';
 import { getCurrentDid, isLoggedIn, deleteRecord, putRecord } from '../oauth';
-import { getSiteOwnerDid } from '../config';
+import { getSiteOwnerDid, buildGardenPath } from '../config';
 import { getSafeHandle, truncateDid } from '../utils/identity';
 import { showConfirmModal } from '../utils/confirm-modal';
 
@@ -61,12 +61,11 @@ export async function renderCollectedFlowers(
       flowerEl.className = 'flower-grid-item';
 
       const link = document.createElement('a');
-      link.href = `/@${sourceDid}`;
       link.title = `View ${sourceDid}'s garden`;
 
       const profile = profileMap.get(sourceDid) as { handle?: string; displayName?: string } | null | undefined;
       const safeHandle = getSafeHandle(profile?.handle, sourceDid);
-      link.href = `/@${safeHandle}`;
+      link.href = buildGardenPath(safeHandle);
       link.title = `View ${sourceDid}'s garden`;
 
       const displayHandle = safeHandle === sourceDid ? truncateDid(sourceDid) : safeHandle;

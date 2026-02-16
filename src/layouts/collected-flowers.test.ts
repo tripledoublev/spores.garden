@@ -18,7 +18,10 @@ vi.mock('../oauth', () => ({
 }));
 
 vi.mock('../config', () => ({
-    getSiteOwnerDid: vi.fn()
+    getSiteOwnerDid: vi.fn(),
+    buildGardenPath: vi.fn((identifier: string) =>
+      identifier.startsWith('did:') ? `/${identifier}` : `/@${identifier}`
+    )
 }));
 
 describe('Collected Flowers Layout', () => {
