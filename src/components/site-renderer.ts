@@ -693,17 +693,7 @@ export class SiteRenderer {
     }
 
     getLoadingMessage(): string {
-        if (!SiteRouter.isViewingProfile()) {
-            return 'Loading home...';
-        }
-
-        const ownerDid = getSiteOwnerDid();
-        const currentDid = getCurrentDid();
-        if (ownerDid && currentDid && ownerDid === currentDid) {
-            return 'Loading your garden...';
-        }
-
-        return 'Loading garden...';
+        return 'Loading spores...';
     }
 
     private updateFavicon(did: string | null): void {
