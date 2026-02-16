@@ -110,7 +110,6 @@ function generateInitialSections(did: string): any[] {
   sections.push({
     id: `section-${sectionId++}`,
     type: 'content',
-    collection: 'garden.spores.content.text',
     format: 'markdown',
     title: 'Welcome'
   });
@@ -572,14 +571,32 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
         ? buildAtUri(did, section.collection, section.rkey)
         : undefined
     );
+    let contentRef = authoritativeRef;
+    const isContentSection = section.type === 'content' || section.type === 'block';
+
+    // Canonical content path: content sections should reference content.text records via ref.
+    if (isContentSection && !contentRef) {
+      if (section.collection && section.rkey) {
+        contentRef = buildAtUri(did, section.collection, section.rkey);
+      } else {
+        const createdContent = await createRecord('garden.spores.content.text', {
+          $type: 'garden.spores.content.text',
+          title: section.title || undefined,
+          content: section.content || '',
+          format: section.format || 'markdown',
+          createdAt: new Date().toISOString()
+        });
+        contentRef = createdContent.uri;
+      }
+    }
     const sectionRecord = {
       $type: SECTION_COLLECTION,
       type: section.type,
       title: section.title || undefined,
       layout: section.layout || undefined,
-      ref: authoritativeRef,
+      ref: isContentSection ? (contentRef || undefined) : authoritativeRef,
       records: section.records || undefined,
-      content: section.content || undefined,
+      content: isContentSection ? undefined : section.content || undefined,
       format: section.format || undefined,
       limit: section.limit || undefined,
       hideHeader: section.hideHeader || undefined,
@@ -588,12 +605,17 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
     if (section.sectionRkey) {
       await putRecord(SECTION_COLLECTION, section.sectionRkey, sectionRecord);
       const { collection: _legacyCollection, rkey: _legacyRkey, ...normalized } = section;
-      return { ...normalized, ref: authoritativeRef };
+      return { ...normalized, ref: isContentSection ? contentRef : authoritativeRef };
     } else {
       const response = await createRecord(SECTION_COLLECTION, sectionRecord);
       const newSectionRkey = response.uri.split('/').pop();
       const { collection: _legacyCollection, rkey: _legacyRkey, ...normalized } = section;
-      return { ...normalized, ref: authoritativeRef, sectionRkey: newSectionRkey, uri: response.uri };
+      return {
+        ...normalized,
+        ref: isContentSection ? contentRef : authoritativeRef,
+        sectionRkey: newSectionRkey,
+        uri: response.uri
+      };
     }
   }));
   currentConfig.sections = updatedSections;

@@ -5,7 +5,6 @@
 
 import { createRecord, putRecord, getCurrentDid } from '../oauth';
 import { addSection, updateSection, getSiteOwnerDid } from '../config';
-import { getRecord } from '../at-client';
 import { setCachedActivity } from './recent-gardens';
 
 class CreateContent extends HTMLElement {
@@ -175,9 +174,6 @@ class CreateContent extends HTMLElement {
 
     const response = await createRecord('garden.spores.content.text', record);
 
-    // Extract rkey from the response URI
-    const rkey = response.uri.split('/').pop();
-
     // Record local activity
     const currentDid = getCurrentDid();
     if (currentDid) {
@@ -188,8 +184,6 @@ class CreateContent extends HTMLElement {
     const section: any = {
       type: 'content',
       ref: response.uri,
-      collection: 'garden.spores.content.text',
-      rkey: rkey,
       format: contentData.format
     };
 
@@ -238,15 +232,22 @@ class CreateContent extends HTMLElement {
         updateSection(this.editSectionId, updates);
       }
     } else if (this.editSectionId) {
-      // Update inline content section
-      const updates: any = {
+      // Migrate inline content section to canonical referenced content record
+      const created = await createRecord('garden.spores.content.text', {
+        $type: 'garden.spores.content.text',
         content: contentData.content,
-        format: contentData.format
-      };
-      if (contentData.title) {
-        updates.title = contentData.title;
-      }
-      updateSection(this.editSectionId, updates);
+        format: contentData.format || 'markdown',
+        title: contentData.title || undefined,
+        createdAt: new Date().toISOString()
+      });
+      updateSection(this.editSectionId, {
+        ref: created.uri,
+        title: contentData.title || undefined,
+        format: contentData.format,
+        content: undefined,
+        collection: undefined,
+        rkey: undefined
+      });
     }
 
     // Record local activity

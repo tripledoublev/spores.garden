@@ -4,8 +4,8 @@ Source: https://github.com/hyphacoop/spores.garden/issues/1#issuecomment-3893885
 
 - [ ] `pending` Decide and execute NSID finalization strategy (`garden.spores.*` vs `coop.hypha.spores.*`) with migration plan.
 - [ ] `pending` Make `garden.spores.site.section` more idiomatic and less overloaded.
-- [ ] `pending` Remove dual-path content semantics and pick one canonical content path.
-- [ ] `in-progress` Complete ref-first migration and deprecate `collection` + `rkey` fields.
+- [ ] `in-progress` Remove dual-path content semantics and pick one canonical content path.
+- [x] `completed` Complete ref-first migration and deprecate `collection` + `rkey` fields.
 - [x] `completed` Finalize DID/handle URL canonicalization policy and normalize links.
 - [ ] `pending` Consider profile schema parity improvements (including pronouns decision).
 - [x] `completed` Tighten `specialSpore` game integrity guardrails (timestamp validity window + cooldown + trust model docs).

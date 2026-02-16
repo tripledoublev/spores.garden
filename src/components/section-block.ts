@@ -785,13 +785,7 @@ class SectionBlock extends HTMLElement {
       container.innerHTML = '';
       container.appendChild(contentDiv);
 
-      // In edit mode, make it editable (only for inline content, not records)
-      if (this.editMode && !this.section.ref && !this.section.collection && !this.section.rkey) {
-        contentDiv.contentEditable = 'true';
-        contentDiv.addEventListener('blur', () => {
-          updateSection(this.section.id, { content: contentDiv.innerText });
-        });
-      }
+      // Inline content is migration-only; edits should go through the content modal.
     } catch (error) {
       console.error('Failed to render content:', error);
       const errorEl = createErrorMessage(
