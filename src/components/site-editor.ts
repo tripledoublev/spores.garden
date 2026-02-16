@@ -264,7 +264,7 @@ export class SiteEditor {
     }
   }
 
-  addSectionToConfig(params: { type: string, collection?: string, rkey?: string, title?: string }) {
+  addSectionToConfig(params: { type: string, collection?: string, rkey?: string, title?: string, ref?: string }) {
     const config = getConfig();
     const id = `section-${Date.now()}`;
 
@@ -279,12 +279,16 @@ export class SiteEditor {
       section.title = 'Collected Flowers';
     }
 
-    if (params.collection) section.collection = params.collection;
-    if (params.rkey) section.rkey = params.rkey;
-    if (params.collection && params.rkey) {
+    if (params.ref) {
+      section.ref = params.ref;
+    } else if (params.collection && params.rkey) {
       const did = getCurrentDid();
+      // Prefer ref-first sections; keep legacy fields only when DID is unavailable.
       if (did) {
         section.ref = buildAtUri(did, params.collection, params.rkey);
+      } else {
+        section.collection = params.collection;
+        section.rkey = params.rkey;
       }
     }
     if (params.title) section.title = params.title;

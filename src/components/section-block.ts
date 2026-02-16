@@ -59,10 +59,12 @@ class SectionBlock extends HTMLElement {
     }
 
     const fragment = document.createDocumentFragment();
+    const parsedSectionRef = this.section.ref ? parseAtUri(this.section.ref) : null;
+    const sectionCollection = parsedSectionRef?.collection || this.section.collection;
 
     // Check if this is a Bluesky post section (hide title in view mode)
     const isBlueskyPostSection =
-      this.section.collection === 'app.bsky.feed.post' ||
+      sectionCollection === 'app.bsky.feed.post' ||
       (this.section.type === 'records' && this.section.records &&
         this.section.records.some(uri => uri.includes('app.bsky.feed.post')));
 
@@ -254,7 +256,7 @@ class SectionBlock extends HTMLElement {
     // Edit button only for section types that support editing
     const recordUri = this.section.records?.[0];
     const isImageRecord =
-      this.section.collection === 'garden.spores.content.image' ||
+      sectionCollection === 'garden.spores.content.image' ||
       (typeof recordUri === 'string' && recordUri.includes('/garden.spores.content.image/'));
 
     const supportsEditing =
@@ -784,7 +786,7 @@ class SectionBlock extends HTMLElement {
       container.appendChild(contentDiv);
 
       // In edit mode, make it editable (only for inline content, not records)
-      if (this.editMode && !this.section.ref && !this.section.rkey) {
+      if (this.editMode && !this.section.ref && !this.section.collection && !this.section.rkey) {
         contentDiv.contentEditable = 'true';
         contentDiv.addEventListener('blur', () => {
           updateSection(this.section.id, { content: contentDiv.innerText });

@@ -88,8 +88,6 @@ function generateInitialSections(did: string): any[] {
     id: `section-${sectionId++}`,
     type: 'profile',
     ref: buildAtUri(did, 'garden.spores.site.profile', 'self'),
-    collection: 'garden.spores.site.profile',
-    rkey: 'self',
     layout: 'profile'
   });
 
@@ -424,13 +422,14 @@ export async function loadUserConfig(did) {
       sections = pdsSectionResults.filter(Boolean).map(record => {
         const sectionRkey = record.uri?.split('/').pop();
         const val = record.value;
+        const { collection: legacyCollection, rkey: legacyRkey, ...rest } = val || {};
         // Construct ref from collection+rkey when absent (backward compat)
         let ref = val.ref;
-        if (!ref && val.collection && val.rkey) {
-          ref = buildAtUri(did, val.collection, val.rkey);
+        if (!ref && legacyCollection && legacyRkey) {
+          ref = buildAtUri(did, legacyCollection, legacyRkey);
         }
         return {
-          ...val,
+          ...rest,
           ref,
           id: sectionRkey,
           sectionRkey,
@@ -545,14 +544,17 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
   promises.push(putRecord(CONFIG_COLLECTION, CONFIG_RKEY, configToSave));
 
   const updatedSections = await Promise.all(currentConfig.sections.map(async (section) => {
+    const authoritativeRef = section.ref || (
+      section.collection && section.rkey
+        ? buildAtUri(did, section.collection, section.rkey)
+        : undefined
+    );
     const sectionRecord = {
       $type: SECTION_COLLECTION,
       type: section.type,
       title: section.title || undefined,
       layout: section.layout || undefined,
-      ref: section.ref || undefined,
-      collection: section.collection || undefined,
-      rkey: section.rkey || undefined,
+      ref: authoritativeRef,
       records: section.records || undefined,
       content: section.content || undefined,
       format: section.format || undefined,
@@ -562,11 +564,13 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
 
     if (section.sectionRkey) {
       await putRecord(SECTION_COLLECTION, section.sectionRkey, sectionRecord);
-      return section;
+      const { collection: _legacyCollection, rkey: _legacyRkey, ...normalized } = section;
+      return { ...normalized, ref: authoritativeRef };
     } else {
       const response = await createRecord(SECTION_COLLECTION, sectionRecord);
       const newSectionRkey = response.uri.split('/').pop();
-      return { ...section, sectionRkey: newSectionRkey, uri: response.uri };
+      const { collection: _legacyCollection, rkey: _legacyRkey, ...normalized } = section;
+      return { ...normalized, ref: authoritativeRef, sectionRkey: newSectionRkey, uri: response.uri };
     }
   }));
   currentConfig.sections = updatedSections;
@@ -704,4 +708,3 @@ export function updateTheme(themeUpdates) {
   };
   return currentConfig.theme;
 }
-
