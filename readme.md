@@ -91,8 +91,9 @@ Layouts extract common fields (title, content, image, date, etc.) from any lexic
 Special spores are rare, gamified items that implement a capture-the-flag mechanic:
 
 - **Rarity**: Only 1 in 10 new gardens receives a special spore (10% probability on first config)
-- **Capture Mechanics**: Users can steal spores from gardens (with restrictions)
+- **Capture Mechanics**: Users can steal spores from gardens, but rapid re-steals are blocked for 1 minute
 - **Backlink-Based**: All spore records reference the origin garden via backlinks, enabling full lineage tracking
+- **Timestamp Guardrail**: Capture records with `createdAt` more than 5 minutes in the future are ignored
 - **Evolution**: Complete history of all captures is preserved and displayed chronologically
 
 See [Special Spore Documentation](docs/special-spore.md) for detailed implementation and mechanics.
