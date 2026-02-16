@@ -172,9 +172,21 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     items: 'sections',
     confidence: 'high'
   },
+  'coop.hypha.spores.site.config': {
+    title: 'title',
+    items: 'sections',
+    confidence: 'high'
+  },
 
   // Spores.garden Content Block
   'garden.spores.content.text': {
+    title: 'title',
+    content: 'content',
+    date: 'createdAt',
+    confidence: 'high',
+    preferredLayout: 'post'
+  },
+  'coop.hypha.spores.content.text': {
     title: 'title',
     content: 'content',
     date: 'createdAt',
@@ -191,9 +203,22 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     confidence: 'high',
     preferredLayout: 'profile'
   },
+  'coop.hypha.spores.site.profile': {
+    title: 'displayName',
+    content: 'description',
+    image: 'avatar',
+    confidence: 'high',
+    preferredLayout: 'profile'
+  },
 
   // Spores.garden Image
   'garden.spores.content.image': {
+    title: 'title',
+    image: 'image',
+    date: 'createdAt',
+    preferredLayout: 'image'
+  },
+  'coop.hypha.spores.content.image': {
     title: 'title',
     image: 'image',
     date: 'createdAt',
@@ -206,10 +231,19 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     // subject is a DID reference
     confidence: 'high'
   },
+  'coop.hypha.spores.social.flower': {
+    date: 'createdAt',
+    confidence: 'high'
+  },
 
   // Spores.garden Taken Flower
   'garden.spores.social.takenFlower': {
     content: 'note', // Optional note when taking flower
+    date: 'createdAt',
+    confidence: 'high'
+  },
+  'coop.hypha.spores.social.takenFlower': {
+    content: 'note',
     date: 'createdAt',
     confidence: 'high'
   },
@@ -338,11 +372,17 @@ const KNOWN_LEXICONS = new Set([
   'com.whtwnd.blog.entry',
   'blue.linkat.board',
   'garden.spores.site.config',
+  'coop.hypha.spores.site.config',
   'garden.spores.content.text',
+  'coop.hypha.spores.content.text',
   'garden.spores.content.image',
+  'coop.hypha.spores.content.image',
   'garden.spores.site.profile',
+  'coop.hypha.spores.site.profile',
   'garden.spores.social.flower',
+  'coop.hypha.spores.social.flower',
   'garden.spores.social.takenFlower',
+  'coop.hypha.spores.social.takenFlower',
   'pub.leaflet.document',
   'site.standard.document',
   'community.lexicon.calendar.event',

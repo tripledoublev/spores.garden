@@ -7,7 +7,8 @@
  */
 
 import { getProfile, getRecord, listReposByCollection } from '../at-client';
-import { hasGardenIdentifierInUrl, buildGardenPath } from '../config';
+import { hasGardenIdentifierInUrl } from '../config';
+import { getCollection, getReadCollections } from '../config/nsid';
 import { generateThemeFromDid } from '../themes/engine';
 import { getJetstreamClient, type GardenDiscoveryEvent } from '../jetstream';
 import './did-visualization';
@@ -327,7 +328,8 @@ class RecentGardens extends HTMLElement {
     // For non-config records, verify the user has a garden
     if (updateType !== 'edit') {
       try {
-        const configRecord = await getRecord(gardenDid, 'garden.spores.site.config', 'self', { useSlingshot: true });
+        const configRecord = await getRecord(gardenDid, getCollection('siteConfig', 'old'), 'self', { useSlingshot: true })
+          || await getRecord(gardenDid, getCollection('siteConfig', 'new'), 'self', { useSlingshot: true });
         if (!configRecord?.value) return;
       } catch {
         return;
@@ -386,9 +388,9 @@ class RecentGardens extends HTMLElement {
    * Get update type from collection name
    */
   private getUpdateTypeFromCollection(collection: string): GardenMetadata['updateType'] {
-    if (collection === 'garden.spores.site.config') return 'edit';
-    if (collection === 'garden.spores.social.takenFlower') return 'seedling';
-    if (collection === 'garden.spores.item.specialSpore') return 'spore';
+    if (collection === getCollection('siteConfig', 'old') || collection === getCollection('siteConfig', 'new')) return 'edit';
+    if (collection === getCollection('socialTakenFlower', 'old') || collection === getCollection('socialTakenFlower', 'new')) return 'seedling';
+    if (collection === getCollection('itemSpecialSpore', 'old') || collection === getCollection('itemSpecialSpore', 'new')) return 'spore';
     return 'flower';
   }
 
@@ -442,7 +444,11 @@ class RecentGardens extends HTMLElement {
         console.log('[RecentGardens] Using cached DID list:', allGardenDids.length, 'gardens');
       } else {
         try {
-          allGardenDids = await listReposByCollection('garden.spores.site.config');
+          const [oldRepos, newRepos] = await Promise.all([
+            listReposByCollection(getCollection('siteConfig', 'old')).catch(() => []),
+            listReposByCollection(getCollection('siteConfig', 'new')).catch(() => []),
+          ]);
+          allGardenDids = [...new Set([...(oldRepos || []), ...(newRepos || [])])];
           console.log('[RecentGardens] Discovered gardens from relay:', allGardenDids.length);
           saveKnownGardens(allGardenDids);
           localStorage.setItem('spores.garden.didListFetchedAt', Date.now().toString());
@@ -537,21 +543,35 @@ class RecentGardens extends HTMLElement {
             try {
               // Fetch most recent activity record of each type in parallel
               const [flowers, takenFlowers, spores] = await Promise.all([
-                listRecords(did, 'garden.spores.social.flower', { limit: 1 }, null).catch(() => null),
-                listRecords(did, 'garden.spores.social.takenFlower', { limit: 1 }, null).catch(() => null),
-                listRecords(did, 'garden.spores.item.specialSpore', { limit: 1 }, null).catch(() => null),
+                Promise.all(getReadCollections('socialFlower').map((collection) =>
+                  listRecords(did, collection, { limit: 1 }, null).catch(() => null)
+                )),
+                Promise.all(getReadCollections('socialTakenFlower').map((collection) =>
+                  listRecords(did, collection, { limit: 1 }, null).catch(() => null)
+                )),
+                Promise.all(getReadCollections('itemSpecialSpore').map((collection) =>
+                  listRecords(did, collection, { limit: 1 }, null).catch(() => null)
+                )),
               ]);
+              const newest = (responses: any[]) => {
+                const records = responses.flatMap((r) => r?.records || []);
+                if (!records.length) return null;
+                return records[0];
+              };
+              const newestFlower = newest(flowers);
+              const newestTakenFlower = newest(takenFlowers);
+              const newestSpore = newest(spores);
 
               const activities: Array<{ timestamp: Date; type: GardenMetadata['updateType'] }> = [];
 
-              if (flowers?.records?.[0]?.value?.createdAt) {
-                activities.push({ timestamp: new Date(flowers.records[0].value.createdAt), type: 'flower' });
+              if (newestFlower?.value?.createdAt) {
+                activities.push({ timestamp: new Date(newestFlower.value.createdAt), type: 'flower' });
               }
-              if (takenFlowers?.records?.[0]?.value?.createdAt) {
-                activities.push({ timestamp: new Date(takenFlowers.records[0].value.createdAt), type: 'seedling' });
+              if (newestTakenFlower?.value?.createdAt) {
+                activities.push({ timestamp: new Date(newestTakenFlower.value.createdAt), type: 'seedling' });
               }
-              if (spores?.records?.[0]?.value?.createdAt) {
-                activities.push({ timestamp: new Date(spores.records[0].value.createdAt), type: 'spore' });
+              if (newestSpore?.value?.createdAt) {
+                activities.push({ timestamp: new Date(newestSpore.value.createdAt), type: 'spore' });
               }
               if (cached) {
                 activities.push({ timestamp: new Date(cached.timestamp), type: cached.updateType });
@@ -677,7 +697,7 @@ class RecentGardens extends HTMLElement {
     }
 
     const gardensHTML = this.gardens.map(garden => {
-      const gardenUrl = buildGardenPath(garden.handle || garden.did);
+      const gardenUrl = garden.handle ? `/@${garden.handle}` : `/@${garden.did}`;
       const updateIcon = this.getUpdateTypeIcon(garden.updateType);
       // Only show time if we have a real timestamp (not epoch)
       const hasRealTimestamp = garden.lastUpdated.getTime() > 0;

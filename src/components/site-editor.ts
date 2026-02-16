@@ -1,6 +1,7 @@
 import { getConfig, saveConfig, getSiteOwnerDid, setSiteOwnerDid } from '../config';
 import { getCurrentDid, putRecord, uploadBlob, createRecord, post, isLoggedIn } from '../oauth';
 import { getRecord, getProfile, buildAtUri } from '../at-client';
+import { getCollection } from '../config/nsid';
 import { setCachedActivity } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
 import { SiteRouter } from './site-router';
@@ -169,6 +170,7 @@ export class SiteEditor {
 
   async addProfileSection() {
     const ownerDid = getSiteOwnerDid();
+    const profileCollection = getCollection('siteProfile');
     if (!ownerDid) {
       this.showNotification('You must be logged in to add a profile.', 'error');
       return;
@@ -179,12 +181,12 @@ export class SiteEditor {
     try {
       // 1. Check if profile record already exists
       try {
-        const existing = await getRecord(ownerDid, 'garden.spores.site.profile', 'self');
+        const existing = await getRecord(ownerDid, profileCollection, 'self');
         if (existing && existing.value) {
           this.showNotification('Found existing profile.', 'success');
           this.addSectionToConfig({
             type: 'profile',
-            collection: 'garden.spores.site.profile',
+            collection: profileCollection,
             rkey: 'self'
           });
           return;
@@ -202,7 +204,7 @@ export class SiteEditor {
       }
 
       const record: any = {
-        $type: 'garden.spores.site.profile',
+        $type: profileCollection,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         displayName: bskyProfile.displayName,
@@ -242,14 +244,14 @@ export class SiteEditor {
       }
 
       // 3. Create the record
-      await putRecord('garden.spores.site.profile', 'self', record);
+      await putRecord(profileCollection, 'self', record);
 
       this.showNotification('Profile imported successfully!', 'success');
 
       // 4. Add the section
       this.addSectionToConfig({
         type: 'profile',
-        collection: 'garden.spores.site.profile',
+        collection: profileCollection,
         rkey: 'self'
       });
 

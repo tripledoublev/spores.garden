@@ -1,6 +1,7 @@
 import { listRecords, getProfiles } from '../at-client';
 import { getCurrentDid, isLoggedIn, deleteRecord, putRecord } from '../oauth';
-import { getSiteOwnerDid, buildGardenPath } from '../config';
+import { getSiteOwnerDid } from '../config';
+import { getCollection, getReadCollections } from '../config/nsid';
 import { getSafeHandle, truncateDid } from '../utils/identity';
 import { showConfirmModal } from '../utils/confirm-modal';
 
@@ -37,8 +38,12 @@ export async function renderCollectedFlowers(
       return el;
     }
 
-    const response = await listRecords(recordsOwnerDid, 'garden.spores.social.takenFlower', { limit: 100 });
-    const takenFlowers = response.records;
+    const responses = await Promise.all(
+      getReadCollections('socialTakenFlower').map((collection) =>
+        listRecords(recordsOwnerDid, collection, { limit: 100 }).catch(() => ({ records: [] }))
+      )
+    );
+    const takenFlowers = responses.flatMap((response: any) => response.records || []);
 
     if (takenFlowers.length === 0) {
       el.innerHTML = '<p>Visit other gardens and pick flowers to start your collection. Each flower links back to its source garden.</p>';
@@ -61,11 +66,12 @@ export async function renderCollectedFlowers(
       flowerEl.className = 'flower-grid-item';
 
       const link = document.createElement('a');
+      link.href = `/@${sourceDid}`;
       link.title = `View ${sourceDid}'s garden`;
 
       const profile = profileMap.get(sourceDid) as { handle?: string; displayName?: string } | null | undefined;
       const safeHandle = getSafeHandle(profile?.handle, sourceDid);
-      link.href = buildGardenPath(safeHandle);
+      link.href = `/@${safeHandle}`;
       link.title = `View ${sourceDid}'s garden`;
 
       const displayHandle = safeHandle === sourceDid ? truncateDid(sourceDid) : safeHandle;
@@ -101,7 +107,7 @@ export async function renderCollectedFlowers(
         editBtn.innerHTML = PEN_ICON_SVG;
         editBtn.addEventListener('click', () => {
           openEditNoteModal(note ?? '', (newNote) => {
-            putRecord('garden.spores.social.takenFlower', rkey, {
+            putRecord(getCollection('socialTakenFlower'), rkey, {
               subject: sourceDid,
               createdAt,
               note: newNote,
@@ -130,7 +136,7 @@ export async function renderCollectedFlowers(
           });
           if (confirmed) {
             try {
-              await deleteRecord('garden.spores.social.takenFlower', rkey);
+              await deleteRecord(getCollection('socialTakenFlower'), rkey);
               options?.onRefresh?.();
             } catch (err) {
               console.error('Failed to remove flower:', err);

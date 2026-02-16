@@ -1,5 +1,6 @@
 import { describeRepo, listRecords, getRecord, getProfile } from '../at-client';
 import { getCurrentDid, logout, getAgent, deleteRecord } from '../oauth';
+import { NEW_NSID_PREFIX, OLD_NSID_PREFIX, SPORE_COLLECTION_KEYS, getCollection } from '../config/nsid';
 import { showConfirmModal } from '../utils/confirm-modal';
 
 /**
@@ -46,25 +47,22 @@ export class SiteData {
             keysToDelete.forEach(key => localStorage.removeItem(key));
             deletedLocalStorage = keysToDelete.length;
 
-            // 2. Delete PDS records - dynamically discover all garden.spores.* collections
+            // 2. Delete PDS records - dynamically discover both old/new spores collections
             let gardenCollections: string[] = [];
             try {
                 const repoInfo = await describeRepo(currentDid, getAgent());
-                // Filter collections to only include garden.spores.* ones
-                gardenCollections = (repoInfo.collections || []).filter((col: string) => col.startsWith('garden.spores.'));
-                console.log(`Found ${gardenCollections.length} garden.spores.* collections:`, gardenCollections);
+                // Filter collections to include both namespaces
+                gardenCollections = (repoInfo.collections || []).filter((col: string) =>
+                    col.startsWith(`${OLD_NSID_PREFIX}.`) || col.startsWith(`${NEW_NSID_PREFIX}.`)
+                );
+                console.log(`Found ${gardenCollections.length} spores collections:`, gardenCollections);
             } catch (error) {
                 console.error('Failed to describe repo, using fallback collection list:', error);
                 // Fallback to known collections if describeRepo fails
-                gardenCollections = [
-                    'garden.spores.site.config',
-                    'garden.spores.site.layout',
-                    'garden.spores.site.section',
-                    'garden.spores.social.flower',
-                    'garden.spores.social.takenFlower',
-                    'garden.spores.content.text',
-                    'garden.spores.content.image'
-                ];
+                gardenCollections = Array.from(new Set([
+                    ...SPORE_COLLECTION_KEYS.map((key) => getCollection(key, 'old')),
+                    ...SPORE_COLLECTION_KEYS.map((key) => getCollection(key, 'new')),
+                ]));
             }
 
             // For each collection, list and delete all records
@@ -127,7 +125,9 @@ export class SiteData {
                 return bskyProfile.displayName;
             }
 
-            const customProfile = await getRecord(did, 'garden.spores.site.profile', 'self');
+            const customProfile =
+              await getRecord(did, getCollection('siteProfile', 'new'), 'self')
+              || await getRecord(did, getCollection('siteProfile', 'old'), 'self');
             if (customProfile?.value?.displayName) {
                 return customProfile.value.displayName;
             }

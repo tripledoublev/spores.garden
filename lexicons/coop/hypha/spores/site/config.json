@@ -1,0 +1,52 @@
+{
+  "lexicon": 1,
+  "id": "coop.hypha.spores.site.config",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "description": "Site configuration for spores.garden, including title and subtitle.",
+      "record": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxGraphemes": 100,
+            "maxLength": 1000,
+            "description": "Site title"
+          },
+          "subtitle": {
+            "type": "string",
+            "maxGraphemes": 200,
+            "maxLength": 2000,
+            "description": "Site subtitle"
+          },
+          "headingFont": {
+            "type": "string",
+            "maxLength": 50,
+            "knownValues": ["work-sans", "georgia", "jetbrains-mono", "courier-new"],
+            "description": "Heading font ID"
+          },
+          "bodyFont": {
+            "type": "string",
+            "maxLength": 50,
+            "knownValues": ["work-sans", "georgia", "jetbrains-mono", "courier-new"],
+            "description": "Body font ID"
+          },
+          "fontHeading": {
+            "type": "string",
+            "maxLength": 50,
+            "knownValues": ["work-sans", "georgia", "jetbrains-mono", "courier-new"],
+            "description": "Deprecated legacy key for heading font ID"
+          },
+          "fontBody": {
+            "type": "string",
+            "maxLength": 50,
+            "knownValues": ["work-sans", "georgia", "jetbrains-mono", "courier-new"],
+            "description": "Deprecated legacy key for body font ID"
+          }
+        }
+      }
+    }
+  }
+}

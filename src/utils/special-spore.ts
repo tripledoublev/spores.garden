@@ -3,14 +3,13 @@
  * Shared by header display (site-renderer) and steal UI (spore-modal).
  */
 
-import { getBacklinks, getRecord } from '../at-client';
-import { createRecord } from '../oauth';
+import { getBacklinks, getRecord, getProfile } from '../at-client';
+import { getCurrentDid, isLoggedIn, createRecord } from '../oauth';
 import { isValidSpore } from '../config';
-import { showAlertModal } from './confirm-modal';
+import { getBacklinkQueries, getCollection, getReadCollections } from '../config/nsid';
+import { showConfirmModal, showAlertModal } from './confirm-modal';
 
-const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
-const MAX_CAPTURE_FUTURE_SKEW_MS = 5 * 60 * 1000;
-const SPORE_STEAL_COOLDOWN_MS = 1 * 60 * 1000;
+const SPECIAL_SPORE_COLLECTION = getCollection('itemSpecialSpore');
 
 export interface SporeInfo {
   originGardenDid: string;
@@ -18,35 +17,17 @@ export interface SporeInfo {
   currentRecord: any;
 }
 
-function parseCaptureTimestampMs(createdAt: unknown, nowMs = Date.now()): number | null {
-  if (typeof createdAt !== 'string' || !createdAt) {
-    return null;
-  }
-
-  const parsedMs = new Date(createdAt).getTime();
-  if (!Number.isFinite(parsedMs)) {
-    return null;
-  }
-
-  // Ignore records with implausible future timestamps.
-  if (parsedMs > nowMs + MAX_CAPTURE_FUTURE_SKEW_MS) {
-    return null;
-  }
-
-  return parsedMs;
-}
-
 /**
  * Find spore info by its origin garden DID (current holder from latest record).
  */
 export async function findSporeByOrigin(originGardenDid: string): Promise<SporeInfo | null> {
   try {
-    const backlinksResponse = await getBacklinks(
-      originGardenDid,
-      `${SPECIAL_SPORE_COLLECTION}:subject`,
-      { limit: 100 }
+    const backlinkResponses = await Promise.all(
+      getBacklinkQueries('itemSpecialSpore', 'subject').map((q) =>
+        getBacklinks(originGardenDid, q, { limit: 100 }).catch(() => null)
+      )
     );
-    const backlinks = backlinksResponse.records || backlinksResponse.links || [];
+    const backlinks = backlinkResponses.flatMap((response: any) => response?.records || response?.links || []);
 
     if (backlinks.length === 0) return null;
 
@@ -60,15 +41,12 @@ export async function findSporeByOrigin(originGardenDid: string): Promise<SporeI
       })
     );
 
-    const validRecords = records.filter((r) => {
-      if (!r?.value) return false;
-      return parseCaptureTimestampMs(r.value.createdAt) !== null;
-    });
+    const validRecords = records.filter(r => r?.value);
     if (validRecords.length === 0) return null;
 
     validRecords.sort((a, b) => {
-      const timeA = parseCaptureTimestampMs(a.value.createdAt) || 0;
-      const timeB = parseCaptureTimestampMs(b.value.createdAt) || 0;
+      const timeA = new Date(a.value.createdAt || 0).getTime();
+      const timeB = new Date(b.value.createdAt || 0).getTime();
       return timeB - timeA;
     });
 
@@ -101,8 +79,12 @@ export async function findAllHeldSpores(gardenOwnerDid: string): Promise<SporeIn
     }
 
     const { listRecords } = await import('../at-client');
-    const ownedSpores = await listRecords(gardenOwnerDid, SPECIAL_SPORE_COLLECTION, { limit: 10 });
-    const sporeRecords = ownedSpores?.records || [];
+    const ownedResponses = await Promise.all(
+      getReadCollections('itemSpecialSpore').map((collection) =>
+        listRecords(gardenOwnerDid, collection, { limit: 10 }).catch(() => ({ records: [] }))
+      )
+    );
+    const sporeRecords = ownedResponses.flatMap((response: any) => response.records || []);
 
     for (const record of sporeRecords) {
       const originDid = record.value?.subject;
@@ -130,28 +112,6 @@ export async function stealSpore(
   newOwnerDid: string,
   previousOwnerHandle: string
 ): Promise<void> {
-  const currentHolder = await findSporeByOrigin(originGardenDid);
-  if (!currentHolder) {
-    throw new Error('Could not find a valid spore record to steal.');
-  }
-
-  if (currentHolder.currentOwnerDid === newOwnerDid) {
-    throw new Error('You already hold this spore.');
-  }
-
-  const latestCaptureMs = parseCaptureTimestampMs(currentHolder.currentRecord?.value?.createdAt);
-  if (latestCaptureMs === null) {
-    throw new Error('Spore capture timestamp is invalid. Try again in a few minutes.');
-  }
-
-  const nowMs = Date.now();
-  const elapsedMs = Math.max(0, nowMs - latestCaptureMs);
-  if (elapsedMs < SPORE_STEAL_COOLDOWN_MS) {
-    const remainingMs = SPORE_STEAL_COOLDOWN_MS - elapsedMs;
-    const remainingMinutes = Math.ceil(remainingMs / 60000);
-    throw new Error(`This spore was just captured. Try again in about ${remainingMinutes} minute(s).`);
-  }
-
   try {
     await createRecord(SPECIAL_SPORE_COLLECTION, {
       $type: SPECIAL_SPORE_COLLECTION,

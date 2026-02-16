@@ -6,6 +6,7 @@
 import { createRecord, putRecord, uploadBlob } from '../oauth';
 import { addSection, updateSection, getSiteOwnerDid } from '../config';
 import { getRecord } from '../at-client';
+import { getCollection } from '../config/nsid';
 
 // Type for blob reference as stored in AT Proto records
 interface BlobRef {
@@ -357,10 +358,11 @@ class CreateProfile extends HTMLElement {
     if (!ownerDid) {
       throw new Error('Not logged in');
     }
+    const profileCollection = getCollection('siteProfile');
 
     // Create the profile record
     const record: any = {
-      $type: 'garden.spores.site.profile',
+      $type: profileCollection,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -386,12 +388,12 @@ class CreateProfile extends HTMLElement {
     }
 
     // Use 'self' as a consistent rkey for the user's profile
-    await putRecord('garden.spores.site.profile', 'self', record);
+    await putRecord(profileCollection, 'self', record);
 
     // Add section to config referencing this profile
     const section: any = {
       type: 'profile',
-      collection: 'garden.spores.site.profile',
+      collection: profileCollection,
       rkey: 'self'
     };
 
@@ -410,12 +412,13 @@ class CreateProfile extends HTMLElement {
     if (!ownerDid) {
       throw new Error('Not logged in');
     }
+    const profileCollection = getCollection('siteProfile');
 
     if (this.editRkey) {
       // Load existing record first to merge all fields
       let existingRecord: any = {};
       try {
-        const existing = await getRecord(ownerDid, 'garden.spores.site.profile', this.editRkey);
+        const existing = await getRecord(ownerDid, profileCollection, this.editRkey);
         if (existing?.value) {
           existingRecord = existing.value;
         }
@@ -426,7 +429,7 @@ class CreateProfile extends HTMLElement {
       // Start with existing record and update only changed fields
       const record: any = {
         ...existingRecord,
-        $type: 'garden.spores.site.profile',
+        $type: profileCollection,
         updatedAt: new Date().toISOString()
       };
 
@@ -462,7 +465,7 @@ class CreateProfile extends HTMLElement {
         record.createdAt = existingRecord.createdAt;
       }
 
-      await putRecord('garden.spores.site.profile', this.editRkey, record);
+      await putRecord(profileCollection, this.editRkey, record);
 
       // Update section config if displayName changed
       if (this.editSectionId && this.displayName) {
@@ -471,7 +474,7 @@ class CreateProfile extends HTMLElement {
     } else {
       // No rkey exists - create a new profile record and update section
       const record: any = {
-        $type: 'garden.spores.site.profile',
+        $type: profileCollection,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -497,12 +500,12 @@ class CreateProfile extends HTMLElement {
       }
 
       // Use 'self' as a consistent rkey for the user's profile
-      await putRecord('garden.spores.site.profile', 'self', record);
+      await putRecord(profileCollection, 'self', record);
 
       // Update the section to reference the profile record
       if (this.editSectionId) {
         const updates: any = {
-          collection: 'garden.spores.site.profile',
+          collection: profileCollection,
           rkey: 'self'
         };
         if (this.displayName) {

@@ -58,6 +58,10 @@ export class JetstreamClient {
     'garden.spores.social.flower',     // Flower planting activity
     'garden.spores.social.takenFlower', // Flower picking activity
     'garden.spores.item.specialSpore', // Special spore activity
+    'coop.hypha.spores.site.config',
+    'coop.hypha.spores.social.flower',
+    'coop.hypha.spores.social.takenFlower',
+    'coop.hypha.spores.item.specialSpore',
   ];
 
   // How far back to fetch historical events (24 hours in milliseconds)

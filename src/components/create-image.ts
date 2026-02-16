@@ -5,6 +5,7 @@
 
 import { createRecord, putRecord, uploadBlob, getCurrentDid } from '../oauth';
 import { addSection, getSiteOwnerDid, updateSection } from '../config';
+import { getCollection } from '../config/nsid';
 import { clearCache } from '../records/loader';
 import { setCachedActivity } from './recent-gardens';
 
@@ -270,6 +271,7 @@ class CreateImage extends HTMLElement {
 
     private async createImageRecord() {
         if (!this.selectedFile) return;
+        const imageCollection = getCollection('contentImage');
 
         const ownerDid = getSiteOwnerDid();
         if (!ownerDid) {
@@ -288,7 +290,7 @@ class CreateImage extends HTMLElement {
 
         // 2. Create Record
         const record: any = {
-            $type: 'garden.spores.content.image',
+            $type: imageCollection,
             image: blobRef,
             createdAt: new Date().toISOString()
         };
@@ -297,7 +299,7 @@ class CreateImage extends HTMLElement {
             record.title = this.imageTitle;
         }
 
-        const response = await createRecord('garden.spores.content.image', record) as any;
+        const response = await createRecord(imageCollection, record) as any;
 
         // Extract rkey
         const rkey = response.uri.split('/').pop();
@@ -309,7 +311,7 @@ class CreateImage extends HTMLElement {
             title: this.imageTitle || 'Image',
             records: [response.uri],
             ref: response.uri,
-            collection: 'garden.spores.content.image',
+            collection: imageCollection,
             rkey
         };
 
@@ -335,6 +337,7 @@ class CreateImage extends HTMLElement {
             throw new Error('Missing image record key');
         }
 
+        const imageCollection = getCollection('contentImage');
         let blobRef = null;
         if (this.selectedFile) {
             const uploadResult = await uploadBlob(this.selectedFile, this.selectedFile.type);
@@ -348,7 +351,7 @@ class CreateImage extends HTMLElement {
         }
 
         const record: any = {
-            $type: 'garden.spores.content.image',
+            $type: imageCollection,
             image: blobRef,
             createdAt: this.existingCreatedAt || new Date().toISOString()
         };
@@ -357,7 +360,7 @@ class CreateImage extends HTMLElement {
             record.title = this.imageTitle;
         }
 
-        await putRecord('garden.spores.content.image', this.editRkey, record);
+        await putRecord(imageCollection, this.editRkey, record);
 
         clearCache(ownerDid);
 
