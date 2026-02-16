@@ -26,24 +26,30 @@
             "knownValues": ["post", "card", "image", "link", "links", "list", "profile", "raw"],
             "description": "Layout to use for rendering"
           },
+          "data": {
+            "type": "union",
+            "closed": false,
+            "refs": ["#recordRefData", "#recordsData", "#emptyData"],
+            "description": "Typed section payload. Preferred over legacy optional top-level fields."
+          },
           "collection": {
             "type": "string",
-            "description": "Collection NSID to display (for type=collection)"
+            "description": "Deprecated legacy field. Collection NSID to display."
           },
           "rkey": {
             "type": "string",
-            "description": "Record key within the collection to display (e.g. 'self' for profile)"
+            "description": "Deprecated legacy field. Record key within the collection to display."
           },
           "records": {
             "type": "array",
             "items": { "type": "string", "format": "at-uri" },
-            "description": "Specific record URIs to display (for type=records)"
+            "description": "Deprecated legacy field. Specific record URIs to display."
           },
           "content": {
             "type": "string",
             "maxGraphemes": 50000,
             "maxLength": 500000,
-            "description": "Content for block sections"
+            "description": "Deprecated legacy field. Inline content for block sections."
           },
           "format": {
             "type": "string",
@@ -67,6 +73,42 @@
           }
         }
       }
+    },
+    "recordRefData": {
+      "type": "object",
+      "required": ["ref"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "Referenced record AT-URI for profile/content sections."
+        }
+      }
+    },
+    "recordsData": {
+      "type": "object",
+      "required": ["records"],
+      "properties": {
+        "records": {
+          "type": "array",
+          "items": { "type": "string", "format": "at-uri" },
+          "description": "Specific record URIs to render."
+        },
+        "collection": {
+          "type": "string",
+          "description": "Optional source collection hint."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Optional render limit."
+        }
+      }
+    },
+    "emptyData": {
+      "type": "object",
+      "description": "No additional payload required for this section type."
     }
   }
 }

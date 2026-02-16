@@ -13,6 +13,52 @@ const CONFIG_RKEY = 'self';
 let currentConfig = null;
 let siteOwnerDid = null;
 
+function normalizeSectionFromTypedData(value: any, did: string) {
+  const normalized = { ...(value || {}) };
+  const data = normalized.data;
+
+  if (data && typeof data === 'object') {
+    if ((normalized.type === 'profile' || normalized.type === 'content' || normalized.type === 'block') && !normalized.ref) {
+      normalized.ref = data.ref;
+    }
+    if (normalized.type === 'records') {
+      if (!normalized.records && Array.isArray(data.records)) normalized.records = data.records;
+      if (!normalized.collection && data.collection) normalized.collection = data.collection;
+      if (normalized.limit === undefined && data.limit !== undefined) normalized.limit = data.limit;
+    }
+  }
+
+  // Legacy fallback: construct ref from collection+rkey when absent.
+  if (!normalized.ref && normalized.collection && normalized.rkey) {
+    normalized.ref = buildAtUri(did, normalized.collection, normalized.rkey);
+  }
+
+  return normalized;
+}
+
+function buildTypedSectionData(section: any) {
+  if (!section) return undefined;
+
+  if (section.type === 'profile' || section.type === 'content' || section.type === 'block') {
+    if (!section.ref) return undefined;
+    return { ref: section.ref };
+  }
+
+  if (section.type === 'records') {
+    return {
+      records: section.records || [],
+      collection: section.collection || undefined,
+      limit: section.limit || undefined,
+    };
+  }
+
+  if (section.type === 'share-to-bluesky' || section.type === 'collected-flowers') {
+    return {};
+  }
+
+  return undefined;
+}
+
 function getHeadingFontId(config: any): string | undefined {
   return config?.headingFont || config?.fontHeading;
 }
@@ -443,16 +489,9 @@ export async function loadUserConfig(did) {
       // rkey = the target record's rkey within the collection (from the record value, e.g. 'self' for profiles)
       sections = pdsSectionResults.filter(Boolean).map(record => {
         const sectionRkey = record.uri?.split('/').pop();
-        const val = record.value;
-        const { collection: legacyCollection, rkey: legacyRkey, ...rest } = val || {};
-        // Construct ref from collection+rkey when absent (backward compat)
-        let ref = val.ref;
-        if (!ref && legacyCollection && legacyRkey) {
-          ref = buildAtUri(did, legacyCollection, legacyRkey);
-        }
+        const val = normalizeSectionFromTypedData(record.value, did);
         return {
-          ...rest,
-          ref,
+          ...val,
           id: sectionRkey,
           sectionRkey,
         };
@@ -589,12 +628,14 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
         contentRef = createdContent.uri;
       }
     }
+    const typedData = buildTypedSectionData(section);
     const sectionRecord = {
       $type: SECTION_COLLECTION,
       type: section.type,
       title: section.title || undefined,
       layout: section.layout || undefined,
       ref: isContentSection ? (contentRef || undefined) : authoritativeRef,
+      data: typedData,
       records: section.records || undefined,
       content: isContentSection ? undefined : section.content || undefined,
       format: section.format || undefined,
