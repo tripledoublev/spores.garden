@@ -114,8 +114,10 @@ npm run test:ui   # Run tests with UI
 
 ## Documentation
 
+- [Documentation Index](docs/README.md) - Entry point for project documentation
 - [Layout System Developer Guide](docs/layouts.md) - Learn how to create custom layouts
 - [Special Spore Documentation](docs/special-spore.md) - Special spore mechanics and implementation
+- [NSID Migration Plan](docs/nsid-migration.md) - Namespace migration strategy and launch checklist
 - [Leaflet.pub Schema Notes](docs/leaflet-pub-schema-notes.md) - Notes on leaflet.pub integration
 
 ## License
