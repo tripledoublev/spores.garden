@@ -22,7 +22,6 @@ class SiteApp extends HTMLElement {
   private renderer: SiteRenderer;
   private interactions: SiteInteractions;
   private data: SiteData;
-  private isThemeReady = false;
 
   constructor() {
     super();
@@ -110,7 +109,6 @@ class SiteApp extends HTMLElement {
     
     // On initial load, set up theme-ready state
     if (isInitialLoad) {
-      this.isThemeReady = true;
       this.classList.add('theme-ready');
     }
     

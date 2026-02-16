@@ -1,21 +1,10 @@
-import { getBacklinks, getProfile, listRecords, getRecord } from '../at-client';
-import { getSiteOwnerDid, isValidSpore, buildGardenPath } from '../config';
+import { getBacklinks, getProfile, listRecords } from '../at-client';
+import { getSiteOwnerDid, buildGardenPath } from '../config';
 import { isLoggedIn, getCurrentDid } from '../oauth';
-import { getBacklinkQueries, getCollection, getReadCollections } from '../config/nsid';
+import { getBacklinkQueries, getReadCollections } from '../config/nsid';
 import { getSafeHandle, truncateDid } from '../utils/identity';
 import { generateThemeFromDid } from '../themes/engine';
-import { generateSporeFlowerSVGString, generateFlowerSVGString } from '../utils/flower-svg';
 import { escapeHtml } from '../utils/sanitize';
-
-const SPECIAL_SPORE_COLLECTION = getCollection('itemSpecialSpore');
-
-interface SporeRecord {
-  ownerDid: string;
-  capturedAt: string;
-  subject: string;
-  uri: string;
-  rkey: string;
-}
 
 /**
  * Find all spore records for a given origin using backlinks
@@ -28,7 +17,7 @@ interface SporeRecord {
  */
 
 
-export async function renderFlowerBed(section: any, headerStripMode: boolean = false): Promise<HTMLElement | null> {
+export async function renderFlowerBed(_section: any, headerStripMode: boolean = false): Promise<HTMLElement | null> {
   const ownerDid = getSiteOwnerDid();
   if (!ownerDid) {
     return null;

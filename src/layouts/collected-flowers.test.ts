@@ -43,7 +43,7 @@ describe('Collected Flowers Layout', () => {
         vi.mocked(oauth.getCurrentDid).mockReturnValue(mockVisitorDid);
 
         const section = { type: 'collected-flowers' };
-        const el = await renderCollectedFlowers(section);
+        await renderCollectedFlowers(section);
 
         // Current behavior: shows restriction message
         // NOTE: This test expects the CURRENT behavior, will fail after we change it?

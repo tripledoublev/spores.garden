@@ -8,9 +8,9 @@
  * - Select Bluesky posts to showcase
  */
 
-import { getCollections, getAllRecords, groupByCollection } from '../records/loader';
-import { getCurrentDid, getAgent } from '../oauth';
-import { addSection, getConfig, updateConfig, updateTheme, saveConfig } from '../config';
+import { getCollections } from '../records/loader';
+import { getCurrentDid } from '../oauth';
+import { addSection, updateConfig, updateTheme, saveConfig } from '../config';
 import { getProfile } from '../at-client';
 import { generateThemeFromDid } from '../themes/engine';
 import { getSafeHandle, getDisplayHandle } from '../utils/identity';
@@ -341,10 +341,7 @@ class WelcomeModal extends HTMLElement {
 
     // Attach event listeners
     content.querySelector('[data-action="add-records"]')?.addEventListener('click', () => {
-      const collection = content.querySelector('[data-action="add-records"]')?.getAttribute('data-collection');
-      if (collection) {
-        this.addSelectedRecords(collection);
-      }
+      this.addSelectedRecords();
     });
 
     content.querySelector('[data-action="back-collections"]')?.addEventListener('click', () => {
@@ -352,7 +349,7 @@ class WelcomeModal extends HTMLElement {
     });
   }
 
-  private async addSelectedRecords(collection: string) {
+  private async addSelectedRecords() {
     const selected = Array.from(this.querySelectorAll<HTMLInputElement>('.record-item input:checked'));
 
     if (selected.length === 0) {

@@ -137,7 +137,7 @@ function escapeHtml(text: string): string {
 /**
  * Render a single block
  */
-function renderBlock(block: any, authorDid: string, depth: number = 0): HTMLElement | DocumentFragment | null {
+function renderBlock(block: any, authorDid: string, _depth: number = 0): HTMLElement | DocumentFragment | null {
   if (!block || !block.block) return null;
   
   const blockType = block.block.$type;

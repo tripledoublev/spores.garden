@@ -92,7 +92,7 @@ async function fetchAndRenderRsvp(el: HTMLElement, fields: ReturnType<typeof ext
 /**
  * Render the event content (used for both events and RSVPs after event fetch)
  */
-function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFields>, record?: any): void {
+function renderEventContent(el: HTMLElement, fields: ReturnType<typeof extractFields>, _record?: any): void {
   try {
     // Extract event fields using generic extractor
     const title = fields.title || 'Untitled Event';

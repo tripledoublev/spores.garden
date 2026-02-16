@@ -10,7 +10,7 @@ import { createErrorMessage } from '../utils/loading-states';
  * @param fields - Extracted fields from the record
  * @param record - Optional original record reference (not used, but matches layout signature)
  */
-export function renderImage(fields: ReturnType<typeof extractFields>, record?: any): HTMLElement {
+export function renderImage(fields: ReturnType<typeof extractFields>, _record?: any): HTMLElement {
   const html = document.createElement('figure');
   html.className = 'layout-image';
 

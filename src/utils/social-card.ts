@@ -38,7 +38,7 @@ async function renderSocialCardToCanvas(): Promise<HTMLCanvasElement> {
   // === RIGHT SECTION: Flower (centered in right half) ===
   const flowerSize = 400;
   const flowerSVG = generateFlowerSVGString(siteOwnerDid, flowerSize);
-  const flowerImage = await svgToImage(flowerSVG, flowerSize, flowerSize);
+  const flowerImage = await svgToImage(flowerSVG);
   
   // Center flower in the right half
   const rightCenterX = halfWidth + halfWidth / 2;
@@ -71,7 +71,7 @@ async function renderSocialCardToCanvas(): Promise<HTMLCanvasElement> {
 /**
  * Convert an SVG string to an Image element.
  */
-function svgToImage(svgString: string, width: number, height: number): Promise<HTMLImageElement> {
+function svgToImage(svgString: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);

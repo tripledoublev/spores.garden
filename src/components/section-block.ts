@@ -4,10 +4,10 @@
  * Provides edit controls for section management.
  */
 
-import { getCollectionRecords, getRecordsByUris } from '../records/loader';
+import { getRecordsByUris } from '../records/loader';
 import { getSiteOwnerDid, getConfig, updateSection, removeSection, moveSectionUp, moveSectionDown, saveConfig } from '../config';
 import { getProfile, getRecord, getBlobUrl, parseAtUri } from '../at-client';
-import { renderRecord, getAvailableLayouts } from '../layouts/index';
+import { renderRecord } from '../layouts/index';
 import { renderCollectedFlowers } from '../layouts/collected-flowers';
 import { isContentImageCollection, isContentTextCollection, isProfileCollection } from '../config/nsid';
 import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
@@ -31,7 +31,7 @@ class SectionBlock extends HTMLElement {
     return ['data-section', 'data-edit-mode'];
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
+  attributeChangedCallback(name, _oldValue, newValue) {
     if (name === 'data-section') {
       try {
         this.section = JSON.parse(newValue);
@@ -726,7 +726,6 @@ class SectionBlock extends HTMLElement {
     const ownerDid = getSiteOwnerDid();
     let content = '';
     let format = 'text';
-    let title = '';
 
     // If section references a content record, load it from PDS
     const parsedBlockRef = this.section.ref ? parseAtUri(this.section.ref) : null;
@@ -744,7 +743,6 @@ class SectionBlock extends HTMLElement {
         if (record && record.value) {
           content = record.value.content || '';
           format = record.value.format || this.section.format || 'markdown';
-          title = record.value.title || '';
         } else {
           throw new Error('Content record not found');
         }
@@ -765,7 +763,6 @@ class SectionBlock extends HTMLElement {
       // Fall back to inline content (for backwards compatibility)
       content = this.section.content || '';
       format = this.section.format || 'text';
-      title = this.section.title || '';
     }
 
     const contentDiv = document.createElement('div');

@@ -1,10 +1,9 @@
-import { getConfig, saveConfig, getSiteOwnerDid, setSiteOwnerDid } from '../config';
-import { getCurrentDid, putRecord, uploadBlob, createRecord, post, isLoggedIn } from '../oauth';
+import { getConfig, saveConfig, getSiteOwnerDid } from '../config';
+import { getCurrentDid, putRecord, uploadBlob } from '../oauth';
 import { getRecord, getProfile, buildAtUri } from '../at-client';
 import { getCollection } from '../config/nsid';
 import { setCachedActivity } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
-import { SiteRouter } from './site-router';
 import './create-content';
 
 /**

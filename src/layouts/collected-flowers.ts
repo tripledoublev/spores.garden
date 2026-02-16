@@ -19,7 +19,7 @@ export interface RenderCollectedFlowersOptions {
 }
 
 export async function renderCollectedFlowers(
-  section: any,
+  _section: any,
   options?: RenderCollectedFlowersOptions
 ) {
   const el = document.createElement('div');

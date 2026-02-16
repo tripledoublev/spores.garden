@@ -804,7 +804,7 @@ export interface LayoutSuggestion {
  * - medium: Known lexicon with 2+ fields OR unknown lexicon with 3+ fields
  * - low: Unknown lexicon with < 3 fields or < 2 meaningful fields
  */
-function calculateConfidence(record: any, fields: ReturnType<typeof extractFields>): 'high' | 'medium' | 'low' {
+function calculateConfidence(_record: any, fields: ReturnType<typeof extractFields>): 'high' | 'medium' | 'low' {
   const lexiconType = fields.$type;
   const schema = getLexiconSchema(lexiconType);
 

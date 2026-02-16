@@ -3,7 +3,7 @@
  * Supports display name, pronouns, bio, avatar, and banner images with blob upload.
  */
 
-import { createRecord, putRecord, uploadBlob } from '../oauth';
+import { putRecord, uploadBlob } from '../oauth';
 import { addSection, updateSection, getSiteOwnerDid } from '../config';
 import { getRecord } from '../at-client';
 import { getCollection } from '../config/nsid';

@@ -39,7 +39,7 @@ import {
   WebDidDocumentResolver
 } from '@atcute/identity-resolver';
 import { Client } from '@atcute/client';
-import type { OAuthConfig, OAuthSession, ATClientOptions } from './types';
+import type { OAuthConfig, ATClientOptions } from './types';
 
 export let authReady = false;
 
@@ -89,12 +89,9 @@ export async function initOAuth(config: OAuthConfig) {
 async function handleOAuthCallback() {
   // Check both hash fragment and query parameters
   let params: URLSearchParams | null = null;
-  let hadHash = false;
-
   // Try hash fragment first (OAuth implicit flow)
   if (location.hash.length > 1) {
     params = new URLSearchParams(location.hash.slice(1));
-    hadHash = true;
   }
   // Fall back to query parameters (OAuth authorization code flow)
   else if (location.search.length > 1) {
