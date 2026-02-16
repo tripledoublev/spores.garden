@@ -428,6 +428,13 @@ registerLayout('profile', (fields) => {
     info.appendChild(name);
   }
 
+  if (fields.pronouns) {
+    const pronouns = document.createElement('p');
+    pronouns.className = 'profile-pronouns';
+    pronouns.textContent = fields.pronouns;
+    info.appendChild(pronouns);
+  }
+
   if (fields.content) {
     const bio = document.createElement('p');
     bio.className = 'profile-bio';

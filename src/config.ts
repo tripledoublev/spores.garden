@@ -647,6 +647,7 @@ export async function saveConfig({ isInitialOnboarding = false } = {}) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           displayName: bskyProfile.displayName,
+          pronouns: bskyProfile.pronouns,
           description: bskyProfile.description,
           avatar: bskyProfile.avatar,
           banner: bskyProfile.banner,

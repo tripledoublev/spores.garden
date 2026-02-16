@@ -1,6 +1,6 @@
 /**
  * Modal for creating and editing profile records.
- * Supports display name, bio, avatar, and banner images with blob upload.
+ * Supports display name, pronouns, bio, avatar, and banner images with blob upload.
  */
 
 import { createRecord, putRecord, uploadBlob } from '../oauth';
@@ -20,6 +20,7 @@ interface BlobRef {
 class CreateProfile extends HTMLElement {
   private onClose: (() => void) | null = null;
   private displayName: string = '';
+  private pronouns: string = '';
   private description: string = '';
   private avatarFile: File | null = null;
   private bannerFile: File | null = null;
@@ -46,6 +47,7 @@ class CreateProfile extends HTMLElement {
     rkey?: string;
     sectionId?: string;
     displayName?: string;
+    pronouns?: string;
     description?: string;
     avatar?: BlobRef;
     banner?: BlobRef;
@@ -54,6 +56,7 @@ class CreateProfile extends HTMLElement {
     this.editRkey = profileData.rkey || null;
     this.editSectionId = profileData.sectionId || null;
     this.displayName = profileData.displayName || '';
+    this.pronouns = profileData.pronouns || '';
     this.description = profileData.description || '';
     this.existingAvatar = profileData.avatar || null;
     this.existingBanner = profileData.banner || null;
@@ -89,6 +92,11 @@ class CreateProfile extends HTMLElement {
         <div class="form-group">
           <label for="profile-display-name">Display Name</label>
           <input type="text" id="profile-display-name" class="input" placeholder="Your name" maxlength="200" value="${(this.displayName || '').replace(/"/g, '&quot;')}">
+        </div>
+
+        <div class="form-group">
+          <label for="profile-pronouns">Pronouns (optional)</label>
+          <input type="text" id="profile-pronouns" class="input" placeholder="they/them" maxlength="100" value="${(this.pronouns || '').replace(/"/g, '&quot;')}">
         </div>
         
         <div class="form-group">
@@ -182,6 +190,7 @@ class CreateProfile extends HTMLElement {
 
   private attachEventListeners() {
     const displayNameInput = this.querySelector('#profile-display-name') as HTMLInputElement;
+    const pronounsInput = this.querySelector('#profile-pronouns') as HTMLInputElement;
     const descriptionTextarea = this.querySelector('#profile-description') as HTMLTextAreaElement;
     const avatarDropZone = this.querySelector('#avatar-drop-zone') as HTMLDivElement;
     const avatarInput = this.querySelector('#avatar-input') as HTMLInputElement;
@@ -195,6 +204,11 @@ class CreateProfile extends HTMLElement {
     // Handle display name input
     displayNameInput?.addEventListener('input', (e) => {
       this.displayName = (e.target as HTMLInputElement).value.trim();
+    });
+
+    // Handle pronouns input
+    pronounsInput?.addEventListener('input', (e) => {
+      this.pronouns = (e.target as HTMLInputElement).value.trim();
     });
 
     // Handle description input
@@ -354,6 +368,9 @@ class CreateProfile extends HTMLElement {
     if (this.displayName) {
       record.displayName = this.displayName;
     }
+    if (this.pronouns) {
+      record.pronouns = this.pronouns;
+    }
     if (this.description) {
       record.description = this.description;
     }
@@ -418,6 +435,7 @@ class CreateProfile extends HTMLElement {
 
       // Update description (even if empty string, as user may have cleared it)
       record.description = this.description;
+      record.pronouns = this.pronouns;
 
       // Handle avatar: new file, existing blob, or cleared
       if (this.avatarFile) {
@@ -460,6 +478,9 @@ class CreateProfile extends HTMLElement {
 
       if (this.displayName) {
         record.displayName = this.displayName;
+      }
+      if (this.pronouns) {
+        record.pronouns = this.pronouns;
       }
       if (this.description) {
         record.description = this.description;
@@ -505,6 +526,7 @@ class CreateProfile extends HTMLElement {
     this.editRkey = null;
     this.editSectionId = null;
     this.displayName = '';
+    this.pronouns = '';
     this.description = '';
     this.avatarFile = null;
     this.bannerFile = null;

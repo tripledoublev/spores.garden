@@ -64,6 +64,7 @@ type FieldMapping = string | string[] | ((record: any) => any);
 
 interface LexiconSchema {
   title?: FieldMapping;
+  pronouns?: FieldMapping;
   content?: FieldMapping;
   url?: FieldMapping;
   image?: FieldMapping;
@@ -184,6 +185,7 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
   // Spores.garden Profile
   'garden.spores.site.profile': {
     title: 'displayName',
+    pronouns: 'pronouns',
     content: 'description',
     image: 'avatar',
     confidence: 'high',
@@ -368,6 +370,7 @@ function getLexiconSchema(type: string | undefined): LexiconSchema | undefined {
  */
 const FIELD_MAPPINGS = {
   title: ['title', 'name', 'displayName', 'subject', 'heading'],
+  pronouns: ['pronouns', 'pronoun'],
   content: ['content', 'text', 'description', 'message', 'body', 'summary', 'bio'],
   url: ['url', 'uri', 'link', 'href', 'website'],
   image: ['image', 'avatar', 'thumbnail', 'picture', 'photo'],
@@ -468,6 +471,7 @@ export function extractFields(record) {
   return {
     // Core content fields
     title: extractField(record, 'title', lexiconType),
+    pronouns: extractField(record, 'pronouns', lexiconType),
     content: extractField(record, 'content', lexiconType),
     url: extractField(record, 'url', lexiconType),
 

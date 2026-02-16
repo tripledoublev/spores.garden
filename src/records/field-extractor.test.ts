@@ -153,6 +153,22 @@ describe('Field Extractor', () => {
       expect(fields.date).toBeInstanceOf(Date);
     });
 
+    it('should extract pronouns from spores.garden profile', () => {
+      const record = {
+        value: {
+          $type: 'garden.spores.site.profile',
+          displayName: 'Jules',
+          pronouns: 'they/them',
+          description: 'Profile with pronouns'
+        }
+      };
+
+      const fields = extractFields(record);
+      expect(fields.title).toBe('Jules');
+      expect(fields.pronouns).toBe('they/them');
+      expect(fields.content).toBe('Profile with pronouns');
+    });
+
     it('should extract fields from leaflet document', () => {
       const record = {
         uri: 'at://did:plc:test/app.bsky.feed.post/rkey123',
