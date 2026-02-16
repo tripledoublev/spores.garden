@@ -131,6 +131,7 @@ Verbose runtime logs are disabled by default. Enable them when debugging with ei
 
 - `node scripts/special-spore-probability.js did:plc:...` to check deterministic spore assignment for a DID.
 - `scripts/special-spore-helper.html` browser helper page for manual spore checks.
+- `npm run garden:backup` / `npm run garden:reset -- --dry-run|--yes` / `npm run garden:restore -- --from <file>` for onboarding validation against real account data.
 
 ## Documentation
 
@@ -139,6 +140,7 @@ Verbose runtime logs are disabled by default. Enable them when debugging with ei
 - [Layout System Developer Guide](docs/layouts.md) - Learn how to create custom layouts
 - [Special Spore Documentation](docs/special-spore.md) - Special spore mechanics and implementation
 - [NSID Migration Plan](docs/nsid-migration.md) - Namespace migration strategy and launch checklist
+- [Onboarding Validation Runbook](docs/onboarding-validation.md) - Backup/reset/restore workflow for onboarding QA
 - [Leaflet.pub Schema Notes](docs/leaflet-pub-schema-notes.md) - Notes on leaflet.pub integration
 - [Release Checklist](docs/release-checklist.md) - Final pre-launch verification steps
 - [Launch Runbook](docs/launch.md) - Day-of-launch execution and cutover steps
