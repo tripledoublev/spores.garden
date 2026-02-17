@@ -14,6 +14,7 @@ import { isContentImageCollection, isContentTextCollection, isProfileCollection 
 import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
 import { showConfirmModal } from '../utils/confirm-modal';
 import { createHelpTooltip } from '../utils/help-tooltip';
+import { renderMarkdown } from '../utils/markdown';
 import './create-profile'; // Register profile editor component
 import './create-image'; // Register image editor component
 
@@ -777,8 +778,7 @@ class SectionBlock extends HTMLElement {
       if (format === 'html') {
         contentDiv.innerHTML = content;
       } else if (format === 'markdown') {
-        // Basic markdown rendering
-        contentDiv.innerHTML = this.renderMarkdown(content);
+        contentDiv.innerHTML = renderMarkdown(content);
       } else {
         contentDiv.textContent = content;
       }
@@ -832,16 +832,6 @@ class SectionBlock extends HTMLElement {
     container.appendChild(buttonContainer);
   }
 
-  renderMarkdown(text) {
-    return text
-      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-      .replace(/\n/g, '<br>');
-  }
 }
 
 customElements.define('section-block', SectionBlock);
