@@ -1963,14 +1963,20 @@ body.has-pattern .flower-grid-item {
    Dev Tools (only visible on localhost)
    ============================================ */
 
-.dev-reset-button {
+.dev-tools {
   position: fixed;
   bottom: calc(var(--spacing-md) + var(--safe-area-inset-bottom));
   left: calc(var(--spacing-md) + var(--safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 999;
+}
+
+.dev-tool-button {
   padding: var(--spacing-md) var(--spacing-lg);
-  background: #dc2626;
   color: white;
-  border: var(--border-width) solid #b91c1c;
+  border: var(--border-width) solid transparent;
   font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 700;
@@ -1978,18 +1984,45 @@ body.has-pattern .flower-grid-item {
   letter-spacing: 0.05em;
   cursor: pointer;
   transition: all var(--transition);
-  z-index: 999;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
-.dev-reset-button:hover {
-  background: #b91c1c;
-  border-color: #991b1b;
+.dev-tool-button-backup {
+  background: #1d4ed8;
+  border-color: #1e40af;
+}
+
+.dev-tool-button-reset {
+  background: #dc2626;
+  border-color: #b91c1c;
+}
+
+.dev-tool-button-restore {
+  background: #166534;
+  border-color: #14532d;
+}
+
+.dev-tool-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
 }
 
-.dev-reset-button:active {
+.dev-tool-button-backup:hover {
+  background: #1e40af;
+  border-color: #1e3a8a;
+}
+
+.dev-tool-button-reset:hover {
+  background: #b91c1c;
+  border-color: #991b1b;
+}
+
+.dev-tool-button-restore:hover {
+  background: #14532d;
+  border-color: #052e16;
+}
+
+.dev-tool-button:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -3526,6 +3559,18 @@ body:has(.save-bar) .notification {
   margin-bottom: 0;
 }
 
+.did-visualization-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.theme-details-help-tooltip {
+  display: inline-flex;
+}
+
 .favicon-note,
 .edit-note {
   font-size: 0.875rem;
@@ -4058,7 +4103,7 @@ body:has(.save-bar) .notification {
 /* Help tooltips – fixed positioning, viewport-aware */
 .help-tooltip {
   position: fixed;
-  z-index: 1000;
+  z-index: 10001;
   display: none;
   background: var(--color-background, #fff);
   border: var(--border-width) var(--border-style, solid) var(--color-border-dark);
@@ -4070,6 +4115,30 @@ body:has(.save-bar) .notification {
   color: var(--color-text);
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
   white-space: normal;
+}
+
+.theme-details-help-tooltip + .help-tooltip {
+  white-space: pre-line;
+}
+
+@media (max-width: 640px) {
+  .did-info-button {
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+
+  .theme-details-help-tooltip {
+    margin-top: var(--spacing-xs);
+  }
+
+  .help-tooltip {
+    max-width: calc(100vw - 2rem);
+    width: auto;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    padding: var(--spacing-sm);
+  }
 }
 
 /* ============================================

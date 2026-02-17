@@ -1,20 +1,10 @@
-import { getBacklinks, getProfile, listRecords, getRecord } from '../at-client';
-import { getSiteOwnerDid, isValidSpore } from '../config';
+import { getBacklinks, getProfile, listRecords } from '../at-client';
+import { getSiteOwnerDid, buildGardenPath } from '../config';
 import { isLoggedIn, getCurrentDid } from '../oauth';
+import { getBacklinkQueries, getReadCollections } from '../config/nsid';
 import { getSafeHandle, truncateDid } from '../utils/identity';
 import { generateThemeFromDid } from '../themes/engine';
-import { generateSporeFlowerSVGString, generateFlowerSVGString } from '../utils/flower-svg';
 import { escapeHtml } from '../utils/sanitize';
-
-const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
-
-interface SporeRecord {
-  ownerDid: string;
-  capturedAt: string;
-  subject: string;
-  uri: string;
-  rkey: string;
-}
 
 /**
  * Find all spore records for a given origin using backlinks
@@ -27,16 +17,17 @@ interface SporeRecord {
  */
 
 
-export async function renderFlowerBed(section: any, headerStripMode: boolean = false): Promise<HTMLElement | null> {
+export async function renderFlowerBed(_section: any, headerStripMode: boolean = false): Promise<HTMLElement | null> {
   const ownerDid = getSiteOwnerDid();
   if (!ownerDid) {
     return null;
   }
 
   try {
-    const response = await getBacklinks(ownerDid, 'garden.spores.social.flower:subject', { limit: 100 });
+    const backlinkQueries = getBacklinkQueries('socialFlower', 'subject');
+    const backlinkResponses = await Promise.all(backlinkQueries.map((q) => getBacklinks(ownerDid, q, { limit: 100 }).catch(() => null)));
     // Constellation returns `records` (and some older code used `links`)
-    const plantedFlowers = response.records || response.links || [];
+    const plantedFlowers = backlinkResponses.flatMap((response: any) => response?.records || response?.links || []);
 
     // Always show the owner's flower in their own garden, even if nobody else has planted here yet.
     // Backlinks only represent *other* people planting into this garden.
@@ -54,14 +45,14 @@ export async function renderFlowerBed(section: any, headerStripMode: boolean = f
         if (!alreadyListed) {
           try {
             // Fetch user's flowers directly from their PDS
-            const userFlowers = await listRecords(currentUserDid, 'garden.spores.social.flower', { limit: 50 });
-            // Check if any flower points to this garden
-            const hasPlanted = userFlowers?.records?.some(r => r.value?.subject === ownerDid);
-
-            if (hasPlanted) {
-              // Manually add their flower to the list
-              visitorFlowers.push({ did: currentUserDid });
+            let hasPlanted = false;
+            for (const socialFlowerCollection of getReadCollections('socialFlower')) {
+              const userFlowers = await listRecords(currentUserDid, socialFlowerCollection, { limit: 50 }).catch(() => null);
+              hasPlanted = !!userFlowers?.records?.some(r => r.value?.subject === ownerDid);
+              if (hasPlanted) break;
             }
+
+            if (hasPlanted) visitorFlowers.push({ did: currentUserDid });
           } catch (e) {
             console.warn('Failed to check user flowers:', e);
           }
@@ -161,8 +152,12 @@ export async function renderFlowerBed(section: any, headerStripMode: boolean = f
 async function findGardensWithFlower(flowerDid: string): Promise<Array<{ gardenDid: string; profile: any }>> {
   try {
     // List all flower records created by this DID
-    const response = await listRecords(flowerDid, 'garden.spores.social.flower', { limit: 100 });
-    const flowerRecords = response.records || [];
+    const allFlowerRecords = await Promise.all(
+      getReadCollections('socialFlower').map((collection) =>
+        listRecords(flowerDid, collection, { limit: 100 }).catch(() => ({ records: [] }))
+      )
+    );
+    const flowerRecords = allFlowerRecords.flatMap((response: any) => response.records || []);
 
     // Extract unique garden DIDs from the subject field
     const gardenDids = new Set<string>();
@@ -204,7 +199,7 @@ function createGardenLink(
   const { colors, borderStyle, borderWidth } = theme;
 
   const visitLink = document.createElement('a');
-  visitLink.href = `/@${profile?.handle || gardenDid}`;
+  visitLink.href = buildGardenPath(profile?.handle || gardenDid);
   visitLink.className = 'button flower-garden-cta';
   visitLink.style.display = 'flex';
   visitLink.style.alignItems = 'center';

@@ -33,3 +33,10 @@ public/.well-known/atproto-lexicons.json
 
 # temp testing grounds
 scripts/stress_test/
+
+# local preview artifacts
+theme-previews.html
+
+# playwright artifacts
+playwright-report/
+test-results/

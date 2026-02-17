@@ -18,7 +18,7 @@ You will see a "Connect" button. Log in with your Bluesky/AT Protocol handle (e.
 
 You can also directly view gardens by URL:
 - `http://127.0.0.1:5174/@your-handle.bsky.social` (path-based with handle)
-- `http://127.0.0.1:5174/@did:plc:your-did-here` (path-based with DID)
+- `http://127.0.0.1:5174/did:plc:your-did-here` (path-based with DID)
 
 ## How It Works
 
@@ -30,17 +30,22 @@ You can also directly view gardens by URL:
 
 ## Lexicons
 
-**Required Records:**
-- `garden.spores.site.config` - Site configuration (title, subtitle)
+Writes use the `coop.hypha.spores.*` namespace; reads fall back to `garden.spores.*` for legacy data.
+
+**Site Configuration:**
+- `coop.hypha.spores.site.config` - Site configuration (title, subtitle)
+- `coop.hypha.spores.site.layout` - Layout preferences
+- `coop.hypha.spores.site.section` - Individual section definitions
+- `coop.hypha.spores.site.profile` - Profile / about-me record
 
 **User Content:**
-- `garden.spores.content.text` - Text content records
-- `garden.spores.content.image` - Image content records
+- `coop.hypha.spores.content.text` - Text content records
+- `coop.hypha.spores.content.image` - Image content records
 
 **Social/Interactive:**
-- `garden.spores.social.flower` - Flowers planted in gardens
-- `garden.spores.social.takenFlower` - Flowers collected from other gardens
-- `garden.spores.item.specialSpore` - Special spore items (capture-the-flag mechanic)
+- `coop.hypha.spores.social.flower` - Flowers planted in gardens
+- `coop.hypha.spores.social.takenFlower` - Flowers collected from other gardens
+- `coop.hypha.spores.item.specialSpore` - Special spore items (capture-the-flag mechanic)
 
 **Generative (Client-Side Only):**
 - Themes and sections are generated deterministically from your DID on every load—never stored on PDS
@@ -91,8 +96,9 @@ Layouts extract common fields (title, content, image, date, etc.) from any lexic
 Special spores are rare, gamified items that implement a capture-the-flag mechanic:
 
 - **Rarity**: Only 1 in 10 new gardens receives a special spore (10% probability on first config)
-- **Capture Mechanics**: Users can steal spores from gardens (with restrictions)
+- **Capture Mechanics**: Users can steal spores from gardens, but rapid re-steals are blocked for 1 minute
 - **Backlink-Based**: All spore records reference the origin garden via backlinks, enabling full lineage tracking
+- **Timestamp Guardrail**: Capture records with `createdAt` more than 5 minutes in the future are ignored
 - **Evolution**: Complete history of all captures is preserved and displayed chronologically
 
 See [Special Spore Documentation](docs/special-spore.md) for detailed implementation and mechanics.
@@ -109,13 +115,39 @@ Custom CSS supported for full control.
 npm test          # Run tests in watch mode
 npm run test:run  # Run tests once
 npm run test:ui   # Run tests with UI
+npm run typecheck # TypeScript type check
+npm run check     # Strict pre-launch gate (typecheck + tests + build)
+npm run test:e2e  # Playwright smoke tests (requires @playwright/test + browsers)
 ```
+
+## Debug Logging
+
+Verbose runtime logs are disabled by default. Enable them when debugging with either:
+- query param: `?debug=1`
+- local storage: `localStorage.setItem('spores.garden.debug', '1')`
+
+## Deployment Notes
+
+- Namespace behavior is now new-first by default:
+  - writes use `coop.hypha.spores.*`
+  - reads use `coop.hypha.spores.*` with fallback to `garden.spores.*`
+- Copy `.env.example` to `.env.local` for local development overrides.
+
+## Developer Utilities
+
+- `node scripts/special-spore-probability.js did:plc:...` to check deterministic spore assignment for a DID.
+- `scripts/special-spore-helper.html` browser helper page for manual spore checks.
+- `npm run garden:backup` / `npm run garden:reset -- --dry-run|--yes` / `npm run garden:restore -- --from <file>` for onboarding validation against real account data.
 
 ## Documentation
 
+- [Documentation Index](docs/README.md) - Entry point for project documentation
+- [Architecture Overview](docs/architecture.md) - Runtime architecture and module boundaries
 - [Layout System Developer Guide](docs/layouts.md) - Learn how to create custom layouts
 - [Special Spore Documentation](docs/special-spore.md) - Special spore mechanics and implementation
-- [Leaflet.pub Schema Notes](docs/leaflet-pub-schema-notes.md) - Notes on leaflet.pub integration
+- [Contributing Guide](CONTRIBUTING.md) - Development workflow and quality gates
+- [Security Policy](SECURITY.md) - Vulnerability reporting and disclosure process
+- [Code of Conduct](CODE_OF_CONDUCT.md) - Community participation expectations
 
 ## License
 

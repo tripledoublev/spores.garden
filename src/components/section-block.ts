@@ -4,11 +4,13 @@
  * Provides edit controls for section management.
  */
 
-import { getCollectionRecords, getRecordsByUris } from '../records/loader';
+import { getRecordByUri, getRecordsByUris } from '../records/loader';
 import { getSiteOwnerDid, getConfig, updateSection, removeSection, moveSectionUp, moveSectionDown, saveConfig } from '../config';
 import { getProfile, getRecord, getBlobUrl, parseAtUri } from '../at-client';
-import { renderRecord, getAvailableLayouts } from '../layouts/index';
+import { deleteRecord } from '../oauth';
+import { renderRecord } from '../layouts/index';
 import { renderCollectedFlowers } from '../layouts/collected-flowers';
+import { isContentImageCollection, isContentTextCollection, isProfileCollection } from '../config/nsid';
 import { createErrorMessage, createLoadingSpinner } from '../utils/loading-states';
 import { showConfirmModal } from '../utils/confirm-modal';
 import { createHelpTooltip } from '../utils/help-tooltip';
@@ -30,7 +32,7 @@ class SectionBlock extends HTMLElement {
     return ['data-section', 'data-edit-mode'];
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
+  attributeChangedCallback(name, _oldValue, newValue) {
     if (name === 'data-section') {
       try {
         this.section = JSON.parse(newValue);
@@ -254,8 +256,8 @@ class SectionBlock extends HTMLElement {
     // Edit button only for section types that support editing
     const recordUri = this.section.records?.[0];
     const isImageRecord =
-      this.section.collection === 'garden.spores.content.image' ||
-      (typeof recordUri === 'string' && recordUri.includes('/garden.spores.content.image/'));
+      isContentImageCollection(this.section.collection) ||
+      (typeof recordUri === 'string' && (recordUri.includes('/garden.spores.content.image/') || recordUri.includes('/coop.hypha.spores.content.image/')));
 
     const supportsEditing =
       this.section.type === 'content' ||
@@ -300,9 +302,8 @@ class SectionBlock extends HTMLElement {
           const collection = parsed?.collection || this.section.collection;
           const rkey = parsed?.rkey || this.section.rkey;
 
-          if (collection === 'garden.spores.content.text' && rkey) {
+          if (isContentTextCollection(collection) && rkey) {
             try {
-              const { deleteRecord } = await import('../oauth');
               await deleteRecord(collection, rkey);
             } catch (error) {
               console.error('Failed to delete content record from PDS:', error);
@@ -326,9 +327,8 @@ class SectionBlock extends HTMLElement {
             }
           }
 
-          if (collection === 'garden.spores.content.image' && rkey) {
+          if (isContentImageCollection(collection) && rkey) {
             try {
-              const { deleteRecord } = await import('../oauth');
               await deleteRecord(collection, rkey);
             } catch (error) {
               console.error('Failed to delete image record from PDS:', error);
@@ -370,11 +370,10 @@ class SectionBlock extends HTMLElement {
 
     infoBox.textContent = typeInfo;
 
-    // For records, fetch the actual $type asynchronously
-    if (this.section.type === 'records' && this.section.records && this.section.records.length > 0) {
-      try {
-        const { getRecordByUri } = await import('../records/loader');
-        const record = await getRecordByUri(this.section.records[0]);
+      // For records, fetch the actual $type asynchronously
+      if (this.section.type === 'records' && this.section.records && this.section.records.length > 0) {
+        try {
+          const record = await getRecordByUri(this.section.records[0]);
         if (record && record.value && record.value.$type) {
           infoBox.textContent = record.value.$type;
         } else {
@@ -401,7 +400,7 @@ class SectionBlock extends HTMLElement {
     const collection = parsed?.collection || this.section.collection;
     const rkey = parsed?.rkey || this.section.rkey;
 
-    if (collection === 'garden.spores.content.text' && rkey && ownerDid) {
+    if (isContentTextCollection(collection) && rkey && ownerDid) {
       try {
         const record = await getRecord(ownerDid, collection, rkey);
         if (record && record.value) {
@@ -448,8 +447,8 @@ class SectionBlock extends HTMLElement {
     const ownerDid = getSiteOwnerDid();
     const parsedRef = this.section.ref ? parseAtUri(this.section.ref) : null;
     const profileCollection = parsedRef?.collection || this.section.collection;
-    const profileRkey = parsedRef?.rkey || this.section.rkey || (profileCollection === 'garden.spores.site.profile' ? 'self' : undefined);
-    if (profileCollection === 'garden.spores.site.profile' && profileRkey && ownerDid) {
+    const profileRkey = parsedRef?.rkey || this.section.rkey || (isProfileCollection(profileCollection) ? 'self' : undefined);
+    if (isProfileCollection(profileCollection) && profileRkey && ownerDid) {
       try {
         const record = await getRecord(ownerDid, profileCollection, profileRkey);
         if (record && record.value) {
@@ -457,6 +456,7 @@ class SectionBlock extends HTMLElement {
             rkey: profileRkey,
             sectionId: this.section.id,
             displayName: record.value.displayName || '',
+            pronouns: record.value.pronouns || '',
             description: record.value.description || '',
             avatar: record.value.avatar || '',
             banner: record.value.banner || ''
@@ -466,6 +466,7 @@ class SectionBlock extends HTMLElement {
           modal.editProfile({
             sectionId: this.section.id,
             displayName: '',
+            pronouns: '',
             description: '',
             avatar: '',
             banner: ''
@@ -477,6 +478,7 @@ class SectionBlock extends HTMLElement {
         modal.editProfile({
           sectionId: this.section.id,
           displayName: '',
+          pronouns: '',
           description: '',
           avatar: '',
           banner: ''
@@ -487,6 +489,7 @@ class SectionBlock extends HTMLElement {
       modal.editProfile({
         sectionId: this.section.id,
         displayName: '',
+        pronouns: '',
         description: '',
         avatar: '',
         banner: ''
@@ -518,7 +521,7 @@ class SectionBlock extends HTMLElement {
       }
     }
 
-    if (collection !== 'garden.spores.content.image' || !rkey) {
+    if (!isContentImageCollection(collection) || !rkey) {
       return;
     }
 
@@ -583,11 +586,11 @@ class SectionBlock extends HTMLElement {
       let rkeyToFetch = parsedProfileRef?.rkey || this.section.rkey;
 
       // Profile records are singletons at rkey 'self'
-      if (collectionToFetch === 'garden.spores.site.profile' && !rkeyToFetch) {
+      if (isProfileCollection(collectionToFetch) && !rkeyToFetch) {
         rkeyToFetch = 'self';
       }
 
-      if (collectionToFetch === 'garden.spores.site.profile' && rkeyToFetch) {
+      if (isProfileCollection(collectionToFetch) && rkeyToFetch) {
         try {
           const record = await getRecord(ownerDid, collectionToFetch, rkeyToFetch);
           if (record && record.value) {
@@ -603,6 +606,7 @@ class SectionBlock extends HTMLElement {
 
             profileData = {
               displayName: record.value.displayName,
+              pronouns: record.value.pronouns,
               description: record.value.description,
               avatar: avatarUrl,
               banner: bannerUrl
@@ -621,6 +625,7 @@ class SectionBlock extends HTMLElement {
         }
         profileData = {
           displayName: profile.displayName,
+          pronouns: (profile as any).pronouns,
           description: profile.description,
           avatar: profile.avatar,
           banner: profile.banner
@@ -631,6 +636,7 @@ class SectionBlock extends HTMLElement {
       const record = {
         value: {
           title: profileData.displayName,
+          pronouns: profileData.pronouns,
           content: profileData.description,
           image: profileData.avatar,
           banner: profileData.banner
@@ -725,14 +731,13 @@ class SectionBlock extends HTMLElement {
     const ownerDid = getSiteOwnerDid();
     let content = '';
     let format = 'text';
-    let title = '';
 
     // If section references a content record, load it from PDS
     const parsedBlockRef = this.section.ref ? parseAtUri(this.section.ref) : null;
     const blockCollection = parsedBlockRef?.collection || this.section.collection;
     const blockRkey = parsedBlockRef?.rkey || this.section.rkey;
 
-    if (blockCollection === 'garden.spores.content.text' && blockRkey && ownerDid) {
+    if (isContentTextCollection(blockCollection) && blockRkey && ownerDid) {
       // Show loading state
       const loadingEl = createLoadingSpinner('Loading content...');
       container.innerHTML = '';
@@ -743,7 +748,6 @@ class SectionBlock extends HTMLElement {
         if (record && record.value) {
           content = record.value.content || '';
           format = record.value.format || this.section.format || 'markdown';
-          title = record.value.title || '';
         } else {
           throw new Error('Content record not found');
         }
@@ -764,7 +768,6 @@ class SectionBlock extends HTMLElement {
       // Fall back to inline content (for backwards compatibility)
       content = this.section.content || '';
       format = this.section.format || 'text';
-      title = this.section.title || '';
     }
 
     const contentDiv = document.createElement('div');

@@ -1,12 +1,13 @@
 import { getBacklinks, getProfile, getRecord } from '../at-client';
 import { getCurrentDid, isLoggedIn } from '../oauth';
+import { getBacklinkQueries, getCollection } from '../config/nsid';
 import { getSafeHandle, truncateDid } from '../utils/identity';
 import { generateFlowerSVGString, generateSporeFlowerSVGString } from '../utils/flower-svg';
 import { stealSpore } from '../utils/special-spore';
 import { showConfirmModal, showAlertModal } from '../utils/confirm-modal';
 import { escapeHtml } from '../utils/sanitize';
 
-const SPECIAL_SPORE_COLLECTION = 'garden.spores.item.specialSpore';
+const SPECIAL_SPORE_COLLECTION = getCollection('itemSpecialSpore');
 
 interface SporeRecord {
   ownerDid: string;
@@ -33,12 +34,12 @@ function removeHeaderSpore(originDid: string): void {
  */
 async function findSporeRecordsByOrigin(originGardenDid: string): Promise<SporeRecord[]> {
   try {
-    const backlinksResponse = await getBacklinks(
-      originGardenDid,
-      `${SPECIAL_SPORE_COLLECTION}:subject`,
-      { limit: 100 }
+    const backlinkResponses = await Promise.all(
+      getBacklinkQueries('itemSpecialSpore', 'subject').map((q) =>
+        getBacklinks(originGardenDid, q, { limit: 100 }).catch(() => null)
+      )
     );
-    const backlinks = backlinksResponse.records || backlinksResponse.links || [];
+    const backlinks = backlinkResponses.flatMap((response: any) => response?.records || response?.links || []);
 
     const records = await Promise.all(
       backlinks.map(async (bl) => {

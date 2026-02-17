@@ -1,9 +1,10 @@
-import { getConfig, saveConfig, getSiteOwnerDid, setSiteOwnerDid } from '../config';
-import { getCurrentDid, putRecord, uploadBlob, createRecord, post, isLoggedIn } from '../oauth';
+import { getConfig, saveConfig, getSiteOwnerDid } from '../config';
+import { getCurrentDid, putRecord, uploadBlob } from '../oauth';
 import { getRecord, getProfile, buildAtUri } from '../at-client';
+import { getCollectionRecords, getCollections, getRecordByUri } from '../records/loader';
+import { getCollection } from '../config/nsid';
 import { setCachedActivity } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
-import { SiteRouter } from './site-router';
 import './create-content';
 
 /**
@@ -169,6 +170,7 @@ export class SiteEditor {
 
   async addProfileSection() {
     const ownerDid = getSiteOwnerDid();
+    const profileCollection = getCollection('siteProfile');
     if (!ownerDid) {
       this.showNotification('You must be logged in to add a profile.', 'error');
       return;
@@ -179,12 +181,12 @@ export class SiteEditor {
     try {
       // 1. Check if profile record already exists
       try {
-        const existing = await getRecord(ownerDid, 'garden.spores.site.profile', 'self');
+        const existing = await getRecord(ownerDid, profileCollection, 'self');
         if (existing && existing.value) {
           this.showNotification('Found existing profile.', 'success');
           this.addSectionToConfig({
             type: 'profile',
-            collection: 'garden.spores.site.profile',
+            collection: profileCollection,
             rkey: 'self'
           });
           return;
@@ -202,7 +204,7 @@ export class SiteEditor {
       }
 
       const record: any = {
-        $type: 'garden.spores.site.profile',
+        $type: profileCollection,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         displayName: bskyProfile.displayName,
@@ -242,14 +244,14 @@ export class SiteEditor {
       }
 
       // 3. Create the record
-      await putRecord('garden.spores.site.profile', 'self', record);
+      await putRecord(profileCollection, 'self', record);
 
       this.showNotification('Profile imported successfully!', 'success');
 
       // 4. Add the section
       this.addSectionToConfig({
         type: 'profile',
-        collection: 'garden.spores.site.profile',
+        collection: profileCollection,
         rkey: 'self'
       });
 
@@ -264,7 +266,7 @@ export class SiteEditor {
     }
   }
 
-  addSectionToConfig(params: { type: string, collection?: string, rkey?: string, title?: string }) {
+  addSectionToConfig(params: { type: string, collection?: string, rkey?: string, title?: string, ref?: string }) {
     const config = getConfig();
     const id = `section-${Date.now()}`;
 
@@ -279,12 +281,16 @@ export class SiteEditor {
       section.title = 'Collected Flowers';
     }
 
-    if (params.collection) section.collection = params.collection;
-    if (params.rkey) section.rkey = params.rkey;
-    if (params.collection && params.rkey) {
+    if (params.ref) {
+      section.ref = params.ref;
+    } else if (params.collection && params.rkey) {
       const did = getCurrentDid();
+      // Prefer ref-first sections; keep legacy fields only when DID is unavailable.
       if (did) {
         section.ref = buildAtUri(did, params.collection, params.rkey);
+      } else {
+        section.collection = params.collection;
+        section.rkey = params.rkey;
       }
     }
     if (params.title) section.title = params.title;
@@ -310,7 +316,6 @@ export class SiteEditor {
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     try {
-      const { getCollectionRecords } = await import('../records/loader');
       const posts = await getCollectionRecords(did, 'app.bsky.feed.post', { limit: 50 });
 
       if (posts.length === 0) {
@@ -397,7 +402,6 @@ export class SiteEditor {
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     try {
-      const { getCollections } = await import('../records/loader');
       const collections = await getCollections(did);
 
       if (collections.length === 0) {
@@ -446,7 +450,6 @@ export class SiteEditor {
         `;
 
         try {
-          const { getCollectionRecords } = await import('../records/loader');
           const records = await getCollectionRecords(did, collection, { limit: 20 });
 
           if (records.length === 0) {
@@ -598,7 +601,6 @@ export class SiteEditor {
     document.body.appendChild(modal);
 
     try {
-      const { getCollectionRecords, getRecordByUri } = await import('../records/loader');
       const records = await getCollectionRecords(currentDid, collection, { limit: 50 });
 
       if (records.length === 0) {
@@ -771,7 +773,6 @@ export class SiteEditor {
     document.body.appendChild(modal);
 
     try {
-      const { getCollectionRecords } = await import('../records/loader');
       const collections = ['site.standard.document', 'pub.leaflet.document'];
 
       const recordSets = await Promise.all(collections.map(async (collection) => {

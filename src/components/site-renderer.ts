@@ -44,7 +44,12 @@ export class SiteRenderer {
 
     async render() {
         const myRenderId = ++this.renderId;
-        const config = getConfig();
+        const config = getConfig() || {
+            title: 'spores.garden',
+            subtitle: '',
+            sections: [],
+            theme: {},
+        };
         const ownerDid = getSiteOwnerDid();
         const isOwnerLoggedIn = isOwner();
         const isHomePage = !SiteRouter.isViewingProfile();
@@ -171,6 +176,7 @@ export class SiteRenderer {
                     // but `render` is awaited by caller anyway.
 
                     findAllHeldSpores(ownerDid).then(spores => {
+                        if (this.renderId !== myRenderId) return;
                         if (spores.length > 0) {
                             const sporesWrap = document.createElement('div');
                             sporesWrap.className = 'header-spores';
@@ -254,7 +260,7 @@ export class SiteRenderer {
                     viewMyGardenBtn.textContent = 'View My Garden';
                     viewMyGardenBtn.setAttribute('aria-label', 'Go to your garden');
                     viewMyGardenBtn.addEventListener('click', () => {
-                        location.href = `/@${currentDid}`;
+                        void SiteRouter.navigateToGardenDid(currentDid);
                     });
                     controls.appendChild(viewMyGardenBtn);
                 }
@@ -273,7 +279,7 @@ export class SiteRenderer {
                     viewMyGardenBtn.textContent = 'My Garden';
                     viewMyGardenBtn.setAttribute('aria-label', 'Go to your garden');
                     viewMyGardenBtn.addEventListener('click', () => {
-                        location.href = `/@${currentDid}`;
+                        void SiteRouter.navigateToGardenDid(currentDid);
                     });
                     controls.appendChild(viewMyGardenBtn);
                 }
@@ -491,7 +497,11 @@ export class SiteRenderer {
             const flowerSize = 140;
             const svgWrapper = document.createElement('div');
             svgWrapper.className = 'garden-preview__flower-svg';
-            svgWrapper.innerHTML = generateFlowerSVGString(ownerDid!, flowerSize);
+            if (ownerDid) {
+                svgWrapper.innerHTML = generateFlowerSVGString(ownerDid, flowerSize);
+            } else {
+                svgWrapper.innerHTML = this.getDandelionIcon();
+            }
             flowerBox.appendChild(svgWrapper);
 
             const subtext = document.createElement('p');
@@ -524,12 +534,14 @@ export class SiteRenderer {
             main.appendChild(preview);
 
             // Resolve handle for heading: "@handle's garden could grow here"
-            getProfile(ownerDid!).then((profile) => {
-                if (this.renderId !== myRenderId) return;
-                const safeHandle = getSafeHandle(profile?.handle, ownerDid!);
-                const displayHandle = safeHandle === ownerDid ? truncateDid(ownerDid!) : `@${safeHandle}`;
-                heading.textContent = `${displayHandle}'s garden could grow here`;
-            }).catch(() => { /* keep fallback heading */ });
+            if (ownerDid) {
+                getProfile(ownerDid).then((profile) => {
+                    if (this.renderId !== myRenderId) return;
+                    const safeHandle = getSafeHandle(profile?.handle, ownerDid);
+                    const displayHandle = safeHandle === ownerDid ? truncateDid(ownerDid) : `@${safeHandle}`;
+                    heading.textContent = `${displayHandle}'s garden could grow here`;
+                }).catch(() => { /* keep fallback heading */ });
+            }
         } else {
             // Viewing a profile with sections
             // Filter out deprecated section types (they're handled elsewhere)
@@ -576,13 +588,34 @@ export class SiteRenderer {
         // Dev tool reset button
         const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         if (isLocalDev && isLoggedIn()) {
+            const devTools = document.createElement('div');
+            devTools.className = 'dev-tools';
+
+            const devBackupBtn = document.createElement('button');
+            devBackupBtn.className = 'dev-tool-button dev-tool-button-backup';
+            devBackupBtn.textContent = 'Backup Garden Data';
+            devBackupBtn.setAttribute('aria-label', 'Download a JSON backup of your spores garden records (dev only)');
+            devBackupBtn.title = 'Download backup JSON';
+            devBackupBtn.addEventListener('click', () => this.data.backupGardenData());
+            devTools.appendChild(devBackupBtn);
+
             const devResetBtn = document.createElement('button');
-            devResetBtn.className = 'dev-reset-button';
+            devResetBtn.className = 'dev-tool-button dev-tool-button-reset';
             devResetBtn.textContent = 'Reset Garden Data';
             devResetBtn.setAttribute('aria-label', 'Delete all garden.spores.* localStorage and PDS records (dev only)');
             devResetBtn.title = 'Delete all garden.spores.* localStorage and PDS records';
             devResetBtn.addEventListener('click', () => this.data.resetGardenData());
-            this.app.appendChild(devResetBtn);
+            devTools.appendChild(devResetBtn);
+
+            const devRestoreBtn = document.createElement('button');
+            devRestoreBtn.className = 'dev-tool-button dev-tool-button-restore';
+            devRestoreBtn.textContent = 'Restore Garden Data';
+            devRestoreBtn.setAttribute('aria-label', 'Restore garden records from a backup JSON file (dev only)');
+            devRestoreBtn.title = 'Restore from backup JSON';
+            devRestoreBtn.addEventListener('click', () => this.data.restoreGardenDataFromFile());
+            devTools.appendChild(devRestoreBtn);
+
+            this.app.appendChild(devTools);
         }
     }
 
@@ -688,11 +721,7 @@ export class SiteRenderer {
     }
 
     getLoadingMessage(): string {
-        if (SiteRouter.isViewingProfile()) {
-            const messages = ['loading spores', 'loading garden'];
-            return messages[Math.floor(Math.random() * messages.length)];
-        }
-        return 'Loading your garden...';
+        return 'Loading spores...';
     }
 
     private updateFavicon(did: string | null): void {

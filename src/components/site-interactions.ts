@@ -1,6 +1,7 @@
-import { getSiteOwnerDid } from '../config';
+import { getSiteOwnerDid, buildGardenPath } from '../config';
 import { isLoggedIn, getCurrentDid, createRecord, uploadBlob, post } from '../oauth';
 import { listRecords, getBacklinks, getProfile } from '../at-client';
+import { getBacklinkQueries, getCollection, getReadCollections } from '../config/nsid';
 import { setCachedActivity, registerGarden } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
 import { generateSocialCardImage } from '../utils/social-card';
@@ -34,7 +35,7 @@ export class SiteInteractions {
         }
 
         try {
-            await createRecord('garden.spores.social.flower', {
+            await createRecord(getCollection('socialFlower'), {
                 subject: ownerDid,
                 createdAt: new Date().toISOString()
             });
@@ -138,7 +139,7 @@ export class SiteInteractions {
                     recordData.note = note;
                 }
 
-                await createRecord('garden.spores.social.takenFlower', recordData);
+                await createRecord(getCollection('socialTakenFlower'), recordData);
                 this.showNotification('Flower picked! View it in your Collected Flowers section.', 'success');
 
                 // Record local activity
@@ -233,9 +234,7 @@ export class SiteInteractions {
         const BLUESKY_GRAPHEME_LIMIT = 300;
         const profile = await getProfile(currentDid).catch(() => null);
         const handle = (profile as { handle?: string } | null)?.handle;
-        const gardenUrl = handle
-            ? `${window.location.origin}/@${handle}`
-            : window.location.origin;
+        const gardenUrl = `${window.location.origin}${buildGardenPath(handle || currentDid)}`;
         const shareLines = [
             `We all get a garden on spores.garden! ${gardenUrl}`,
             `Check out my unique garden on spores.garden! ${gardenUrl}`,
@@ -431,15 +430,22 @@ export class SiteInteractions {
 
         try {
             // 1. Check backlinks (cached/faster usually)
-            const response = await getBacklinks(ownerDid, 'garden.spores.social.flower:subject', { limit: 100 });
-            const plantedFlowers = response.records || response.links || [];
+            const backlinkResponses = await Promise.all(
+                getBacklinkQueries('socialFlower', 'subject').map((q) =>
+                    getBacklinks(ownerDid, q, { limit: 100 }).catch(() => null)
+                )
+            );
+            const plantedFlowers = backlinkResponses.flatMap((response: any) => response?.records || response?.links || []);
             const foundInBacklinks = plantedFlowers.some(flower => flower.did === currentDid);
 
             if (foundInBacklinks) return true;
 
             // 2. Check PDS directly (authoritative, handles indexer lag)
-            const userFlowers = await listRecords(currentDid, 'garden.spores.social.flower', { limit: 50 });
-            return userFlowers?.records?.some(r => r.value?.subject === ownerDid);
+            for (const collection of getReadCollections('socialFlower')) {
+                const userFlowers = await listRecords(currentDid, collection, { limit: 50 }).catch(() => null);
+                if (userFlowers?.records?.some(r => r.value?.subject === ownerDid)) return true;
+            }
+            return false;
         } catch (error) {
             console.error('Failed to check planted flowers:', error);
             return false;
@@ -453,8 +459,12 @@ export class SiteInteractions {
         if (!currentDid) return false;
 
         try {
-            const response = await listRecords(currentDid, 'garden.spores.social.takenFlower', { limit: 100 });
-            const takenFlowers = response.records || [];
+            const responses = await Promise.all(
+                getReadCollections('socialTakenFlower').map((collection) =>
+                    listRecords(currentDid, collection, { limit: 100 }).catch(() => ({ records: [] }))
+                )
+            );
+            const takenFlowers = responses.flatMap((response: any) => response.records || []);
             return takenFlowers.some(record => (record.value?.subject ?? record.value?.sourceDid) === ownerDid);
         } catch (error) {
             console.error('Failed to check if user picked a flower:', error);

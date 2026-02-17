@@ -21,6 +21,12 @@
             "maxLength": 50000,
             "description": "Profile description/bio"
           },
+          "pronouns": {
+            "type": "string",
+            "maxGraphemes": 100,
+            "maxLength": 1000,
+            "description": "Optional pronouns text (for profile parity)."
+          },
           "avatar": {
             "type": "blob",
             "accept": ["image/png", "image/jpeg", "image/webp", "image/gif"],

@@ -39,7 +39,8 @@ import {
   WebDidDocumentResolver
 } from '@atcute/identity-resolver';
 import { Client } from '@atcute/client';
-import type { OAuthConfig, OAuthSession, ATClientOptions } from './types';
+import type { OAuthConfig, ATClientOptions } from './types';
+import { debugLog } from './utils/logger';
 
 export let authReady = false;
 
@@ -49,6 +50,8 @@ let oauthConfig: OAuthConfig | null = null;
 let currentAgent: OAuthUserAgent | null = null;
 let currentSession: Session | null = null;
 let identityResolver: ReturnType<typeof defaultIdentityResolver> | null = null;
+const DPOP_NONCE_ERROR = 'use_dpop_nonce';
+const DPOP_RETRY_DELAY_MS = 100;
 
 /**
  * Initialize OAuth configuration
@@ -89,12 +92,9 @@ export async function initOAuth(config: OAuthConfig) {
 async function handleOAuthCallback() {
   // Check both hash fragment and query parameters
   let params: URLSearchParams | null = null;
-  let hadHash = false;
-
   // Try hash fragment first (OAuth implicit flow)
   if (location.hash.length > 1) {
     params = new URLSearchParams(location.hash.slice(1));
-    hadHash = true;
   }
   // Fall back to query parameters (OAuth authorization code flow)
   else if (location.search.length > 1) {
@@ -235,7 +235,7 @@ async function restoreSession() {
 
     // Check if session is expired
     if (sessionData.expiresAt && new Date(sessionData.expiresAt).getTime() < Date.now()) {
-      console.log('Stored session has expired, clearing');
+      debugLog('Stored session has expired, clearing');
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
       return;
     }
@@ -252,7 +252,7 @@ async function restoreSession() {
       detail: { loggedIn: true, did: restoredSession.info.sub }
     }));
 
-    console.log('Restored session from storage');
+    debugLog('Restored session from storage');
   } catch (error) {
     console.warn('Failed to restore session from storage:', error);
     // Clear corrupted session data
@@ -353,7 +353,7 @@ export async function createRecord(collection: string, record: unknown) {
       }
     }
   } catch (error) {
-    console.warn('Failed to resolve PDS for createRecord, client will use default:', error);
+    debugLog('PDS resolution failed for createRecord; using default client');
   }
 
   // Create client with explicit service URL if we have it
@@ -364,26 +364,30 @@ export async function createRecord(collection: string, record: unknown) {
 
   const client = new Client(clientOptions);
 
+  const runCreateRecord = async () => (client as any).post('com.atproto.repo.createRecord', {
+    input: {
+      repo: currentSession.info.sub,
+      collection,
+      record
+    }
+  });
+
   try {
-    // Use post() for procedures (createRecord is a procedure)
-    const response = await (client as any).post('com.atproto.repo.createRecord', {
-      input: {
-        repo: currentSession.info.sub,
-        collection,
-        record
-      }
-    });
+    let response = await runCreateRecord();
+    if (!response.ok && response.data?.error === DPOP_NONCE_ERROR) {
+      await new Promise(r => setTimeout(r, DPOP_RETRY_DELAY_MS));
+      response = await runCreateRecord();
+    }
 
     if (!response.ok) {
       const status = (response as { status?: number }).status;
-      if (status === 401 || status === 403) {
+      const errorMsg = response.data?.message || response.data?.error || 'Unknown error';
+      if ((status === 401 || status === 403) && response.data?.error !== DPOP_NONCE_ERROR) {
         clearSessionDueToAuthFailure();
         throw new Error('Session expired, please log in again.');
       }
-      const errorMsg = response.data?.message || response.data?.error || 'Unknown error';
       throw new Error(`Failed to create record: ${errorMsg}`);
     }
-
     return response.data;
   } catch (error) {
     console.error('createRecord error:', error);
@@ -412,7 +416,7 @@ export async function putRecord(collection: string, rkey: string, record: unknow
       }
     }
   } catch (error) {
-    console.warn('Failed to resolve PDS for putRecord, client will use default:', error);
+    debugLog('PDS resolution failed for putRecord; using default client');
   }
 
   // Create client with explicit service URL if we have it
@@ -423,8 +427,7 @@ export async function putRecord(collection: string, rkey: string, record: unknow
 
   const client = new Client(clientOptions);
 
-  // Use post() for procedures (putRecord is a procedure)
-  const response = await (client as any).post('com.atproto.repo.putRecord', {
+  const runPutRecord = async () => (client as any).post('com.atproto.repo.putRecord', {
     input: {
       repo: currentSession.info.sub,
       collection,
@@ -432,10 +435,15 @@ export async function putRecord(collection: string, rkey: string, record: unknow
       record
     }
   });
+  let response = await runPutRecord();
+  if (!response.ok && response.data?.error === DPOP_NONCE_ERROR) {
+    await new Promise(r => setTimeout(r, DPOP_RETRY_DELAY_MS));
+    response = await runPutRecord();
+  }
 
   if (!response.ok) {
     const status = (response as { status?: number }).status;
-    if (status === 401 || status === 403) {
+    if ((status === 401 || status === 403) && response.data?.error !== DPOP_NONCE_ERROR) {
       clearSessionDueToAuthFailure();
       throw new Error('Session expired, please log in again.');
     }
@@ -467,7 +475,7 @@ export async function deleteRecord(collection: string, rkey: string) {
       }
     }
   } catch (error) {
-    console.warn('Failed to resolve PDS for deleteRecord, client will use default:', error);
+    debugLog('PDS resolution failed for deleteRecord; using default client');
   }
 
   // Create client with explicit service URL if we have it
@@ -478,17 +486,21 @@ export async function deleteRecord(collection: string, rkey: string) {
 
   const client = new Client(clientOptions);
 
-  // Use post() for procedures (deleteRecord is a procedure)
-  const response = await (client as any).post('com.atproto.repo.deleteRecord', {
+  const runDeleteRecord = async () => (client as any).post('com.atproto.repo.deleteRecord', {
     input: {
       repo: currentSession.info.sub,
       collection,
       rkey
     }
   });
+  let response = await runDeleteRecord();
+  if (!response.ok && response.data?.error === DPOP_NONCE_ERROR) {
+    await new Promise(r => setTimeout(r, DPOP_RETRY_DELAY_MS));
+    response = await runDeleteRecord();
+  }
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    if ((response.status === 401 || response.status === 403) && response.data?.error !== DPOP_NONCE_ERROR) {
       clearSessionDueToAuthFailure();
       throw new Error('Session expired, please log in again.');
     }
@@ -522,7 +534,7 @@ export async function post(record: unknown) {
       }
     }
   } catch (error) {
-    console.warn('Failed to resolve PDS for post, client will use default:', error);
+    debugLog('PDS resolution failed for post; using default client');
   }
 
   // Create client with explicit service URL if we have it

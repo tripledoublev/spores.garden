@@ -1,4 +1,3 @@
-import { generateThemeFromDid } from "../themes/engine";
 import { generateFlowerSVGString } from '../utils/flower-svg';
 
 /**
@@ -605,16 +604,6 @@ class DidVisualization extends HTMLElement {
     }
   }
 
-  private stringToHash(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash |= 0; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
-  }
-
   private attachTooltipListeners() {
     const infoButton = this.querySelector('.did-info-button') as HTMLElement;
     const tooltip = this.querySelector('.did-info-tooltip') as HTMLElement;
@@ -651,3 +640,7 @@ class DidVisualization extends HTMLElement {
 }
 
 customElements.define('did-visualization', DidVisualization);
+
+// Keep legacy generators discoverable for future visual variants.
+void generateFlowerParams;
+void generateFlowerSVG;

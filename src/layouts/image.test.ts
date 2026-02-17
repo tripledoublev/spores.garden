@@ -79,7 +79,6 @@ describe('Image Layout', () => {
       }
 
       // After error, check for error message
-      const errorMsg = result.querySelector('.image-error');
       // Note: Error handling happens asynchronously, so we check the structure
       expect(result.querySelector('img')).toBeTruthy();
     });

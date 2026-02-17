@@ -64,6 +64,7 @@ type FieldMapping = string | string[] | ((record: any) => any);
 
 interface LexiconSchema {
   title?: FieldMapping;
+  pronouns?: FieldMapping;
   content?: FieldMapping;
   url?: FieldMapping;
   image?: FieldMapping;
@@ -171,6 +172,11 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     items: 'sections',
     confidence: 'high'
   },
+  'coop.hypha.spores.site.config': {
+    title: 'title',
+    items: 'sections',
+    confidence: 'high'
+  },
 
   // Spores.garden Content Block
   'garden.spores.content.text': {
@@ -180,9 +186,24 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     confidence: 'high',
     preferredLayout: 'post'
   },
+  'coop.hypha.spores.content.text': {
+    title: 'title',
+    content: 'content',
+    date: 'createdAt',
+    confidence: 'high',
+    preferredLayout: 'post'
+  },
 
   // Spores.garden Profile
   'garden.spores.site.profile': {
+    title: 'displayName',
+    pronouns: 'pronouns',
+    content: 'description',
+    image: 'avatar',
+    confidence: 'high',
+    preferredLayout: 'profile'
+  },
+  'coop.hypha.spores.site.profile': {
     title: 'displayName',
     content: 'description',
     image: 'avatar',
@@ -197,6 +218,12 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     date: 'createdAt',
     preferredLayout: 'image'
   },
+  'coop.hypha.spores.content.image': {
+    title: 'title',
+    image: 'image',
+    date: 'createdAt',
+    preferredLayout: 'image'
+  },
 
   // Spores.garden Flower (social interaction)
   'garden.spores.social.flower': {
@@ -204,10 +231,19 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     // subject is a DID reference
     confidence: 'high'
   },
+  'coop.hypha.spores.social.flower': {
+    date: 'createdAt',
+    confidence: 'high'
+  },
 
   // Spores.garden Taken Flower
   'garden.spores.social.takenFlower': {
     content: 'note', // Optional note when taking flower
+    date: 'createdAt',
+    confidence: 'high'
+  },
+  'coop.hypha.spores.social.takenFlower': {
+    content: 'note',
     date: 'createdAt',
     confidence: 'high'
   },
@@ -336,11 +372,17 @@ const KNOWN_LEXICONS = new Set([
   'com.whtwnd.blog.entry',
   'blue.linkat.board',
   'garden.spores.site.config',
+  'coop.hypha.spores.site.config',
   'garden.spores.content.text',
+  'coop.hypha.spores.content.text',
   'garden.spores.content.image',
+  'coop.hypha.spores.content.image',
   'garden.spores.site.profile',
+  'coop.hypha.spores.site.profile',
   'garden.spores.social.flower',
+  'coop.hypha.spores.social.flower',
   'garden.spores.social.takenFlower',
+  'coop.hypha.spores.social.takenFlower',
   'pub.leaflet.document',
   'site.standard.document',
   'community.lexicon.calendar.event',
@@ -368,6 +410,7 @@ function getLexiconSchema(type: string | undefined): LexiconSchema | undefined {
  */
 const FIELD_MAPPINGS = {
   title: ['title', 'name', 'displayName', 'subject', 'heading'],
+  pronouns: ['pronouns', 'pronoun'],
   content: ['content', 'text', 'description', 'message', 'body', 'summary', 'bio'],
   url: ['url', 'uri', 'link', 'href', 'website'],
   image: ['image', 'avatar', 'thumbnail', 'picture', 'photo'],
@@ -468,6 +511,7 @@ export function extractFields(record) {
   return {
     // Core content fields
     title: extractField(record, 'title', lexiconType),
+    pronouns: extractField(record, 'pronouns', lexiconType),
     content: extractField(record, 'content', lexiconType),
     url: extractField(record, 'url', lexiconType),
 
@@ -760,7 +804,7 @@ export interface LayoutSuggestion {
  * - medium: Known lexicon with 2+ fields OR unknown lexicon with 3+ fields
  * - low: Unknown lexicon with < 3 fields or < 2 meaningful fields
  */
-function calculateConfidence(record: any, fields: ReturnType<typeof extractFields>): 'high' | 'medium' | 'low' {
+function calculateConfidence(_record: any, fields: ReturnType<typeof extractFields>): 'high' | 'medium' | 'low' {
   const lexiconType = fields.$type;
   const schema = getLexiconSchema(lexiconType);
 

@@ -8,6 +8,8 @@
  */
 
 import { extractFields } from '../records/field-extractor';
+import { listRecords } from '../at-client';
+import { getRecordByUri } from '../records/loader';
 import { createErrorMessage } from '../utils/loading-states';
 
 const SITE_STANDARD_PUBLICATION = 'site.standard.publication';
@@ -27,9 +29,6 @@ async function fetchPublicationReadMoreUrl(record: { uri?: string; value?: { pub
   const did = parts[2];
   const docRkey = parts[parts.length - 1];
   if (!did || !docRkey) return undefined;
-
-  const { getRecordByUri } = await import('../records/loader');
-  const { listRecords } = await import('../at-client');
 
   let pub: { value?: { url?: string } } | null = null;
 
@@ -137,7 +136,7 @@ function escapeHtml(text: string): string {
 /**
  * Render a single block
  */
-function renderBlock(block: any, authorDid: string, depth: number = 0): HTMLElement | DocumentFragment | null {
+function renderBlock(block: any, authorDid: string, _depth: number = 0): HTMLElement | DocumentFragment | null {
   if (!block || !block.block) return null;
   
   const blockType = block.block.$type;

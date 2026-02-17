@@ -1,5 +1,5 @@
-import { initConfig, setSiteOwnerDid, loadUserConfig, hasUserConfig, getSiteOwnerDid, hasGardenIdentifierInUrl } from '../config';
-import { initOAuth, isLoggedIn, logout, login, getCurrentDid } from '../oauth';
+import { setSiteOwnerDid, loadUserConfig, hasUserConfig, getSiteOwnerDid, hasGardenIdentifierInUrl } from '../config';
+import { initOAuth, login, getCurrentDid } from '../oauth';
 import { applyTheme } from '../themes/engine';
 import { SiteRouter } from './site-router';
 import type { WelcomeModalElement, WelcomeAction } from '../types';

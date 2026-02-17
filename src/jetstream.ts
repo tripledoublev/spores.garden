@@ -5,6 +5,8 @@
  * new gardens and flower activity in real-time across the entire network.
  */
 
+import { debugLog } from './utils/logger';
+
 export interface JetstreamEvent {
   did: string;
   time_us: number;
@@ -58,6 +60,10 @@ export class JetstreamClient {
     'garden.spores.social.flower',     // Flower planting activity
     'garden.spores.social.takenFlower', // Flower picking activity
     'garden.spores.item.specialSpore', // Special spore activity
+    'coop.hypha.spores.site.config',
+    'coop.hypha.spores.social.flower',
+    'coop.hypha.spores.social.takenFlower',
+    'coop.hypha.spores.item.specialSpore',
   ];
 
   // How far back to fetch historical events (24 hours in milliseconds)
@@ -88,32 +94,32 @@ export class JetstreamClient {
     if (fetchHistory) {
       const cursorTime = (Date.now() - this.historicalWindowMs) * 1000; // Convert ms to μs
       params.append('cursor', cursorTime.toString());
-      console.log(`[Jetstream] Fetching last 24 hours of garden activity...`);
+      debugLog(`[Jetstream] Fetching last 24 hours of garden activity...`);
     }
 
     const url = `${endpoint}?${params.toString()}`;
     
-    console.log(`[Jetstream] Connecting to ${endpoint}...`);
+    debugLog(`[Jetstream] Connecting to ${endpoint}...`);
     
     try {
       this.ws = new WebSocket(url);
       
       this.ws.onopen = () => {
-        console.log('[Jetstream] Connected successfully');
+        debugLog('[Jetstream] Connected successfully');
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.messageCount = 0;
 
         // Log message count after 5 seconds to see if we're receiving anything
         setTimeout(() => {
-          console.log(`[Jetstream] Messages received in first 5s: ${this.messageCount}`);
+          debugLog(`[Jetstream] Messages received in first 5s: ${this.messageCount}`);
         }, 5000);
       };
 
       this.ws.onmessage = (event) => {
         this.messageCount++;
         if (this.messageCount % 100 === 0) {
-          console.log(`[Jetstream] Received ${this.messageCount} messages`);
+          debugLog(`[Jetstream] Received ${this.messageCount} messages`);
         }
         this.handleMessage(event.data);
       };
@@ -124,7 +130,7 @@ export class JetstreamClient {
 
       this.ws.onclose = (event) => {
         this.isConnecting = false;
-        console.log(`[Jetstream] Disconnected (code: ${event.code})`);
+        debugLog(`[Jetstream] Disconnected (code: ${event.code})`);
         
         if (this.shouldReconnect) {
           this.scheduleReconnect();
@@ -176,7 +182,7 @@ export class JetstreamClient {
 
       // Log event types periodically for debugging
       if (this.messageCount <= 10 || this.messageCount % 1000 === 0) {
-        console.log(`[Jetstream] Event kind: ${event.kind}${event.commit ? `, collection: ${event.commit.collection}` : ''}`);
+        debugLog(`[Jetstream] Event kind: ${event.kind}${event.commit ? `, collection: ${event.commit.collection}` : ''}`);
       }
 
       // Only process commit events (record changes)
@@ -205,7 +211,7 @@ export class JetstreamClient {
         record: commit.record,
       };
 
-      console.log('[Jetstream] Garden event:', commit.collection, event.did);
+      debugLog('[Jetstream] Garden event:', commit.collection, event.did);
 
       // Notify all callbacks
       for (const callback of this.callbacks) {
@@ -228,13 +234,13 @@ export class JetstreamClient {
       // Try next endpoint
       this.currentEndpointIndex = (this.currentEndpointIndex + 1) % this.endpoints.length;
       this.reconnectAttempts = 0;
-      console.log(`[Jetstream] Switching to endpoint: ${this.endpoints[this.currentEndpointIndex]}`);
+      debugLog(`[Jetstream] Switching to endpoint: ${this.endpoints[this.currentEndpointIndex]}`);
     }
 
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
     this.reconnectAttempts++;
     
-    console.log(`[Jetstream] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
+    debugLog(`[Jetstream] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
     
     setTimeout(() => {
       if (this.shouldReconnect) {

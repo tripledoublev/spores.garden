@@ -1,0 +1,72 @@
+{
+  "lexicon": 1,
+  "id": "coop.hypha.spores.site.section",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "A single site section for spores.garden. Each section is a record in a collection.",
+      "record": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "knownValues": ["collection", "records", "content", "block", "profile", "share-to-bluesky", "collected-flowers"],
+            "description": "Section type"
+          },
+          "title": {
+            "type": "string",
+            "maxGraphemes": 200,
+            "maxLength": 2000,
+            "description": "Section title"
+          },
+          "layout": {
+            "type": "string",
+            "knownValues": ["post", "card", "image", "link", "links", "list", "profile", "raw"],
+            "description": "Layout to use for rendering"
+          },
+          "collection": {
+            "type": "string",
+            "description": "Collection NSID to display (for type=collection)"
+          },
+          "rkey": {
+            "type": "string",
+            "description": "Record key within the collection to display (e.g. 'self' for profile)"
+          },
+          "records": {
+            "type": "array",
+            "items": { "type": "string", "format": "at-uri" },
+            "description": "Specific record URIs to display (for type=records)"
+          },
+          "content": {
+            "type": "string",
+            "maxGraphemes": 50000,
+            "maxLength": 500000,
+            "description": "Content for block sections"
+          },
+          "format": {
+            "type": "string",
+            "knownValues": ["markdown", "html", "text"],
+            "description": "Content format"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximum records to display"
+          },
+          "ref": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI of the referenced record (for content/profile sections)"
+          },
+          "hideHeader": {
+            "type": "boolean",
+            "description": "If true, hides the section header in display mode"
+          }
+        }
+      }
+    }
+  }
+}

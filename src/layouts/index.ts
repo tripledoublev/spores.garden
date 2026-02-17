@@ -4,10 +4,7 @@ import { renderImage } from './image';
 import { renderSmokeSignal } from './smoke-signal';
 import { renderLeaflet } from './leaflet';
 import { extractFields } from '../records/field-extractor';
-import { getConfig } from '../config';
-import { generateThemeFromDid } from '../themes/engine';
-import { buildAtUri, parseAtUri, getProfile } from '../at-client';
-import { getCurrentDid } from '../oauth';
+import { parseAtUri, getProfile } from '../at-client';
 import { renderMarkdown, looksLikeMarkdown } from '../utils/markdown';
 import { sanitizeHtml, escapeHtml } from '../utils/sanitize';
 
@@ -426,6 +423,13 @@ registerLayout('profile', (fields) => {
     name.className = 'profile-name';
     name.textContent = fields.title;
     info.appendChild(name);
+  }
+
+  if (fields.pronouns) {
+    const pronouns = document.createElement('p');
+    pronouns.className = 'profile-pronouns';
+    pronouns.textContent = fields.pronouns;
+    info.appendChild(pronouns);
   }
 
   if (fields.content) {

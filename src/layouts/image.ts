@@ -1,5 +1,28 @@
 import { extractFields } from '../records/field-extractor';
 import { createErrorMessage } from '../utils/loading-states';
+import { getBlobUrl } from '../at-client';
+
+function getRecordDid(record: any): string | null {
+  const uriDid = record?.uri?.split('/')?.[2];
+  return uriDid || record?.did || null;
+}
+
+function getRecordBlobRef(record: any): { ref?: { $link: string }; $link?: string } | null {
+  const value = record?.value || record;
+  if (!value || typeof value !== 'object') return null;
+
+  const image = (value as any).image;
+  if (image && typeof image === 'object' && (image.ref?.$link || image.$link)) {
+    return image;
+  }
+
+  const firstEmbedImage = (value as any).embed?.images?.[0]?.image;
+  if (firstEmbedImage && typeof firstEmbedImage === 'object' && (firstEmbedImage.ref?.$link || firstEmbedImage.$link)) {
+    return firstEmbedImage;
+  }
+
+  return null;
+}
 
 /**
  * Image Layout - visual-first display for images
@@ -59,6 +82,39 @@ export function renderImage(fields: ReturnType<typeof extractFields>, record?: a
       
       // Add error handling with retry
       img.addEventListener('error', () => {
+        const did = getRecordDid(record);
+        const blobRef = getRecordBlobRef(record);
+        const hasTriedBlobFallback = img.dataset.blobFallbackTried === 'true';
+        if (!hasTriedBlobFallback && did && blobRef) {
+          img.dataset.blobFallbackTried = 'true';
+          loadingOverlay.style.display = 'flex';
+          void getBlobUrl(did, blobRef)
+            .then((blobUrl) => {
+              img.style.display = '';
+              img.src = blobUrl;
+            })
+            .catch(() => {
+              loadingOverlay.style.display = 'none';
+              img.style.display = 'none';
+              const errorContainer = document.createElement('div');
+              errorContainer.className = 'image-error-container';
+              const errorMsg = createErrorMessage(
+                'Failed to load image',
+                () => {
+                  img.src = '';
+                  img.style.display = '';
+                  img.style.opacity = '0';
+                  loadingOverlay.style.display = 'flex';
+                  img.src = fields.image;
+                  errorContainer.remove();
+                },
+                'The image may be temporarily unavailable or the URL may be incorrect.'
+              );
+              errorContainer.appendChild(errorMsg);
+              imgContainer.appendChild(errorContainer);
+            });
+          return;
+        }
         loadingOverlay.style.display = 'none';
         img.style.display = 'none';
         const errorContainer = document.createElement('div');

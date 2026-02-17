@@ -1,0 +1,50 @@
+{
+  "lexicon": 1,
+  "id": "coop.hypha.spores.site.profile",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "description": "Custom profile information for spores.garden sites",
+      "record": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "maxGraphemes": 200,
+            "maxLength": 2000,
+            "description": "Display name"
+          },
+          "description": {
+            "type": "string",
+            "maxGraphemes": 5000,
+            "maxLength": 50000,
+            "description": "Profile description/bio"
+          },
+          "avatar": {
+            "type": "blob",
+            "accept": ["image/png", "image/jpeg", "image/webp", "image/gif"],
+            "maxSize": 1000000,
+            "description": "Avatar image blob"
+          },
+          "banner": {
+            "type": "blob",
+            "accept": ["image/png", "image/jpeg", "image/webp", "image/gif"],
+            "maxSize": 2000000,
+            "description": "Banner image blob"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Last update timestamp"
+          }
+        }
+      }
+    }
+  }
+}

@@ -9,6 +9,17 @@
     "preview": "vite preview",
     "start": "vite",
     "publish-lexicons": "node scripts/publish-lexicons.js",
+    "publish-lexicons:repo": "node scripts/publish-lexicons-to-repo.js",
+    "garden:data": "node scripts/garden-data-tools.js",
+    "garden:backup": "node scripts/garden-data-tools.js backup",
+    "garden:reset": "node scripts/garden-data-tools.js reset",
+    "garden:restore": "node scripts/garden-data-tools.js restore",
+    "typecheck": "tsc --noEmit",
+    "typecheck:strict": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "check": "npm run typecheck:strict && npm run test:run && npm run build",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "e2e:install-browsers": "playwright install chromium",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run"
@@ -22,12 +33,13 @@
     "marked": "^17.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/chroma-js": "^3.1.2",
-    "sharp": "^0.34.1",
     "@types/dompurify": "^3.0.5",
     "@vitest/ui": "^4.0.17",
     "happy-dom": "^20.3.4",
     "jsdom": "^27.4.0",
+    "sharp": "^0.34.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.8",
     "vitest": "^4.0.17"

@@ -5,7 +5,7 @@
  * containing blocks created by backdrop-filter / transform / etc.
  */
 
-export function createHelpTooltip(text: string): HTMLElement {
+export function createHelpTooltip(text: string, options: { allowHtml?: boolean } = {}): HTMLElement {
   const wrapper = document.createElement('span');
   wrapper.style.position = 'relative';
   wrapper.style.display = 'inline-flex';
@@ -20,11 +20,22 @@ export function createHelpTooltip(text: string): HTMLElement {
   const tooltip = document.createElement('div');
   tooltip.className = 'help-tooltip';
   tooltip.setAttribute('role', 'tooltip');
-  tooltip.textContent = text;
+  if (options.allowHtml) {
+    tooltip.innerHTML = text;
+  } else {
+    tooltip.textContent = text;
+  }
+  tooltip.style.display = 'none';
 
   wrapper.appendChild(btn);
   // Tooltip lives on body, not inside the wrapper
   document.body.appendChild(tooltip);
+
+  let isVisible = false;
+  let ignoreNextClick = false;
+  const supportsHover = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   const position = () => {
     const rect = btn.getBoundingClientRect();
@@ -43,20 +54,60 @@ export function createHelpTooltip(text: string): HTMLElement {
   };
 
   const show = () => {
+    isVisible = true;
+    btn.setAttribute('aria-expanded', 'true');
     tooltip.style.display = 'block';
     position();
   };
-  const hide = () => { tooltip.style.display = 'none'; };
+  const hide = () => {
+    isVisible = false;
+    btn.setAttribute('aria-expanded', 'false');
+    tooltip.style.display = 'none';
+  };
+  const toggle = () => {
+    if (isVisible) {
+      hide();
+      return;
+    }
+    show();
+  };
 
-  btn.addEventListener('mouseenter', show);
-  btn.addEventListener('mouseleave', hide);
+  if (supportsHover) {
+    btn.addEventListener('mouseenter', show);
+    btn.addEventListener('mouseleave', hide);
+  }
+
+  if (typeof window !== 'undefined' && 'PointerEvent' in window) {
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse') {
+        ignoreNextClick = true;
+        e.preventDefault();
+        e.stopPropagation();
+        toggle();
+      }
+    });
+  } else {
+    btn.addEventListener('touchstart', (e) => {
+      ignoreNextClick = true;
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    }, { passive: false });
+  }
+
   btn.addEventListener('click', (e) => {
+    if (ignoreNextClick) {
+      ignoreNextClick = false;
+      return;
+    }
     e.stopPropagation();
-    tooltip.style.display === 'block' ? hide() : show();
+    toggle();
   });
 
   document.addEventListener('click', (e) => {
-    if (!wrapper.contains(e.target as Node)) hide();
+    if (!wrapper.contains(e.target as Node)) {
+      hide();
+    }
   });
 
   return wrapper;

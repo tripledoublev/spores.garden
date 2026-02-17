@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Reports
+    url: mailto:security@hypha.coop
+    about: Please report security vulnerabilities privately.
+  - name: Code of Conduct Reports
+    url: mailto:conduct@hypha.coop
+    about: Please report Code of Conduct concerns privately.

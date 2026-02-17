@@ -22,7 +22,6 @@ class SiteApp extends HTMLElement {
   private renderer: SiteRenderer;
   private interactions: SiteInteractions;
   private data: SiteData;
-  private isThemeReady = false;
 
   constructor() {
     super();
@@ -110,7 +109,6 @@ class SiteApp extends HTMLElement {
     
     // On initial load, set up theme-ready state
     if (isInitialLoad) {
-      this.isThemeReady = true;
       this.classList.add('theme-ready');
     }
     
@@ -164,7 +162,7 @@ class SiteApp extends HTMLElement {
 
   /**
    * Set up client-side navigation to prevent GitHub Pages 404 redirects.
-   * Intercepts clicks on internal links (e.g., /@handle, /?did=...) and uses
+   * Intercepts clicks on internal links (e.g., /@handle, /did:plc:...) and uses
    * history.pushState instead of full page navigation, preserving theme transitions.
    * Only called once during initial load.
    */
@@ -200,10 +198,12 @@ class SiteApp extends HTMLElement {
         const search = url.search;
 
         // Check if this is an internal app route (garden navigation)
-        // Patterns: /@handle, /@did, /?did=..., /?handle=..., or just / (home)
+        // Canonical patterns: /@handle, /did:plc:..., or / (home).
+        // Legacy query patterns are still supported for backwards compatibility.
         const isInternalRoute =
           pathname === '/' ||
           pathname.startsWith('/@') ||
+          pathname.startsWith('/did:') ||
           search.includes('did=') ||
           search.includes('handle=');
 

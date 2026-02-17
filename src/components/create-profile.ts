@@ -1,11 +1,12 @@
 /**
  * Modal for creating and editing profile records.
- * Supports display name, bio, avatar, and banner images with blob upload.
+ * Supports display name, pronouns, bio, avatar, and banner images with blob upload.
  */
 
-import { createRecord, putRecord, uploadBlob } from '../oauth';
+import { putRecord, uploadBlob } from '../oauth';
 import { addSection, updateSection, getSiteOwnerDid } from '../config';
 import { getRecord } from '../at-client';
+import { getCollection } from '../config/nsid';
 
 // Type for blob reference as stored in AT Proto records
 interface BlobRef {
@@ -20,6 +21,7 @@ interface BlobRef {
 class CreateProfile extends HTMLElement {
   private onClose: (() => void) | null = null;
   private displayName: string = '';
+  private pronouns: string = '';
   private description: string = '';
   private avatarFile: File | null = null;
   private bannerFile: File | null = null;
@@ -46,6 +48,7 @@ class CreateProfile extends HTMLElement {
     rkey?: string;
     sectionId?: string;
     displayName?: string;
+    pronouns?: string;
     description?: string;
     avatar?: BlobRef;
     banner?: BlobRef;
@@ -54,6 +57,7 @@ class CreateProfile extends HTMLElement {
     this.editRkey = profileData.rkey || null;
     this.editSectionId = profileData.sectionId || null;
     this.displayName = profileData.displayName || '';
+    this.pronouns = profileData.pronouns || '';
     this.description = profileData.description || '';
     this.existingAvatar = profileData.avatar || null;
     this.existingBanner = profileData.banner || null;
@@ -89,6 +93,11 @@ class CreateProfile extends HTMLElement {
         <div class="form-group">
           <label for="profile-display-name">Display Name</label>
           <input type="text" id="profile-display-name" class="input" placeholder="Your name" maxlength="200" value="${(this.displayName || '').replace(/"/g, '&quot;')}">
+        </div>
+
+        <div class="form-group">
+          <label for="profile-pronouns">Pronouns (optional)</label>
+          <input type="text" id="profile-pronouns" class="input" placeholder="they/them" maxlength="100" value="${(this.pronouns || '').replace(/"/g, '&quot;')}">
         </div>
         
         <div class="form-group">
@@ -182,6 +191,7 @@ class CreateProfile extends HTMLElement {
 
   private attachEventListeners() {
     const displayNameInput = this.querySelector('#profile-display-name') as HTMLInputElement;
+    const pronounsInput = this.querySelector('#profile-pronouns') as HTMLInputElement;
     const descriptionTextarea = this.querySelector('#profile-description') as HTMLTextAreaElement;
     const avatarDropZone = this.querySelector('#avatar-drop-zone') as HTMLDivElement;
     const avatarInput = this.querySelector('#avatar-input') as HTMLInputElement;
@@ -195,6 +205,11 @@ class CreateProfile extends HTMLElement {
     // Handle display name input
     displayNameInput?.addEventListener('input', (e) => {
       this.displayName = (e.target as HTMLInputElement).value.trim();
+    });
+
+    // Handle pronouns input
+    pronounsInput?.addEventListener('input', (e) => {
+      this.pronouns = (e.target as HTMLInputElement).value.trim();
     });
 
     // Handle description input
@@ -343,16 +358,20 @@ class CreateProfile extends HTMLElement {
     if (!ownerDid) {
       throw new Error('Not logged in');
     }
+    const profileCollection = getCollection('siteProfile');
 
     // Create the profile record
     const record: any = {
-      $type: 'garden.spores.site.profile',
+      $type: profileCollection,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
     if (this.displayName) {
       record.displayName = this.displayName;
+    }
+    if (this.pronouns) {
+      record.pronouns = this.pronouns;
     }
     if (this.description) {
       record.description = this.description;
@@ -369,12 +388,12 @@ class CreateProfile extends HTMLElement {
     }
 
     // Use 'self' as a consistent rkey for the user's profile
-    await putRecord('garden.spores.site.profile', 'self', record);
+    await putRecord(profileCollection, 'self', record);
 
     // Add section to config referencing this profile
     const section: any = {
       type: 'profile',
-      collection: 'garden.spores.site.profile',
+      collection: profileCollection,
       rkey: 'self'
     };
 
@@ -393,12 +412,13 @@ class CreateProfile extends HTMLElement {
     if (!ownerDid) {
       throw new Error('Not logged in');
     }
+    const profileCollection = getCollection('siteProfile');
 
     if (this.editRkey) {
       // Load existing record first to merge all fields
       let existingRecord: any = {};
       try {
-        const existing = await getRecord(ownerDid, 'garden.spores.site.profile', this.editRkey);
+        const existing = await getRecord(ownerDid, profileCollection, this.editRkey);
         if (existing?.value) {
           existingRecord = existing.value;
         }
@@ -409,7 +429,7 @@ class CreateProfile extends HTMLElement {
       // Start with existing record and update only changed fields
       const record: any = {
         ...existingRecord,
-        $type: 'garden.spores.site.profile',
+        $type: profileCollection,
         updatedAt: new Date().toISOString()
       };
 
@@ -418,6 +438,7 @@ class CreateProfile extends HTMLElement {
 
       // Update description (even if empty string, as user may have cleared it)
       record.description = this.description;
+      record.pronouns = this.pronouns;
 
       // Handle avatar: new file, existing blob, or cleared
       if (this.avatarFile) {
@@ -444,7 +465,7 @@ class CreateProfile extends HTMLElement {
         record.createdAt = existingRecord.createdAt;
       }
 
-      await putRecord('garden.spores.site.profile', this.editRkey, record);
+      await putRecord(profileCollection, this.editRkey, record);
 
       // Update section config if displayName changed
       if (this.editSectionId && this.displayName) {
@@ -453,13 +474,16 @@ class CreateProfile extends HTMLElement {
     } else {
       // No rkey exists - create a new profile record and update section
       const record: any = {
-        $type: 'garden.spores.site.profile',
+        $type: profileCollection,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
       if (this.displayName) {
         record.displayName = this.displayName;
+      }
+      if (this.pronouns) {
+        record.pronouns = this.pronouns;
       }
       if (this.description) {
         record.description = this.description;
@@ -476,12 +500,12 @@ class CreateProfile extends HTMLElement {
       }
 
       // Use 'self' as a consistent rkey for the user's profile
-      await putRecord('garden.spores.site.profile', 'self', record);
+      await putRecord(profileCollection, 'self', record);
 
       // Update the section to reference the profile record
       if (this.editSectionId) {
         const updates: any = {
-          collection: 'garden.spores.site.profile',
+          collection: profileCollection,
           rkey: 'self'
         };
         if (this.displayName) {
@@ -505,6 +529,7 @@ class CreateProfile extends HTMLElement {
     this.editRkey = null;
     this.editSectionId = null;
     this.displayName = '';
+    this.pronouns = '';
     this.description = '';
     this.avatarFile = null;
     this.bannerFile = null;

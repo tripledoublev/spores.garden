@@ -5,7 +5,7 @@
 
 import { createRecord, putRecord, getCurrentDid } from '../oauth';
 import { addSection, updateSection, getSiteOwnerDid } from '../config';
-import { getRecord } from '../at-client';
+import { getCollection } from '../config/nsid';
 import { setCachedActivity } from './recent-gardens';
 
 class CreateContent extends HTMLElement {
@@ -161,9 +161,10 @@ class CreateContent extends HTMLElement {
     content: string;
     format: string;
   }) {
+    const contentTextCollection = getCollection('contentText');
     // Create the content record
     const record: any = {
-      $type: 'garden.spores.content.text',
+      $type: contentTextCollection,
       content: contentData.content,
       format: contentData.format || 'markdown',
       createdAt: new Date().toISOString()
@@ -173,7 +174,7 @@ class CreateContent extends HTMLElement {
       record.title = contentData.title;
     }
 
-    const response = await createRecord('garden.spores.content.text', record);
+    const response = await createRecord(contentTextCollection, record);
 
     // Extract rkey from the response URI
     const rkey = response.uri.split('/').pop();
@@ -188,7 +189,6 @@ class CreateContent extends HTMLElement {
     const section: any = {
       type: 'content',
       ref: response.uri,
-      collection: 'garden.spores.content.text',
       rkey: rkey,
       format: contentData.format
     };
@@ -214,10 +214,11 @@ class CreateContent extends HTMLElement {
       throw new Error('Not logged in');
     }
 
+    const contentTextCollection = getCollection('contentText');
     if (this.editRkey) {
       // Update existing content record
       const record: any = {
-        $type: 'garden.spores.content.text',
+        $type: contentTextCollection,
         content: contentData.content,
         format: contentData.format || 'markdown',
         createdAt: new Date().toISOString()
@@ -227,7 +228,7 @@ class CreateContent extends HTMLElement {
         record.title = contentData.title;
       }
 
-      await putRecord('garden.spores.content.text', this.editRkey, record);
+      await putRecord(contentTextCollection, this.editRkey, record);
 
       // Update section config if title changed
       if (this.editSectionId) {

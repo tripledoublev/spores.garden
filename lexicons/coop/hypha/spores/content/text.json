@@ -1,0 +1,40 @@
+{
+  "lexicon": 1,
+  "id": "coop.hypha.spores.content.text",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "Custom content block for spores.garden sites",
+      "record": {
+        "type": "object",
+        "required": ["content", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxGraphemes": 200,
+            "maxLength": 2000,
+            "description": "Block title"
+          },
+          "content": {
+            "type": "string",
+            "maxGraphemes": 50000,
+            "maxLength": 500000,
+            "description": "Block content"
+          },
+          "format": {
+            "type": "string",
+            "knownValues": ["markdown", "html", "text"],
+            "default": "markdown",
+            "description": "Content format"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Creation timestamp"
+          }
+        }
+      }
+    }
+  }
+}

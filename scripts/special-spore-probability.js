@@ -1,6 +1,6 @@
 /**
  * Test script to check if a DID will receive a special spore
- * Usage: node test-spore-probability.js did:plc:xxxxx
+ * Usage: node scripts/special-spore-probability.js did:plc:xxxxx
  */
 
 function seededRandom(seed) {
@@ -20,8 +20,8 @@ function seededRandom(seed) {
 const did = process.argv[2];
 
 if (!did) {
-    console.error('Usage: node test-spore-probability.js <DID>');
-    console.error('Example: node test-spore-probability.js did:plc:abc123');
+    console.error('Usage: node scripts/special-spore-probability.js <DID>');
+    console.error('Example: node scripts/special-spore-probability.js did:plc:abc123');
     process.exit(1);
 }
 
