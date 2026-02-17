@@ -428,6 +428,11 @@ export class SiteEditor {
       <div class="welcome-selector">
         <h2>Select Collection</h2>
         <p>Choose a collection to load records from</p>
+        <p class="dev-notice">
+          <strong>Experimental developer feature.</strong><br>
+          spores.garden supports a variety of AT Protocol record types, but rendering quality varies — some may not display as expected. This option is intended for developers adding layout support for their own projects.<br>
+          <a href="https://tangled.org/hypha.coop/spores.garden/blob/main/docs/layouts.md" target="_blank" rel="noopener">Learn more about layouts →</a>
+        </p>
         <div class="collection-list">
           ${collections.map(coll => `
             <button class="collection-item" data-collection="${coll}">
