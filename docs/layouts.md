@@ -423,6 +423,30 @@ If expected fields are missing:
 2. Review `src/themes/base.css` for existing patterns
 3. Ensure no conflicting class names
 
+## Accessing Load Records in the Editor
+
+The **Load Records** option in the Add Section modal is the primary UI entry point for displaying custom AT Protocol record types on your spores.garden site.
+
+> **Experimental feature:** Load Records is intended for developers. Rendering quality varies across lexicons — some collections may not display as expected without a dedicated layout.
+
+### How it works
+
+1. In the site editor, click **Add Section** and choose **Load Records**
+2. The editor lists AT Protocol collections available on your PDS
+3. Select a collection; spores.garden will fetch records and render them using the best matching layout
+
+If no layout is registered for the collection's lexicon type, records fall back to heuristic field extraction and a generic layout.
+
+### Adding layout support for a new lexicon
+
+To improve rendering for a specific collection:
+
+1. Follow the steps in [Creating a New Layout](#creating-a-new-layout) to build a layout function
+2. Register it in `src/layouts/index.ts` (see that file for examples)
+3. Optionally add a lexicon schema to `src/records/field-extractor.ts` for precise field extraction
+
+Once registered, spores.garden will automatically use your layout for matching record types.
+
 ## Further Reading
 
 - `src/layouts/index.ts` - Layout registration and examples

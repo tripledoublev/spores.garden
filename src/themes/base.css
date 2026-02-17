@@ -1127,6 +1127,24 @@ body.has-pattern .header:has(.controls.open) {
 }
 
 /* ============================================
+   Dev Notice
+   ============================================ */
+
+.dev-notice {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-left: 3px solid var(--color-text-muted);
+  background: var(--color-surface, rgba(0,0,0,0.03));
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.dev-notice a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ============================================
    Modals
    ============================================ */
 
@@ -1215,6 +1233,12 @@ body.has-pattern .header:has(.controls.open) {
     width: 100%;
     min-height: 44px;
     justify-content: center;
+  }
+
+  .dev-notice {
+    margin: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.85rem;
+    border-left-width: 2px;
   }
 }
 
