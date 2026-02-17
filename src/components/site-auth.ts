@@ -96,32 +96,44 @@ export class SiteAuth {
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.innerHTML = `
-      <div class="modal-content login-modal-content">
-        <h2>Login with Bluesky or ATProto</h2>
+      <div class="modal-content login-modal-content" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
+        <h2 id="login-modal-title">Login with Bluesky or ATProto</h2>
         <form class="login-form">
-          <input type="text" placeholder="your.handle.com" class="input" required>
+          <label for="login-handle" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">Your Bluesky handle or domain</label>
+          <input id="login-handle" type="text" placeholder="your.handle.com" class="input" required>
           <button type="submit" class="button">Login</button>
         </form>
         <button class="button button-secondary modal-close">Cancel</button>
       </div>
     `;
 
+        const closeModal = () => {
+            document.removeEventListener('keydown', handleKeydown);
+            modal.remove();
+        };
+
+        const handleKeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') closeModal();
+        };
+
         modal.querySelector('form')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const input = modal.querySelector('input');
             const handle = input ? input.value.trim() : '';
             if (handle) {
-                modal.remove();
+                closeModal();
                 await login(handle);
             }
         });
 
-        modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+        modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
+            if (e.target === modal) closeModal();
         });
 
+        document.addEventListener('keydown', handleKeydown);
         document.body.appendChild(modal);
+        modal.querySelector<HTMLInputElement>('input')?.focus();
     }
 
     showWelcome() {

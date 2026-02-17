@@ -114,6 +114,29 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Skip navigation link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--spacing-md);
+  z-index: 9999;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-text);
+  color: var(--color-background);
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 2px solid var(--color-border-dark);
+}
+.skip-link:focus {
+  top: var(--spacing-md);
+}
+#main-content:focus {
+  outline: none;
+}
+
 /* Hide text until fonts are loaded to prevent flicker */
 body:not(.fonts-ready) h1,
 body:not(.fonts-ready) h2,
@@ -992,6 +1015,11 @@ body.has-pattern .header:has(.controls.open) {
 .button:hover {
   background: var(--color-background);
   color: var(--color-text);
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--color-border-dark);
+  outline-offset: 2px;
 }
 
 .button:active {
@@ -3736,7 +3764,22 @@ body:has(.save-bar) .notification {
   transition: transform 0.2s ease;
 }
 
-.flower-grid-item a:hover {
+a.flower-grid-item {
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease;
+}
+
+button.flower-grid-item {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.flower-grid-item a:hover,
+a.flower-grid-item:hover {
   transform: scale(1.05);
 }
 

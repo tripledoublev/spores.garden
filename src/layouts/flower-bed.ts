@@ -81,27 +81,21 @@ export async function renderFlowerBed(_section: any, headerStripMode: boolean = 
 
     // Render flowers with async handle resolution
     const flowerPromises = flowersToRender.map(async (flower: any) => {
-      const flowerEl = document.createElement('div');
+      const flowerEl = document.createElement('button');
+      flowerEl.type = 'button';
       flowerEl.className = 'flower-grid-item';
       if (flower.isOwner) {
         flowerEl.classList.add('flower-grid-item--owner');
       }
 
-      const container = document.createElement('div');
-      container.style.position = 'relative';
-      container.style.cursor = 'pointer';
-
       const viz = document.createElement('did-visualization');
       viz.setAttribute('did', flower.did);
-      container.appendChild(viz);
+      flowerEl.appendChild(viz);
 
-      // Add click handler to show all gardens where this flower was planted
-      container.addEventListener('click', async (e) => {
-        e.preventDefault();
+      flowerEl.addEventListener('click', async () => {
         await showFlowerGardensModal(flower.did);
       });
 
-      flowerEl.appendChild(container);
       return flowerEl;
     });
 
@@ -283,9 +277,9 @@ async function showFlowerGardensModal(flowerDid: string) {
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.innerHTML = `
-    <div class="modal-content" style="max-width: 480px;">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="flower-modal-title" style="max-width: 480px;">
       <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-        <h2 style="margin: 0; line-height: 1.3;">
+        <h2 id="flower-modal-title" style="margin: 0; line-height: 1.3;">
           This flower is originally from <span style="white-space: nowrap;">${escapeHtml(flowerDisplayName)}</span>'s garden
         </h2>
         <button class="button button-ghost modal-close" aria-label="Close" style="font-size: 1.5rem; line-height: 1; padding: 0; width: 2rem; height: 2rem; flex-shrink: 0;">×</button>
@@ -300,7 +294,18 @@ async function showFlowerGardensModal(flowerDid: string) {
     </div>
   `;
 
+  const closeModal = () => {
+    document.removeEventListener('keydown', handleKeydown);
+    modal.remove();
+  };
+
+  const handleKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') closeModal();
+  };
+
   document.body.appendChild(modal);
+  modal.querySelector<HTMLButtonElement>('.modal-close')?.focus();
+  document.addEventListener('keydown', handleKeydown);
 
   // Add "Visit flower owner's garden" button when not on current page
   const selfCta = modal.querySelector('#flower-gardens-self-cta');
@@ -317,11 +322,10 @@ async function showFlowerGardensModal(flowerDid: string) {
   }
 
   // Close handlers
-  const closeBtn = modal.querySelector('.modal-close');
-  closeBtn?.addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
 
   modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.remove();
+    if (e.target === modal) closeModal();
   });
 
   // Load gardens

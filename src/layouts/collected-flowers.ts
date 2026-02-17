@@ -62,29 +62,29 @@ export async function renderCollectedFlowers(
       const note = flowerRecord.value.note;
       const rkey = flowerRecord.uri?.split('/').pop();
 
-      const flowerEl = document.createElement('div');
-      flowerEl.className = 'flower-grid-item';
-
-      const link = document.createElement('a');
-      link.href = `/@${sourceDid}`;
-      link.title = `View ${sourceDid}'s garden`;
-
       const profile = profileMap.get(sourceDid) as { handle?: string; displayName?: string } | null | undefined;
       const safeHandle = getSafeHandle(profile?.handle, sourceDid);
-      link.href = `/@${safeHandle}`;
-      link.title = `View ${sourceDid}'s garden`;
-
       const displayHandle = safeHandle === sourceDid ? truncateDid(sourceDid) : safeHandle;
       const displayName = profile?.displayName || displayHandle;
-      if (displayName !== sourceDid) {
-        link.title = `View ${displayName}'s garden`;
-      }
+
+      const isEditMode = canManageFlowers && !!rkey && !!options?.editMode;
+      const flowerEl = document.createElement(isEditMode ? 'div' : 'a') as HTMLElement;
+      flowerEl.className = 'flower-grid-item';
 
       const viz = document.createElement('did-visualization');
       viz.setAttribute('did', sourceDid);
-      link.appendChild(viz);
 
-      flowerEl.appendChild(link);
+      if (isEditMode) {
+        const link = document.createElement('a');
+        link.href = `/@${safeHandle}`;
+        link.title = `View ${displayName}'s garden`;
+        link.appendChild(viz);
+        flowerEl.appendChild(link);
+      } else {
+        (flowerEl as HTMLAnchorElement).href = `/@${safeHandle}`;
+        (flowerEl as HTMLAnchorElement).title = `View ${displayName}'s garden`;
+        flowerEl.appendChild(viz);
+      }
 
       // Display note if present
       if (note) {

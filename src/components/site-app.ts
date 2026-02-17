@@ -167,6 +167,9 @@ class SiteApp extends HTMLElement {
    * Only called once during initial load.
    */
   private setupClientSideNavigation(): void {
+    // Track pathname+search to detect real route changes vs hash-only popstate events
+    let lastRoutePath = location.pathname + location.search;
+
     // Intercept clicks on internal links
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
@@ -194,6 +197,9 @@ class SiteApp extends HTMLElement {
         // Only intercept internal navigation (same origin)
         if (url.origin !== location.origin) return;
 
+        // Never intercept hash-only anchor links (e.g. skip links, in-page anchors)
+        if (url.pathname === location.pathname && url.search === location.search && url.hash) return;
+
         const pathname = url.pathname;
         const search = url.search;
 
@@ -215,6 +221,7 @@ class SiteApp extends HTMLElement {
           modal?.remove();
           // Use pushState to update URL without page reload
           history.pushState(null, '', url.pathname + url.search);
+          lastRoutePath = url.pathname + url.search;
           // Manually trigger navigation handler (pushState doesn't fire popstate)
           void this.handleNavigation();
         }
@@ -224,7 +231,11 @@ class SiteApp extends HTMLElement {
     });
 
     // Handle browser back/forward buttons
+    // pushState doesn't fire popstate; hash-only changes do — skip those
     window.addEventListener('popstate', () => {
+      const routePath = location.pathname + location.search;
+      if (routePath === lastRoutePath) return;
+      lastRoutePath = routePath;
       this.handleNavigation();
     });
   }

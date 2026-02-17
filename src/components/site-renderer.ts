@@ -379,6 +379,8 @@ export class SiteRenderer {
         // Main content
         const main = document.createElement('main');
         main.className = 'main';
+        main.id = 'main-content';
+        main.tabIndex = -1;
 
         const sections = config.sections || [];
 
