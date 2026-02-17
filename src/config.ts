@@ -165,9 +165,17 @@ export async function initConfig() {
 
   const currentDid = getCurrentDid();
   if (currentDid) {
-    void migrateOwnerNsidRecords(currentDid).catch((error) => {
-      console.warn('[initConfig] Background NSID migration failed:', error);
-    });
+    const migrationDisabled = localStorage.getItem('spores.disableMigration') === 'true';
+    const migrationDone = localStorage.getItem(`spores.migrationDone.${currentDid}`) === 'true';
+    if (migrationDisabled) {
+      debugLog('[initConfig] NSID migration disabled via localStorage kill switch');
+    } else if (migrationDone) {
+      debugLog('[initConfig] NSID migration already completed for', currentDid);
+    } else {
+      void migrateOwnerNsidRecords(currentDid).catch((error) => {
+        console.warn('[initConfig] Background NSID migration failed:', error);
+      });
+    }
   }
 
   const loaded = await loadUserConfig(siteOwnerDid);

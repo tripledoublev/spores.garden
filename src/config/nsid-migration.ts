@@ -58,9 +58,9 @@ function toComparableValue(value: any): any {
   if (Array.isArray(value)) return value.map(toComparableValue);
 
   const out: Record<string, any> = {};
-  for (const [key, val] of Object.entries(value)) {
+  for (const key of Object.keys(value).sort()) {
     if (key === '$type') continue;
-    out[key] = toComparableValue(val);
+    out[key] = toComparableValue(value[key]);
   }
   return out;
 }
@@ -160,9 +160,11 @@ export async function migrateOwnerNsidRecordsImpl(
 
     if (writes === 0 && deletes === 0) {
       deps.debugLog(`[nsid-migration] No migration needed for ${did}: no old records to migrate.`);
+      try { localStorage.setItem(`spores.migrationDone.${did}`, 'true'); } catch {}
       return;
     }
     deps.debugLog(`[nsid-migration] Completed migration for ${did}: wrote ${writes}, deleted ${deletes}.`);
+    try { localStorage.setItem(`spores.migrationDone.${did}`, 'true'); } catch {}
   } catch (error) {
     console.error(`[nsid-migration] Failed migration for ${did}:`, error);
   }
@@ -230,6 +232,14 @@ export async function migrateLegacySectionsRecordImpl(
       // expected: already migrated or new user
     } else {
       console.error(`Error during sections migration check for user ${did}:`, error);
+      try {
+        const warningEl = document.createElement('div');
+        warningEl.setAttribute('role', 'alert');
+        warningEl.style.cssText = 'position:fixed;bottom:1rem;left:1rem;right:1rem;padding:0.75rem 1rem;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:0.5rem;z-index:9999;font-size:0.875rem;';
+        warningEl.textContent = 'Warning: Could not complete data migration. Some garden sections may be missing. Please try refreshing.';
+        document.body.appendChild(warningEl);
+        setTimeout(() => warningEl.remove(), 15000);
+      } catch {}
     }
   }
 }

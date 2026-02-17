@@ -374,6 +374,7 @@ export async function createRecord(collection: string, record: unknown) {
   try {
     let response = await runCreateRecord();
     if (!response.ok && response.data?.error === DP0P_NONCE_ERROR) {
+      await new Promise(r => setTimeout(r, 100));
       response = await runCreateRecord();
     }
 
@@ -435,6 +436,7 @@ export async function putRecord(collection: string, rkey: string, record: unknow
   });
   let response = await runPutRecord();
   if (!response.ok && response.data?.error === DP0P_NONCE_ERROR) {
+    await new Promise(r => setTimeout(r, 100));
     response = await runPutRecord();
   }
 
@@ -492,6 +494,7 @@ export async function deleteRecord(collection: string, rkey: string) {
   });
   let response = await runDeleteRecord();
   if (!response.ok && response.data?.error === DP0P_NONCE_ERROR) {
+    await new Promise(r => setTimeout(r, 100));
     response = await runDeleteRecord();
   }
 
