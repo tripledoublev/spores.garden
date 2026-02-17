@@ -587,13 +587,34 @@ export class SiteRenderer {
         // Dev tool reset button
         const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         if (isLocalDev && isLoggedIn()) {
+            const devTools = document.createElement('div');
+            devTools.className = 'dev-tools';
+
+            const devBackupBtn = document.createElement('button');
+            devBackupBtn.className = 'dev-tool-button dev-tool-button-backup';
+            devBackupBtn.textContent = 'Backup Garden Data';
+            devBackupBtn.setAttribute('aria-label', 'Download a JSON backup of your spores garden records (dev only)');
+            devBackupBtn.title = 'Download backup JSON';
+            devBackupBtn.addEventListener('click', () => this.data.backupGardenData());
+            devTools.appendChild(devBackupBtn);
+
             const devResetBtn = document.createElement('button');
-            devResetBtn.className = 'dev-reset-button';
+            devResetBtn.className = 'dev-tool-button dev-tool-button-reset';
             devResetBtn.textContent = 'Reset Garden Data';
             devResetBtn.setAttribute('aria-label', 'Delete all garden.spores.* localStorage and PDS records (dev only)');
             devResetBtn.title = 'Delete all garden.spores.* localStorage and PDS records';
             devResetBtn.addEventListener('click', () => this.data.resetGardenData());
-            this.app.appendChild(devResetBtn);
+            devTools.appendChild(devResetBtn);
+
+            const devRestoreBtn = document.createElement('button');
+            devRestoreBtn.className = 'dev-tool-button dev-tool-button-restore';
+            devRestoreBtn.textContent = 'Restore Garden Data';
+            devRestoreBtn.setAttribute('aria-label', 'Restore garden records from a backup JSON file (dev only)');
+            devRestoreBtn.title = 'Restore from backup JSON';
+            devRestoreBtn.addEventListener('click', () => this.data.restoreGardenDataFromFile());
+            devTools.appendChild(devRestoreBtn);
+
+            this.app.appendChild(devTools);
         }
     }
 
