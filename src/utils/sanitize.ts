@@ -14,8 +14,11 @@ export function sanitizeHtml(dirty: string): string {
   return DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'em', 'b', 'i', 'u',
+      'del',
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'hr',
       'ul', 'ol', 'li',
+      'table', 'thead', 'tbody', 'tr', 'th', 'td',
       'a', 'code', 'pre', 'blockquote',
       'img', 'figure', 'figcaption',
       'div', 'span'

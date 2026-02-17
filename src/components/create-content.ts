@@ -1,6 +1,6 @@
 /**
  * Modal for creating and editing content blocks.
- * Supports markdown and HTML formats.
+ * Supports markdown content.
  */
 
 import { createRecord, putRecord, getCurrentDid } from '../oauth';
@@ -10,7 +10,6 @@ import { setCachedActivity } from './recent-gardens';
 
 class CreateContent extends HTMLElement {
   private onClose: (() => void) | null = null;
-  private selectedFormat: string = 'markdown';
   private contentTitle: string = '';
   private contentContent: string = '';
   private editMode: boolean = false;
@@ -42,7 +41,6 @@ class CreateContent extends HTMLElement {
     this.editSectionId = contentData.sectionId || null;
     this.contentTitle = contentData.title || '';
     this.contentContent = contentData.content || '';
-    this.selectedFormat = contentData.format || 'markdown';
     this.show();
   }
 
@@ -56,14 +54,6 @@ class CreateContent extends HTMLElement {
     this.innerHTML = `
       <div class="modal-content create-content-modal">
         <h2>${this.editMode ? 'Edit Content' : 'Create Content'}</h2>
-        
-        <div class="form-group">
-          <label for="content-format">Content Type</label>
-          <select id="content-format" class="select">
-            <option value="markdown" ${this.selectedFormat === 'markdown' ? 'selected' : ''}>Markdown</option>
-            <option value="html" ${this.selectedFormat === 'html' ? 'selected' : ''}>HTML</option>
-          </select>
-        </div>
         
         <div class="form-group">
           <label for="content-title">Title (optional)</label>
@@ -86,16 +76,10 @@ class CreateContent extends HTMLElement {
   }
 
   private attachEventListeners() {
-    const formatSelect = this.querySelector('#content-format') as HTMLSelectElement;
     const titleInput = this.querySelector('#content-title') as HTMLInputElement;
     const contentTextarea = this.querySelector('#content-content') as HTMLTextAreaElement;
     const createBtn = this.querySelector('#create-content-btn') as HTMLButtonElement;
     const cancelBtn = this.querySelector('.modal-close') as HTMLButtonElement;
-
-    // Handle format change
-    formatSelect?.addEventListener('change', (e) => {
-      this.selectedFormat = (e.target as HTMLSelectElement).value;
-    });
 
     // Handle title input
     titleInput?.addEventListener('input', (e) => {
@@ -123,14 +107,12 @@ class CreateContent extends HTMLElement {
         if (this.editMode) {
           await this.updateContentRecord({
             title: this.contentTitle || undefined,
-            content: this.contentContent,
-            format: this.selectedFormat
+            content: this.contentContent
           });
         } else {
           await this.createContentRecord({
             title: this.contentTitle || undefined,
-            content: this.contentContent,
-            format: this.selectedFormat
+            content: this.contentContent
           });
         }
 
@@ -159,14 +141,13 @@ class CreateContent extends HTMLElement {
   private async createContentRecord(contentData: {
     title?: string;
     content: string;
-    format: string;
   }) {
     const contentTextCollection = getCollection('contentText');
     // Create the content record
     const record: any = {
       $type: contentTextCollection,
       content: contentData.content,
-      format: contentData.format || 'markdown',
+      format: 'markdown',
       createdAt: new Date().toISOString()
     };
 
@@ -190,7 +171,7 @@ class CreateContent extends HTMLElement {
       type: 'content',
       ref: response.uri,
       rkey: rkey,
-      format: contentData.format
+      format: 'markdown'
     };
 
     // Only add title if provided
@@ -207,7 +188,6 @@ class CreateContent extends HTMLElement {
   private async updateContentRecord(contentData: {
     title?: string;
     content: string;
-    format: string;
   }) {
     const ownerDid = getSiteOwnerDid();
     if (!ownerDid) {
@@ -220,7 +200,7 @@ class CreateContent extends HTMLElement {
       const record: any = {
         $type: contentTextCollection,
         content: contentData.content,
-        format: contentData.format || 'markdown',
+        format: 'markdown',
         createdAt: new Date().toISOString()
       };
 
@@ -232,7 +212,7 @@ class CreateContent extends HTMLElement {
 
       // Update section config if title changed
       if (this.editSectionId) {
-        const updates: any = { format: contentData.format };
+        const updates: any = { format: 'markdown' };
         if (contentData.title) {
           updates.title = contentData.title;
         }
@@ -242,7 +222,7 @@ class CreateContent extends HTMLElement {
       // Update inline content section
       const updates: any = {
         content: contentData.content,
-        format: contentData.format
+        format: 'markdown'
       };
       if (contentData.title) {
         updates.title = contentData.title;
@@ -269,7 +249,6 @@ class CreateContent extends HTMLElement {
     this.editMode = false;
     this.editRkey = null;
     this.editSectionId = null;
-    this.selectedFormat = 'markdown';
     this.contentTitle = '';
     this.contentContent = '';
   }
