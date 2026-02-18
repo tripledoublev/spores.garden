@@ -1324,6 +1324,18 @@ body.has-pattern .header:has(.controls.open) {
   line-height: 1.6;
 }
 
+/* Markdown/text content blocks: max-width 700px, centered in parent */
+.section[data-type="content"] .section-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.section[data-type="content"] .section-content > .content {
+  max-width: 700px;
+  width: 100%;
+}
+
 /* Smooth appearance when content replaces loading state */
 .content-enter {
   animation: fadeIn 0.3s ease-out;
