@@ -15,7 +15,7 @@ Report privately with:
 - impact assessment
 - suggested remediation (if available)
 
-Contact: **security@hypha.coop**
+Contact: **vincent@hypha.coop**
 
 If you do not receive an acknowledgment within 72 hours, send a follow-up.
 

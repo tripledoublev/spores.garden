@@ -11,7 +11,7 @@ This is a static, browser-run app built around AT Protocol data. Key paths:
   - `src/records/` record shaping and mapping utilities.
 - `lexicons/` AT Protocol schemas used by the app.
 - `client-metadata.json` OAuth client metadata.
-- `spec.md` describes product behavior, layouts, and themes.
+- `readme.md` describes product behavior, layouts, and themes.
 
 ## Build, Test, and Development Commands
 Run everything with npm (Vite handles dev/build):
@@ -20,7 +20,7 @@ Run everything with npm (Vite handles dev/build):
 - `npm run build` builds production assets to `dist/`.
 - `npm run preview` serves the production build locally.
 - `npm start` is an alias for `dev`.
-Local dev expects `http://127.0.0.1:5174?did=did:plc:your-did-here` (see `spec.md`).
+Local dev expects `http://127.0.0.1:5174?did=did:plc:your-did-here` (see `readme.md`).
 
 ## Coding Style & Naming Conventions
 - Indentation: 2 spaces; use semicolons.
@@ -31,13 +31,10 @@ Local dev expects `http://127.0.0.1:5174?did=did:plc:your-did-here` (see `spec.m
 No formatter or linter is configured; keep style consistent with existing files.
 
 ## Testing Guidelines
-No test framework or test directory is configured. If you add tests, document the
-runner and add a `test` script in `package.json`. Prefer colocated tests like
-`src/**/__tests__` or a top-level `tests/` folder.
+Tests use Vitest (`npm run test:run`) and Playwright (`npm run test:e2e`). Unit tests live in `tests/`. Run `npm run check` to run typecheck + tests + build together.
 
 ## Commit & Pull Request Guidelines
-There is no Git history yet, so no commit convention is established. Use clear,
-imperative messages (e.g., `Add OAuth error handling`). For PRs, include:
+Use clear, imperative commit messages (e.g., `Add OAuth error handling`, `Fix leaflet test`). Branch names use kebab-case and describe the change (e.g., `fix-content-width`). For PRs, include:
 - A brief description of the change and rationale.
 - Any relevant configuration changes (e.g., `client-metadata.json`).
 - Screenshots or GIFs for UI changes when applicable.

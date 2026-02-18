@@ -24,6 +24,6 @@ Project maintainers are responsible for clarifying and enforcing these standards
 
 ## Reporting
 
-To report violations, contact: **conduct@hypha.coop**
+To report violations, contact: **lexa@hypha.coop**
 
 All reports will be reviewed and handled with reasonable promptness and confidentiality.
