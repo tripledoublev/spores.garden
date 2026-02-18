@@ -280,7 +280,10 @@ async function showFlowerGardensModal(flowerDid: string) {
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="flower-modal-title" style="max-width: 480px;">
       <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem;">
         <h2 id="flower-modal-title" style="margin: 0; line-height: 1.3;">
-          This flower is originally from <span style="white-space: nowrap;">${escapeHtml(flowerDisplayName)}</span>'s garden
+          ${isFlowerGardenCurrentPage
+            ? `This is <span style="white-space: nowrap;">${escapeHtml(flowerDisplayName)}</span>'s unique flower.`
+            : `This flower is originally from <span style="white-space: nowrap;">${escapeHtml(flowerDisplayName)}</span>'s garden`
+          }
         </h2>
         <button class="button button-ghost modal-close" aria-label="Close" style="font-size: 1.5rem; line-height: 1; padding: 0; width: 2rem; height: 2rem; flex-shrink: 0;">×</button>
       </div>
