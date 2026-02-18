@@ -4138,7 +4138,7 @@ a.flower-grid-item:hover {
   content: '';
   position: absolute;
   inset: 0;
-  border: 2px solid var(--color-accent, var(--color-primary, var(--color-border-dark)));
+  border: var(--border-width) var(--border-style) var(--color-primary);
   border-radius: 50%;
   pointer-events: none;
   z-index: 1;
@@ -4149,7 +4149,7 @@ a.flower-grid-item:hover {
   width: 56px;
   height: 56px;
   max-width: 56px;
-  transform: translateY(-3px);
+  transform: translateY(-1.5px);
 }
 
 @media (max-width: 479px) {
