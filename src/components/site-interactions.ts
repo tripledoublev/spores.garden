@@ -1,6 +1,6 @@
 import { getSiteOwnerDid, buildGardenPath } from '../config';
 import { isLoggedIn, getCurrentDid, createRecord, uploadBlob, post } from '../oauth';
-import { listRecords, getBacklinks, getProfile } from '../at-client';
+import { listRecords, getBacklinks, getProfile, resolveHandle } from '../at-client';
 import { getBacklinkQueries, getCollection, getReadCollections } from '../config/nsid';
 import { setCachedActivity, registerGarden } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
@@ -248,23 +248,87 @@ export class SiteInteractions {
             return [...segmenter.segment(s)].length;
         }
 
-        function detectUrlFacets(text: string) {
+        async function detectFacets(text: string) {
             const encoder = new TextEncoder();
-            const facets: Array<{
+            type Facet = {
+                $type: 'app.bsky.richtext.facet';
                 index: { byteStart: number; byteEnd: number };
-                features: Array<{ $type: 'app.bsky.richtext.facet#link'; uri: string }>;
-            }> = [];
+                features: Array<
+                    | { $type: 'app.bsky.richtext.facet#link'; uri: string }
+                    | { $type: 'app.bsky.richtext.facet#mention'; did: string }
+                    | { $type: 'app.bsky.richtext.facet#tag'; tag: string }
+                >;
+            };
+            const facets: Facet[] = [];
+
+            // --- URL facets ---
+            const urlRanges: Array<{ start: number; end: number }> = [];
             const urlRegex = /https?:\/\/[^\s\)\]\}>"']+/g;
             let match;
             while ((match = urlRegex.exec(text)) !== null) {
                 const url = match[0];
+                urlRanges.push({ start: match.index, end: match.index + url.length });
                 const byteStart = encoder.encode(text.slice(0, match.index)).byteLength;
                 const byteEnd = byteStart + encoder.encode(url).byteLength;
+                facets.push({ $type: 'app.bsky.richtext.facet', index: { byteStart, byteEnd }, features: [{ $type: 'app.bsky.richtext.facet#link' as const, uri: url }] });
+            }
+
+            // --- Mention facets ---
+            // Require at least one dot so bare @alice tokens are excluded
+            const mentionRegex = /@([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+)/g;
+            const mentionPromises: Array<Promise<void>> = [];
+            while ((match = mentionRegex.exec(text)) !== null) {
+                const fullMatch = match[0];   // includes leading @
+                const handle = match[1];      // just the handle
+                const matchStart = match.index;
+                const matchEnd = matchStart + fullMatch.length;
+
+                // Skip if inside a URL
+                const inUrl = urlRanges.some(r => matchStart >= r.start && matchEnd <= r.end);
+                if (inUrl) continue;
+
+                const capturedStart = matchStart;
+                const capturedFull = fullMatch;
+                mentionPromises.push(
+                    resolveHandle(handle)
+                        .then(did => {
+                            const byteStart = encoder.encode(text.slice(0, capturedStart)).byteLength;
+                            const byteEnd = byteStart + encoder.encode(capturedFull).byteLength;
+                            facets.push({
+                                $type: 'app.bsky.richtext.facet',
+                                index: { byteStart, byteEnd },
+                                features: [{ $type: 'app.bsky.richtext.facet#mention' as const, did }],
+                            });
+                        })
+                        .catch(() => { /* unresolvable handle — skip silently */ })
+                );
+            }
+            await Promise.all(mentionPromises);
+
+            // --- Tag/hashtag facets ---
+            // tag field omits the leading #; byte range covers the # prefix
+            const tagRegex = /#([^\s.,;:!?'"()\[\]{}&<>#]+)/g;
+            while ((match = tagRegex.exec(text)) !== null) {
+                const fullMatch = match[0];   // includes leading #
+                const tag = match[1];         // just the tag text, no #
+                const matchStart = match.index;
+                const matchEnd = matchStart + fullMatch.length;
+
+                // Skip if inside a URL
+                const inUrl = urlRanges.some(r => matchStart >= r.start && matchEnd <= r.end);
+                if (inUrl) continue;
+
+                const byteStart = encoder.encode(text.slice(0, matchStart)).byteLength;
+                const byteEnd = byteStart + encoder.encode(fullMatch).byteLength;
                 facets.push({
+                    $type: 'app.bsky.richtext.facet',
                     index: { byteStart, byteEnd },
-                    features: [{ $type: 'app.bsky.richtext.facet#link' as const, uri: url }],
+                    features: [{ $type: 'app.bsky.richtext.facet#tag' as const, tag }],
                 });
             }
+
+            // Sort by byte position (required by AT Protocol)
+            facets.sort((a, b) => a.index.byteStart - b.index.byteStart);
             return facets;
         }
 
@@ -359,7 +423,7 @@ export class SiteInteractions {
                 const uploadedImage = await uploadBlob(imageBlob, 'image/png');
 
                 // 2. Compose post
-                const facets = detectUrlFacets(text);
+                const facets = await detectFacets(text);
                 const postRecord = {
                     $type: 'app.bsky.feed.post',
                     text: text,
