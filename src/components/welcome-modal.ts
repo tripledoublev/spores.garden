@@ -11,7 +11,7 @@
 import { getCollections, getCollectionRecords } from '../records/loader';
 import { getCurrentDid } from '../oauth';
 import { addSection, updateConfig, updateTheme, saveConfig } from '../config';
-import { getProfile } from '../at-client';
+import { getProfile, resolveHandle } from '../at-client';
 import { generateThemeFromDid } from '../themes/engine';
 import { getSafeHandle, getDisplayHandle } from '../utils/identity';
 import { createHelpTooltip } from '../utils/help-tooltip';
@@ -218,7 +218,6 @@ class WelcomeModal extends HTMLElement {
     this.showLoading('Loading your Bluesky posts...');
 
     try {
-      // Use the same method that works in "Explore your data"
       const posts = await getCollectionRecords(this.did, 'app.bsky.feed.post', { limit: 50 });
 
       if (posts.length === 0) {
@@ -403,10 +402,9 @@ class WelcomeModal extends HTMLElement {
     content.innerHTML = `
       <div class="welcome-selector">
         <h2>Select Bluesky Post</h2>
-        <p>Choose a post to add to your garden</p>
+        <p>Choose one of your posts to add to your garden</p>
         <div class="post-list">
-          ${posts.map((post, idx) => {
-      const rkey = post.uri?.split('/').pop() || idx.toString();
+          ${posts.map((post) => {
       const uri = post.uri || '';
       const val = post.value as any;
       const text = val?.text?.slice(0, 200) || 'Post';
@@ -414,14 +412,19 @@ class WelcomeModal extends HTMLElement {
         ? new Date(val.createdAt).toLocaleDateString()
         : '';
       return `
-              <button class="post-item-selectable" data-uri="${uri}" data-rkey="${rkey}">
+              <button class="post-item" data-uri="${uri}">
                 <div class="post-content">
-                  <p class="post-text">${this.escapeHtml(text)}${text.length >= 200 ? '...' : ''}</p>
+                  <p class="post-text">${this.escapeHtml(text)}</p>
                   ${createdAt ? `<time class="post-date">${createdAt}</time>` : ''}
                 </div>
               </button>
             `;
     }).join('')}
+        </div>
+        <p>Choose a post from another user to add to your garden</p>
+        <div class="bsky-user-search">
+          <input type="text" class="input" placeholder="@alice.bsky.social" id="bsky-other-handle">
+          <button class="button" data-action="search-user">Search another user</button>
         </div>
         <div class="selector-actions">
           <button class="button button-secondary" data-action="back-main">Back</button>
@@ -429,14 +432,37 @@ class WelcomeModal extends HTMLElement {
       </div>
     `;
 
-    // Attach event listeners - clicking a post adds it
-    content.querySelectorAll('.post-item-selectable').forEach(btn => {
+    content.querySelectorAll('.post-item').forEach(btn => {
       btn.addEventListener('click', () => {
         const uri = btn.getAttribute('data-uri');
         if (uri) {
           this.addSinglePost(uri);
         }
       });
+    });
+
+    content.querySelector('[data-action="search-user"]')?.addEventListener('click', async () => {
+      const input = content.querySelector<HTMLInputElement>('#bsky-other-handle');
+      const handleOrDid = (input?.value || '').trim().replace(/^@/, '');
+      if (!handleOrDid) return;
+
+      this.showLoading('Loading posts...');
+
+      try {
+        const did = handleOrDid.startsWith('did:') ? handleOrDid : await resolveHandle(handleOrDid);
+        const newPosts = await getCollectionRecords(did, 'app.bsky.feed.post', { limit: 50 });
+
+        if (newPosts.length === 0) {
+          this.showMessage('No posts found for that user.');
+          return;
+        }
+
+        this.showPostSelector(newPosts);
+      } catch (error) {
+        console.error('Failed to load posts:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        this.showMessage(`Failed to load posts: ${errorMessage}. Please check the handle and try again.`);
+      }
     });
 
     content.querySelector('[data-action="back-main"]')?.addEventListener('click', () => {

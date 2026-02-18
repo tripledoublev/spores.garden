@@ -1,6 +1,6 @@
 import { getConfig, saveConfig, getSiteOwnerDid } from '../config';
 import { getCurrentDid, putRecord, uploadBlob } from '../oauth';
-import { getRecord, getProfile, buildAtUri } from '../at-client';
+import { getRecord, getProfile, buildAtUri, resolveHandle } from '../at-client';
 import { getCollectionRecords, getCollections, getRecordByUri } from '../records/loader';
 import { getCollection } from '../config/nsid';
 import { setCachedActivity } from './recent-gardens';
@@ -321,7 +321,7 @@ export class SiteEditor {
       if (posts.length === 0) {
         modal.querySelector('.modal-content')!.innerHTML = `
           <p>No posts found in your Bluesky feed.</p>
-          <button class="button modal-close">Close</button>
+          <div class="selector-actions"><button class="button button-secondary modal-close">Close</button></div>
         `;
         modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
         return;
@@ -331,7 +331,7 @@ export class SiteEditor {
     } catch (error) {
       modal.querySelector('.modal-content')!.innerHTML = `
         <p>Failed to load posts. Please try again.</p>
-        <button class="button modal-close">Close</button>
+        <div class="selector-actions"><button class="button button-secondary modal-close">Close</button></div>
       `;
       modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
     }
@@ -341,7 +341,7 @@ export class SiteEditor {
     modal.querySelector('.modal-content')!.innerHTML = `
       <div class="welcome-selector">
         <h2>Select Bluesky Post</h2>
-        <p>Choose a post to add to your garden</p>
+        <p>Choose one of your posts to add to your garden</p>
         <div class="post-list">
           ${posts.map((post) => {
       const uri = post.uri || '';
@@ -349,20 +349,27 @@ export class SiteEditor {
       const text = val?.text?.slice(0, 200) || 'Post';
       const createdAt = val?.createdAt ? new Date(val.createdAt).toLocaleDateString() : '';
       return `
-              <button class="post-item-selectable" data-uri="${uri}">
+              <button class="post-item" data-uri="${uri}">
                 <div class="post-content">
-                  <p class="post-text">${escapeHtml(text)}${text.length >= 200 ? '...' : ''}</p>
+                  <p class="post-text">${escapeHtml(text)}</p>
                   ${createdAt ? `<time class="post-date">${createdAt}</time>` : ''}
                 </div>
               </button>
             `;
     }).join('')}
         </div>
-        <button class="button button-secondary modal-close">Cancel</button>
+        <p>Choose a post from another user to add to your garden</p>
+        <div class="bsky-user-search">
+          <input type="text" class="input" placeholder="@alice.bsky.social" id="bsky-other-handle">
+          <button class="button" data-action="search-user">Search another user</button>
+        </div>
+        <div class="selector-actions">
+          <button class="button button-secondary modal-close">Cancel</button>
+        </div>
       </div>
     `;
 
-    modal.querySelectorAll('.post-item-selectable').forEach(btn => {
+    modal.querySelectorAll('.post-item').forEach(btn => {
       btn.addEventListener('click', async () => {
         const uri = btn.getAttribute('data-uri');
         if (uri) {
@@ -376,10 +383,41 @@ export class SiteEditor {
           };
           config.sections = [...(config.sections || []), section];
           this.renderCallback();
-
           closeModal();
         }
       });
+    });
+
+    modal.querySelector('[data-action="search-user"]')?.addEventListener('click', async () => {
+      const input = modal.querySelector<HTMLInputElement>('#bsky-other-handle');
+      const handleOrDid = (input?.value || '').trim().replace(/^@/, '');
+      if (!handleOrDid) return;
+
+      modal.querySelector('.modal-content')!.innerHTML = `
+        <div class="welcome-loading"><div class="spinner"></div><p>Loading posts...</p></div>
+      `;
+
+      try {
+        const did = handleOrDid.startsWith('did:') ? handleOrDid : await resolveHandle(handleOrDid);
+        const posts = await getCollectionRecords(did, 'app.bsky.feed.post', { limit: 50 });
+
+        if (posts.length === 0) {
+          modal.querySelector('.modal-content')!.innerHTML = `
+            <p>No posts found for that user.</p>
+            <div class="selector-actions"><button class="button button-secondary modal-close">Close</button></div>
+          `;
+          modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+          return;
+        }
+
+        this.renderPostSelector(modal, posts, closeModal);
+      } catch (error) {
+        modal.querySelector('.modal-content')!.innerHTML = `
+          <p>Failed to load posts. Please check the handle and try again.</p>
+          <div class="selector-actions"><button class="button button-secondary modal-close">Close</button></div>
+        `;
+        modal.querySelector('.modal-close')?.addEventListener('click', closeModal);
+      }
     });
 
     modal.querySelector('.modal-close')?.addEventListener('click', closeModal);

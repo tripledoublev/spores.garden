@@ -2414,7 +2414,6 @@ body.has-pattern .flower-grid-item {
 .record-item,
 .post-item {
   display: flex;
-  align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
   background: var(--color-surface);
@@ -2426,6 +2425,15 @@ body.has-pattern .flower-grid-item {
   text-align: left;
   min-width: 0;
   max-width: 100%;
+}
+
+.collection-item,
+.record-item {
+  align-items: center;
+}
+
+.post-item {
+  align-items: flex-start;
 }
 
 .collection-item:hover,
@@ -2466,14 +2474,15 @@ body.has-pattern .flower-grid-item {
   flex-direction: column;
   gap: var(--spacing-xs);
   min-width: 0;
-  overflow: hidden;
 }
 
 .post-text {
   margin: 0;
   line-height: 1.5;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .post-date {
@@ -2524,6 +2533,52 @@ body.has-pattern .flower-grid-item {
   display: flex;
   gap: var(--spacing-md);
   justify-content: flex-end;
+}
+
+.bsky-user-search {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: stretch;
+  margin-bottom: var(--spacing-md);
+}
+
+.bsky-user-search .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.bsky-user-search .button {
+  white-space: nowrap;
+}
+
+/* Post selector mobile: add side padding to elements that lose it when modal-content padding is 0 */
+@media (max-width: 479px) {
+  .modal-content .welcome-selector p {
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+  }
+
+  .modal-content .bsky-user-search {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 var(--spacing-md);
+  }
+
+  .modal-content .bsky-user-search .button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .modal-content .selector-actions {
+    padding: 0 var(--spacing-md) var(--spacing-lg);
+  }
+
+  .modal-content .selector-actions .button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
 }
 
 /* ============================================
