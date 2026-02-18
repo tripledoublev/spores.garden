@@ -880,7 +880,7 @@ export class SiteEditor {
         id,
         type: 'records',
         layout: 'leaflet',
-        title: 'Leaflet Posts',
+        title: 'Standard.site',
         records: uris
       };
       config.sections = [...(config.sections || []), section];

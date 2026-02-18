@@ -67,8 +67,8 @@ function appendReadMoreLink(container: HTMLElement, url: string): void {
   link.href = url;
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
-  link.textContent = 'Read full article →';
-  link.setAttribute('aria-label', 'Read full article - Opens in new tab');
+  link.textContent = 'See original post →';
+  link.setAttribute('aria-label', 'See original post - Opens in new tab');
   linkBack.appendChild(link);
   container.appendChild(linkBack);
 }
@@ -355,7 +355,7 @@ function renderBlocks(pages: any[], authorDid: string): DocumentFragment {
 export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?: any): HTMLElement {
   const el = document.createElement('article');
   el.className = 'layout-leaflet';
-  el.setAttribute('aria-label', 'Leaflet article');
+  el.setAttribute('aria-label', 'Standard.site article');
 
   try {
     // Extract fields
@@ -366,6 +366,7 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
     const image = fields.image;
     const tags = fields.tags;
     const description = fields.description;
+    const textContent = record?.value?.textContent;
     
     // Get author DID from record for blob URLs
     const authorDid = record?.value?.author || record?.uri?.split('/')[2] || '';
@@ -383,8 +384,8 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
     // Metadata badge
     const badge = document.createElement('div');
     badge.className = 'leaflet-badge';
-    badge.textContent = 'standard.site';
-    badge.setAttribute('aria-label', 'Published as standard.site');
+    badge.textContent = 'standard.site.document';
+    badge.setAttribute('aria-label', 'Published as standard.site.document');
     container.appendChild(badge);
 
     // Article header with title
@@ -393,7 +394,16 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
 
     const titleEl = document.createElement('h1');
     titleEl.className = 'leaflet-title';
-    titleEl.textContent = title;
+    if (readMoreUrl) {
+      const titleLink = document.createElement('a');
+      titleLink.href = readMoreUrl;
+      titleLink.target = '_blank';
+      titleLink.rel = 'noopener noreferrer';
+      titleLink.textContent = title;
+      titleEl.appendChild(titleLink);
+    } else {
+      titleEl.textContent = title;
+    }
     header.appendChild(titleEl);
 
     // Article metadata
@@ -444,8 +454,9 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
 
     container.appendChild(header);
 
-    // Cover image (if available)
-    if (image) {
+    // Cover image (skip when canonicalUrl - it's the OG/social card image, redundant)
+    const hasCanonicalUrl = !!record?.value?.canonicalUrl;
+    if (image && !hasCanonicalUrl) {
       const imgContainer = document.createElement('div');
       imgContainer.className = 'leaflet-image';
       imgContainer.style.position = 'relative';
@@ -518,7 +529,15 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
       }
     }
 
-    // Article content - render blocks (only show section when there is rendered content)
+    // Description as subheader when available
+    if (description && typeof description === 'string' && description.trim()) {
+      const subheader = document.createElement('h2');
+      subheader.className = 'leaflet-subheader';
+      subheader.textContent = description.trim();
+      container.appendChild(subheader);
+    }
+
+    // Article content: blocks, or textContent from PDS
     if (pages && pages.length > 0) {
       const blocksFragment = renderBlocks(pages, authorDid);
       if (blocksFragment.childNodes.length > 0) {
@@ -527,17 +546,15 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
         contentEl.appendChild(blocksFragment);
         container.appendChild(contentEl);
       }
-    } else if (description && typeof description === 'string' && description.trim()) {
-      // No blocks: show description as teaser (e.g. standard.site docs with canonicalUrl)
+    }
+    if (textContent && typeof textContent === 'string' && textContent.trim()) {
       const contentEl = document.createElement('div');
-      contentEl.className = 'leaflet-content leaflet-description';
-      const p = document.createElement('p');
-      p.textContent = description.trim();
-      contentEl.appendChild(p);
+      contentEl.className = 'leaflet-content leaflet-text-content';
+      contentEl.innerHTML = textContent.trim();
       container.appendChild(contentEl);
     }
 
-    // Link to full article: use fields.url (canonicalUrl or derived) when valid https, else for
+    // Link to full article (when not already embedded via iframe): use fields.url (canonicalUrl or derived) when valid https, else for
     // site.standard.document fetch the owner's publication record and use its url + doc path
     if (readMoreUrl) {
       appendReadMoreLink(container, readMoreUrl);

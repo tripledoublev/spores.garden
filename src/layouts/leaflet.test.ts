@@ -46,7 +46,7 @@ describe('Leaflet Layout', () => {
       expect(title?.textContent).toBe('Untitled Article');
     });
 
-    it('should display standard.site badge', () => {
+    it('should display standard.site.document badge', () => {
       const fields = {
         title: 'Test Article'
       };
@@ -61,7 +61,7 @@ describe('Leaflet Layout', () => {
       const badge = result.querySelector('.leaflet-badge');
 
       expect(badge).toBeTruthy();
-      expect(badge?.textContent).toBe('standard.site');
+      expect(badge?.textContent).toBe('standard.site.document');
     });
   });
 
@@ -553,7 +553,7 @@ describe('Leaflet Layout', () => {
       expect(titleEl?.querySelector('a')).toBeNull();
     });
 
-    it('should render link back to full article', () => {
+    it('should render link to original post', () => {
       const fields = {
         title: 'Test Article',
         url: 'https://leaflet.pub/@user/article123'
@@ -570,7 +570,7 @@ describe('Leaflet Layout', () => {
 
       expect(linkBack).toBeTruthy();
       expect(linkBack?.getAttribute('href')).toBe('https://leaflet.pub/@user/article123');
-      expect(linkBack?.textContent).toBe('Read full article →');
+      expect(linkBack?.textContent).toBe('See original post →');
     });
   });
 

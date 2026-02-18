@@ -931,6 +931,12 @@ body.has-pattern .header:has(.controls.open) {
   max-width: 700px;
 }
 
+.record-grid.content-enter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .record-error {
   min-height: 200px;
   display: flex;
@@ -3150,8 +3156,8 @@ body.has-pattern .flower-grid-item {
 }
 
 .leaflet-article {
-  max-width: 65ch;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
   padding: var(--spacing-lg);
 }
 
@@ -3230,6 +3236,14 @@ body.has-pattern .flower-grid-item {
   max-height: 600px;
   object-fit: cover;
   border: var(--border-width) var(--border-style, solid) var(--color-border-dark);
+}
+
+.leaflet-subheader {
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  margin: var(--spacing-md) 0 0;
 }
 
 .leaflet-content {
