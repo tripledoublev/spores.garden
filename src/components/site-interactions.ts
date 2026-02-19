@@ -353,6 +353,10 @@ export class SiteInteractions {
                             {
                                 alt: 'spores.garden social card',
                                 image: uploadedImage.data.blob,
+                                aspectRatio: {
+                                    width: 1200,
+                                    height: 630,
+                                },
                             },
                         ],
                     },
