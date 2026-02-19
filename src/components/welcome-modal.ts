@@ -11,7 +11,8 @@
 import { getCollections, getCollectionRecords } from '../records/loader';
 import { getCurrentDid } from '../oauth';
 import { addSection, updateConfig, updateTheme, saveConfig } from '../config';
-import { getProfile, resolveHandle } from '../at-client';
+import { getProfile, resolveHandle, buildAtUri } from '../at-client';
+import { parseBskyPostUrl } from '../utils/bsky-url';
 import { generateThemeFromDid } from '../themes/engine';
 import { getSafeHandle, getDisplayHandle } from '../utils/identity';
 import { createHelpTooltip } from '../utils/help-tooltip';
@@ -403,6 +404,14 @@ class WelcomeModal extends HTMLElement {
       <div class="welcome-selector">
         <h2>Select Bluesky Post</h2>
         <p>Choose one of your posts to add to your garden</p>
+        <div class="bsky-url-input">
+          <label>Paste a post URL</label>
+          <div class="bsky-user-search">
+            <input type="text" class="input" placeholder="https://bsky.app/profile/.../post/..." id="bsky-post-url">
+            <button class="button" data-action="add-by-url">Add Post</button>
+          </div>
+          <p class="bsky-url-error" style="color: var(--error, red); display: none; margin: 0.25rem 0 0;"></p>
+        </div>
         <div class="post-list">
           ${posts.map((post) => {
       const uri = post.uri || '';
@@ -439,6 +448,35 @@ class WelcomeModal extends HTMLElement {
           this.addSinglePost(uri);
         }
       });
+    });
+
+    content.querySelector('[data-action="add-by-url"]')?.addEventListener('click', async () => {
+      const input = content.querySelector<HTMLInputElement>('#bsky-post-url');
+      const errorEl = content.querySelector<HTMLElement>('.bsky-url-error');
+      const urlValue = (input?.value || '').trim();
+      if (!urlValue) return;
+
+      const parsed = parseBskyPostUrl(urlValue);
+      if (!parsed) {
+        if (errorEl) {
+          errorEl.textContent = 'Invalid Bluesky post URL. Expected format: https://bsky.app/profile/.../post/...';
+          errorEl.style.display = 'block';
+        }
+        return;
+      }
+
+      if (errorEl) errorEl.style.display = 'none';
+
+      try {
+        const did = parsed.handle.startsWith('did:') ? parsed.handle : await resolveHandle(parsed.handle);
+        const atUri = buildAtUri(did, 'app.bsky.feed.post', parsed.rkey);
+        this.addSinglePost(atUri);
+      } catch (error) {
+        if (errorEl) {
+          errorEl.textContent = `Failed to resolve handle: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errorEl.style.display = 'block';
+        }
+      }
     });
 
     content.querySelector('[data-action="search-user"]')?.addEventListener('click', async () => {

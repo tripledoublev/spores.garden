@@ -2566,6 +2566,12 @@ body.has-pattern .flower-grid-item {
     padding-right: var(--spacing-md);
   }
 
+  .modal-content .bsky-url-input > label {
+    display: block;
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+  }
+
   .modal-content .bsky-user-search {
     flex-direction: column;
     align-items: stretch;
