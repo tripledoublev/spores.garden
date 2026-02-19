@@ -234,6 +234,8 @@ function createGardenLink(
   primary.style.fontWeight = '700';
   primary.style.fontSize = '0.875rem';
   primary.style.letterSpacing = '0.02em';
+  primary.style.overflowWrap = 'anywhere';
+  primary.style.wordBreak = 'break-word';
   primary.style.color = colors.text;
   primary.textContent = labelName;
   textWrap.appendChild(primary);
@@ -278,11 +280,11 @@ async function showFlowerGardensModal(flowerDid: string) {
   modal.className = 'modal';
   modal.innerHTML = `
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="flower-modal-title" style="max-width: 480px;">
-      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-        <h2 id="flower-modal-title" style="margin: 0; line-height: 1.3;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem;">
+        <h2 id="flower-modal-title" style="margin: 0; line-height: 1.3; min-width: 0; flex: 1; overflow-wrap: anywhere; word-break: break-word;">
           ${isFlowerGardenCurrentPage
-            ? `This is <span style="white-space: nowrap;">${escapeHtml(flowerDisplayName)}</span>'s unique flower.`
-            : `This flower is originally from <span style="white-space: nowrap;">${escapeHtml(flowerDisplayName)}</span>'s garden`
+            ? `This is <span style="overflow-wrap: anywhere; word-break: break-word;">${escapeHtml(flowerDisplayName)}</span>'s unique flower.`
+            : `This flower is originally from <span style="overflow-wrap: anywhere; word-break: break-word;">${escapeHtml(flowerDisplayName)}</span>'s garden`
           }
         </h2>
         <button class="button button-ghost modal-close" aria-label="Close" style="font-size: 1.5rem; line-height: 1; padding: 0; width: 2rem; height: 2rem; flex-shrink: 0;">×</button>
