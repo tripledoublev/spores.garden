@@ -75,7 +75,7 @@ test('home page renders core entry points', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.locator('h1.site-title')).toHaveText('spores.garden');
-  await expect(page.getByRole('button', { name: /login/i }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /log in/i }).first()).toBeVisible();
   await expect(page.locator('recent-gardens')).toBeVisible();
 });
 
@@ -128,8 +128,8 @@ test('notification can be dismissed', async ({ page }) => {
 test('login modal opens and closes from home page', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: /login/i }).first().click();
-  const modalHeading = page.getByRole('heading', { name: 'Login with Bluesky or ATProto' });
+  await page.getByRole('button', { name: /log in/i }).first().click();
+  const modalHeading = page.getByRole('heading', { name: 'Log in with Bluesky or ATProto' });
   await expect(modalHeading).toBeVisible();
 
   await page.getByRole('button', { name: 'Cancel' }).click();
@@ -146,5 +146,5 @@ test('auth-change expired event shows session-expired notification', async ({ pa
   });
 
   await expect(page.locator('.notification.notification-error .notification-message'))
-    .toContainText('Session expired, please log in again.');
+    .toContainText('Session expired. Please log in again.');
 });
