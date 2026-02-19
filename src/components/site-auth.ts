@@ -55,7 +55,7 @@ export class SiteAuth {
     private async handleAuthChange(detail: any) {
         // Session expired (401/403 from PDS): show message and rely on auth-change to re-render logged out
         if (detail?.reason === 'expired' && this.showNotification) {
-            this.showNotification('Session expired, please log in again.', 'error');
+            this.showNotification('Session expired. Please log in again.', 'error');
         }
 
         // If user logged in and no site owner set (home page), they become the owner
@@ -97,11 +97,11 @@ export class SiteAuth {
         modal.className = 'modal';
         modal.innerHTML = `
       <div class="modal-content login-modal-content" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
-        <h2 id="login-modal-title">Login with Bluesky or ATProto</h2>
+        <h2 id="login-modal-title">Log in with Bluesky or ATProto</h2>
         <form class="login-form">
           <label for="login-handle" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">Your Bluesky handle or domain</label>
           <input id="login-handle" type="text" placeholder="your.handle.com" class="input" required>
-          <button type="submit" class="button">Login</button>
+          <button type="submit" class="button">Log in</button>
         </form>
         <button class="button button-secondary modal-close">Cancel</button>
       </div>

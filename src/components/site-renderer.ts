@@ -479,7 +479,7 @@ export class SiteRenderer {
             if (!loggedIn) {
                 const loginBtn = document.createElement('button');
                 loginBtn.className = 'button';
-                loginBtn.textContent = 'Login to start gardening';
+                loginBtn.textContent = 'Log in to start gardening';
                 loginBtn.addEventListener('click', () => this.auth.showLoginModal());
                 hero.appendChild(loginBtn);
             }
@@ -612,7 +612,7 @@ export class SiteRenderer {
 
             const devBackupBtn = document.createElement('button');
             devBackupBtn.className = 'dev-tool-button dev-tool-button-backup';
-            devBackupBtn.textContent = 'Backup Garden Data';
+            devBackupBtn.textContent = 'Back Up Garden Data';
             devBackupBtn.setAttribute('aria-label', 'Download a JSON backup of your spores garden records (dev only)');
             devBackupBtn.title = 'Download backup JSON';
             devBackupBtn.addEventListener('click', () => this.data.backupGardenData());

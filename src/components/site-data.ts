@@ -117,7 +117,7 @@ export class SiteData {
 
             this.showNotification(`Backup downloaded (${totalRecords} records).`, 'success');
         } catch (error: any) {
-            console.error('Failed to backup garden data:', error);
+            console.error('Failed to back up garden data:', error);
             this.showNotification(`Backup failed: ${error?.message || 'unknown error'}`, 'error');
         }
     }

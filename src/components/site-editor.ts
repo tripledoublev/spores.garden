@@ -361,7 +361,7 @@ export class SiteEditor {
         <p>Choose a post from another user to add to your garden</p>
         <div class="bsky-user-search">
           <input type="text" class="input" placeholder="@alice.bsky.social" id="bsky-other-handle">
-          <button class="button" data-action="search-user">Search another user</button>
+          <button class="button" data-action="search-user">Search for another user</button>
         </div>
         <div class="selector-actions">
           <button class="button button-secondary modal-close">Cancel</button>

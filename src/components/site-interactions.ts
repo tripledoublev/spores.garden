@@ -182,7 +182,7 @@ export class SiteInteractions {
 
     async shareToBluesky() {
         if (!isLoggedIn()) {
-            this.showNotification('You must be logged in to share to Bluesky.', 'error');
+            this.showNotification('You must be logged in to share on Bluesky.', 'error');
             return;
         }
 
@@ -395,7 +395,7 @@ export class SiteInteractions {
                 actionsDiv.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
 
             } catch (error) {
-                console.error('Failed to share to Bluesky:', error);
+                console.error('Failed to share on Bluesky:', error);
                 modalBody.innerHTML = `
           <div class="share-error">
             <p style="color: var(--error-color);">Failed to share: ${escapeHtml(error.message)}</p>

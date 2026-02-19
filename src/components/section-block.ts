@@ -572,7 +572,7 @@ class SectionBlock extends HTMLElement {
   async renderProfile(container) {
     const ownerDid = getSiteOwnerDid();
     if (!ownerDid) {
-      container.innerHTML = '<p>Login to create your garden</p>';
+      container.innerHTML = '<p>Log in to create your garden</p>';
       return;
     }
 
