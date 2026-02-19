@@ -5,6 +5,7 @@ import { getCollectionRecords, getCollections, getRecordByUri } from '../records
 import { getCollection } from '../config/nsid';
 import { setCachedActivity } from './recent-gardens';
 import { escapeHtml } from '../utils/sanitize';
+import { parseBskyPostUrl } from '../utils/bsky-url';
 import './create-content';
 
 /**
@@ -342,6 +343,14 @@ export class SiteEditor {
       <div class="welcome-selector">
         <h2>Select Bluesky Post</h2>
         <p>Choose one of your posts to add to your garden</p>
+        <div class="bsky-url-input">
+          <label>Paste a post URL</label>
+          <div class="bsky-user-search">
+            <input type="text" class="input" placeholder="https://bsky.app/profile/.../post/..." id="bsky-post-url">
+            <button class="button" data-action="add-by-url">Add Post</button>
+          </div>
+          <p class="bsky-url-error" style="color: var(--error, red); display: none; margin: 0.25rem 0 0;"></p>
+        </div>
         <div class="post-list">
           ${posts.map((post) => {
       const uri = post.uri || '';
@@ -386,6 +395,45 @@ export class SiteEditor {
           closeModal();
         }
       });
+    });
+
+    modal.querySelector('[data-action="add-by-url"]')?.addEventListener('click', async () => {
+      const input = modal.querySelector<HTMLInputElement>('#bsky-post-url');
+      const errorEl = modal.querySelector<HTMLElement>('.bsky-url-error');
+      const urlValue = (input?.value || '').trim();
+      if (!urlValue) return;
+
+      const parsed = parseBskyPostUrl(urlValue);
+      if (!parsed) {
+        if (errorEl) {
+          errorEl.textContent = 'Invalid Bluesky post URL. Expected format: https://bsky.app/profile/.../post/...';
+          errorEl.style.display = 'block';
+        }
+        return;
+      }
+
+      if (errorEl) errorEl.style.display = 'none';
+
+      try {
+        const did = parsed.handle.startsWith('did:') ? parsed.handle : await resolveHandle(parsed.handle);
+        const atUri = buildAtUri(did, 'app.bsky.feed.post', parsed.rkey);
+        const config = getConfig();
+        const id = `section-${Date.now()}`;
+        const section = {
+          id,
+          type: 'records',
+          layout: 'post',
+          records: [atUri]
+        };
+        config.sections = [...(config.sections || []), section];
+        this.renderCallback();
+        closeModal();
+      } catch (error) {
+        if (errorEl) {
+          errorEl.textContent = `Failed to resolve handle: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errorEl.style.display = 'block';
+        }
+      }
     });
 
     modal.querySelector('[data-action="search-user"]')?.addEventListener('click', async () => {
