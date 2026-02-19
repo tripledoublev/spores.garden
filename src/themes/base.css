@@ -251,6 +251,14 @@ site-app.theme-ready .header {
   /* Ensure header stretches to full width since parent is now centered */
   width: 100%;
   max-width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  transition: transform 0.3s ease;
+}
+
+.header.header--hidden {
+  transform: translateY(-100%);
 }
 
 .header-left {
@@ -490,7 +498,7 @@ site-app.theme-ready .header {
   }
 
   .header {
-    position: relative;
+    position: sticky;
     z-index: 200;
     padding: var(--spacing-sm) var(--spacing-md);
     padding-top: calc(var(--spacing-md) + var(--safe-area-inset-top));

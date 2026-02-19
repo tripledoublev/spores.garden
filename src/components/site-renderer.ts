@@ -27,6 +27,7 @@ export class SiteRenderer {
     private interactions: SiteInteractions;
     private data: SiteData;
     private renderId = 0;
+    private scrollHandler: (() => void) | null = null;
 
     constructor(
         app: HTMLElement,
@@ -351,18 +352,22 @@ export class SiteRenderer {
       `;
         });
 
-        // Close menu when clicking outside
-        const closeMenuOnClickOutside = (e: Event) => {
-            if (!header.contains(e.target as Node) && controls.classList.contains('open')) {
-                controls.classList.remove('open');
-                menuToggle.setAttribute('aria-expanded', 'false');
-                menuToggle.innerHTML = `
+        const closeMenu = () => {
+            controls.classList.remove('open');
+            menuToggle.setAttribute('aria-expanded', 'false');
+            menuToggle.innerHTML = `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="6" x2="21" y2="6"/>
             <line x1="3" y1="12" x2="21" y2="12"/>
             <line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         `;
+        };
+
+        // Close menu when clicking outside
+        const closeMenuOnClickOutside = (e: Event) => {
+            if (!header.contains(e.target as Node) && controls.classList.contains('open')) {
+                closeMenu();
             }
         };
         document.addEventListener('click', closeMenuOnClickOutside);
@@ -370,6 +375,18 @@ export class SiteRenderer {
         header.appendChild(menuToggle);
         header.appendChild(controls);
         this.app.appendChild(header);
+
+        // Hide header on scroll down, reveal on scroll up
+        if (this.scrollHandler) window.removeEventListener('scroll', this.scrollHandler);
+        let lastScrollY = window.scrollY;
+        this.scrollHandler = () => {
+            const currentScrollY = window.scrollY;
+            const hiding = currentScrollY > lastScrollY && currentScrollY > 80;
+            header.classList.toggle('header--hidden', hiding);
+            if (hiding) closeMenu();
+            lastScrollY = currentScrollY;
+        };
+        window.addEventListener('scroll', this.scrollHandler, { passive: true });
 
         // Flower bed header strip (shows visitor flowers under header)
         if (!isHomePage) {
