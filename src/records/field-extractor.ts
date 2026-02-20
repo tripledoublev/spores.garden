@@ -320,20 +320,11 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     // Store the raw record value for block rendering
     content: (record) => record.value, // We'll extract blocks from this
     url: (record) => {
-      // Prefer canonicalUrl when present (standard.site format)
+      // Use canonicalUrl when present; otherwise let async publication resolution handle it
       const canonicalUrl = record.value?.canonicalUrl;
-      if (typeof canonicalUrl === 'string' && canonicalUrl.startsWith('https://')) {
-        return canonicalUrl;
-      }
-      // Fallback: generate URL from postRef
-      const postRef = record.value?.postRef;
-      if (postRef?.uri) {
-        const match = postRef.uri.match(/at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
-        if (match) {
-          return `https://leaflet.pub/@${match[1]}/${match[2]}`;
-        }
-      }
-      return undefined;
+      return typeof canonicalUrl === 'string' && canonicalUrl.startsWith('https://')
+        ? canonicalUrl
+        : undefined;
     },
     confidence: 'high',
     preferredLayout: 'leaflet'
@@ -354,19 +345,11 @@ const LEXICON_SCHEMAS: Record<string, LexiconSchema> = {
     },
     content: (record) => record.value?.content || record.value,
     url: (record) => {
-      // Prefer canonicalUrl when present (standard.site format)
+      // Use canonicalUrl when present; otherwise let async publication resolution handle it
       const canonicalUrl = record.value?.canonicalUrl;
-      if (typeof canonicalUrl === 'string' && canonicalUrl.startsWith('https://')) {
-        return canonicalUrl;
-      }
-      const postRef = record.value?.postRef;
-      if (postRef?.uri) {
-        const match = postRef.uri.match(/at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
-        if (match) {
-          return `https://leaflet.pub/@${match[1]}/${match[2]}`;
-        }
-      }
-      return undefined;
+      return typeof canonicalUrl === 'string' && canonicalUrl.startsWith('https://')
+        ? canonicalUrl
+        : undefined;
     },
     confidence: 'high',
     preferredLayout: 'leaflet'
@@ -527,7 +510,11 @@ export function extractFields(record) {
     pronouns: extractField(record, 'pronouns', lexiconType),
     content: extractField(record, 'content', lexiconType),
     description: extractField(record, 'description', lexiconType),
-    url: extractField(record, 'url', lexiconType),
+    url: (() => {
+      const extracted = extractField(record, 'url', lexiconType);
+      // Only return valid display URLs; AT URIs are not renderable links
+      return typeof extracted === 'string' && extracted.startsWith('https://') ? extracted : undefined;
+    })(),
 
     // Media
     image: extractImage(record, lexiconType),
