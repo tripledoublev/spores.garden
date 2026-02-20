@@ -1,4 +1,5 @@
 import { resolveHandle } from '../at-client';
+import { escapeHtml } from './sanitize';
 
 export type Facet = {
     $type: 'app.bsky.richtext.facet';
@@ -70,4 +71,32 @@ export async function detectFacets(text: string): Promise<Facet[]> {
 
     facets.sort((a, b) => a.index.byteStart - b.index.byteStart);
     return facets;
+}
+
+export function applyBskyFacets(plaintext: string, facets: Facet[]): string {
+    if (!facets || facets.length === 0) return escapeHtml(plaintext);
+    let result = '';
+    let lastIndex = 0;
+    const sorted = [...facets].sort((a, b) => a.index.byteStart - b.index.byteStart);
+    for (const facet of sorted) {
+        const { byteStart, byteEnd } = facet.index;
+        if (byteStart > lastIndex) result += escapeHtml(plaintext.slice(lastIndex, byteStart));
+        let formattedText = escapeHtml(plaintext.slice(byteStart, byteEnd));
+        for (const feature of facet.features) {
+            if (feature.$type === 'app.bsky.richtext.facet#link') {
+                const uri = String(feature.uri);
+                if (uri.startsWith('https://') || uri.startsWith('http://')) {
+                    formattedText = `<a href="${escapeHtml(uri)}" target="_blank" rel="noopener noreferrer">${formattedText}</a>`;
+                }
+            } else if (feature.$type === 'app.bsky.richtext.facet#mention') {
+                formattedText = `<a href="https://bsky.app/profile/${escapeHtml(feature.did)}" target="_blank" rel="noopener noreferrer">${formattedText}</a>`;
+            } else if (feature.$type === 'app.bsky.richtext.facet#tag') {
+                formattedText = `<a href="https://bsky.app/search?q=%23${encodeURIComponent(feature.tag)}" target="_blank" rel="noopener noreferrer">${formattedText}</a>`;
+            }
+        }
+        result += formattedText;
+        lastIndex = byteEnd;
+    }
+    if (lastIndex < plaintext.length) result += escapeHtml(plaintext.slice(lastIndex));
+    return result || escapeHtml(plaintext);
 }

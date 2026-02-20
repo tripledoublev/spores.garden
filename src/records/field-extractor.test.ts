@@ -194,7 +194,7 @@ describe('Field Extractor', () => {
       expect(fields.title).toBe('My Article');
       expect(fields.date).toBeInstanceOf(Date);
       expect(fields.tags).toEqual(['tech', 'web']);
-      expect(fields.url).toContain('leaflet.pub');
+      expect(fields.url).toBeUndefined(); // No canonicalUrl; publication URL resolved async
       expect(fields.content).toBeTruthy(); // Should contain the document value
     });
 
@@ -221,7 +221,7 @@ describe('Field Extractor', () => {
       expect(fields.title).toBe('Standard Article');
       expect(fields.date).toBeInstanceOf(Date);
       expect(fields.tags).toEqual(['notes']);
-      expect(fields.url).toContain('leaflet.pub');
+      expect(fields.url).toBeUndefined(); // No canonicalUrl; publication URL resolved async
       expect(fields.content).toBeTruthy();
     });
 
