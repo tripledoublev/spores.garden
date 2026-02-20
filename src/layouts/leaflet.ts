@@ -15,46 +15,69 @@ import { createErrorMessage } from '../utils/loading-states';
 
 const SITE_STANDARD_PUBLICATION = 'site.standard.publication';
 const SITE_STANDARD_DOCUMENT = 'site.standard.document';
+const PUB_LEAFLET_PUBLICATION = 'pub.leaflet.publication';
+const PUB_LEAFLET_DOCUMENT = 'pub.leaflet.document';
 
 /**
- * Fetch the document owner's site.standard.publication and build the read-more URL
- * from publication.url + document path (per Standard.site: canonical document URL
- * is publication url + document path).
- * Resolves the publication by: (1) document's canonicalUrl (preferred),
- * (2) document's site or publication ref (AT URI), (3) else list site.standard.publication
- * for the repo and use the first record.
+ * Extract the base URL from a publication record.
+ * site.standard.publication stores it as `url` (full https URL).
+ * pub.leaflet.publication stores it as `base_path` (bare hostname like "scraps.schlage.town").
  */
-async function fetchPublicationReadMoreUrl(record: { uri?: string; value?: { canonicalUrl?: string; site?: string | { uri?: string }; publication?: string | { uri?: string } } }): Promise<string | undefined> {
-  // Prefer canonicalUrl when present
-  const canonicalUrl = record.value?.canonicalUrl;
-  if (typeof canonicalUrl === 'string' && canonicalUrl.startsWith('https://')) {
-    return canonicalUrl;
-  }
+function pubBase(pub: { value?: { url?: string; base_path?: string } } | null): string | undefined {
+  const url = pub?.value?.url;
+  if (typeof url === 'string' && url.startsWith('https://')) return url;
+  const basePath = pub?.value?.base_path;
+  if (typeof basePath === 'string' && basePath.trim()) return `https://${basePath.trim()}`;
+  return undefined;
+}
 
+/**
+ * Fetch the document owner's publication record and return its name and URL.
+ * Resolves the publication by: (1) document's publication/site ref (AT URI),
+ * (2) else list known publication collections for the repo and use the first record.
+ * Returns { url, name } where url is publication base + docRkey (or canonicalUrl),
+ * and name is the publication's name field.
+ */
+async function fetchPublicationData(record: { uri?: string; value?: { canonicalUrl?: string; site?: string | { uri?: string }; publication?: string | { uri?: string } } }): Promise<{ url?: string; name?: string; pubUrl?: string }> {
   const uri = record?.uri;
-  if (!uri || !uri.includes(SITE_STANDARD_DOCUMENT)) return undefined;
+  if (!uri || (!uri.includes(SITE_STANDARD_DOCUMENT) && !uri.includes(PUB_LEAFLET_DOCUMENT))) return {};
   const parts = uri.split('/');
   const did = parts[2];
   const docRkey = parts[parts.length - 1];
-  if (!did || !docRkey) return undefined;
+  if (!did || !docRkey) return {};
 
-  let pub: { value?: { url?: string } } | null = null;
+  let pub: { value?: { url?: string; base_path?: string; name?: string } } | null = null;
 
-  // Check site or publication ref (Standard.site uses 'site', some use 'publication')
-  const publicationRef = record.value?.site ?? record.value?.publication;
+  // Check site or publication ref (Standard.site uses 'site', Leaflet uses 'publication')
+  const publicationRef = record.value?.publication ?? record.value?.site;
   const publicationUri = typeof publicationRef === 'string' ? publicationRef : publicationRef?.uri;
-  if (publicationUri && publicationUri.includes(SITE_STANDARD_PUBLICATION)) {
+  if (publicationUri && (publicationUri.includes(SITE_STANDARD_PUBLICATION) || publicationUri.includes(PUB_LEAFLET_PUBLICATION))) {
     pub = await getRecordByUri(publicationUri);
   }
-  if (!pub?.value?.url) {
+  if (!pubBase(pub)) {
     const data = await listRecords(did, SITE_STANDARD_PUBLICATION, { limit: 1 });
     const first = data?.records?.[0];
-    if (first?.value) pub = first as { value: { url?: string } };
+    if (first?.value) pub = first as { value: { url?: string; base_path?: string; name?: string } };
+  }
+  if (!pubBase(pub)) {
+    const data = await listRecords(did, PUB_LEAFLET_PUBLICATION, { limit: 1 });
+    const first = data?.records?.[0];
+    if (first?.value) pub = first as { value: { url?: string; base_path?: string; name?: string } };
   }
 
-  const base = pub?.value?.url;
-  if (typeof base !== 'string' || !base.startsWith('https://')) return undefined;
-  return `${base.replace(/\/$/, '')}/${docRkey}`;
+  const name = typeof pub?.value?.name === 'string' && pub.value.name.trim() ? pub.value.name.trim() : undefined;
+
+  // Prefer canonicalUrl for the link, then derive from publication base + rkey
+  const canonicalUrl = record.value?.canonicalUrl;
+  const base = pubBase(pub);
+  const pubUrl = base ? base.replace(/\/$/, '') : undefined;
+
+  if (typeof canonicalUrl === 'string' && canonicalUrl.startsWith('https://')) {
+    return { url: canonicalUrl, name, pubUrl };
+  }
+
+  const url = pubUrl ? `${pubUrl}/${docRkey}` : undefined;
+  return { url, name, pubUrl };
 }
 
 /**
@@ -117,8 +140,13 @@ function applyFacets(plaintext: string, facets: any[]): string {
         formattedText = `<strong>${formattedText}</strong>`;
       } else if (feature.$type === 'pub.leaflet.richtext.facet#italic') {
         formattedText = `<em>${formattedText}</em>`;
+      } else if (feature.$type === 'pub.leaflet.richtext.facet#link' && feature.uri) {
+        // Only allow safe protocols to prevent javascript: injection
+        const uri = String(feature.uri);
+        if (uri.startsWith('https://') || uri.startsWith('http://')) {
+          formattedText = `<a href="${escapeHtml(uri)}" target="_blank" rel="noopener noreferrer">${formattedText}</a>`;
+        }
       }
-      // Add more facet types as needed
     }
     
     result += formattedText;
@@ -554,15 +582,50 @@ export function renderLeaflet(fields: ReturnType<typeof extractFields>, record?:
       container.appendChild(contentEl);
     }
 
-    // Link to full article (when not already embedded via iframe): use fields.url (canonicalUrl or derived) when valid https, else for
-    // site.standard.document fetch the owner's publication record and use its url + doc path
+    // Link to full article (when not already embedded via iframe): use fields.url (canonicalUrl or derived) when valid https,
+    // else fetch the owner's publication record and use its url + doc path
+    const needsAsyncUrl = !readMoreUrl && record?.uri && (
+      record.uri.includes(SITE_STANDARD_DOCUMENT) ||
+      record.uri.includes(PUB_LEAFLET_DOCUMENT)
+    );
+
     if (readMoreUrl) {
       appendReadMoreLink(container, readMoreUrl);
-    } else if (record?.uri && record.uri.includes(SITE_STANDARD_DOCUMENT)) {
-      fetchPublicationReadMoreUrl(record).then((url) => {
-        if (url) appendReadMoreLink(container, url);
+    }
+
+    if (needsAsyncUrl || readMoreUrl) {
+      fetchPublicationData(record).then(({ url: resolvedUrl, name: pubName, pubUrl }) => {
+        // Update badge with publication name and link to the publication
+        const badgeLabel = pubName || badge.textContent || '';
+        badge.textContent = '';
+        if (pubUrl) {
+          const badgeLink = document.createElement('a');
+          badgeLink.href = pubUrl;
+          badgeLink.target = '_blank';
+          badgeLink.rel = 'noopener noreferrer';
+          badgeLink.textContent = badgeLabel;
+          badge.appendChild(badgeLink);
+        } else {
+          badge.textContent = badgeLabel;
+        }
+        if (badgeLabel) {
+          badge.setAttribute('aria-label', `Published in ${badgeLabel}`);
+        }
+        if (!readMoreUrl && resolvedUrl) {
+          // Update title to link to the resolved publication URL
+          if (!titleEl.querySelector('a')) {
+            const link = document.createElement('a');
+            link.href = resolvedUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = titleEl.textContent || '';
+            titleEl.textContent = '';
+            titleEl.appendChild(link);
+          }
+          appendReadMoreLink(container, resolvedUrl);
+        }
       }).catch((err) => {
-        console.warn('Failed to resolve publication read-more URL:', err);
+        console.warn('Failed to resolve publication data:', err);
       });
     }
 

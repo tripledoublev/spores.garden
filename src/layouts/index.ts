@@ -7,6 +7,7 @@ import { extractFields } from '../records/field-extractor';
 import { parseAtUri, getProfile } from '../at-client';
 import { renderMarkdown, looksLikeMarkdown } from '../utils/markdown';
 import { sanitizeHtml, escapeHtml } from '../utils/sanitize';
+import { applyBskyFacets } from '../utils/facets';
 
 
 // Layout implementations
@@ -129,7 +130,7 @@ registerLayout('card', (fields) => {
 /**
  * Post Layout - full article display for long-form content
  */
-registerLayout('post', async (fields) => {
+registerLayout('post', async (fields, record) => {
   const html = document.createElement('article');
   html.className = 'layout-post';
 
@@ -245,8 +246,10 @@ registerLayout('post', async (fields) => {
   if (fields.content) {
     const content = document.createElement('div');
     content.className = 'post-content';
-    // Render markdown if it looks like markdown
-    if (looksLikeMarkdown(fields.content)) {
+    const bskyFacets = record?.value?.facets;
+    if (bskyFacets?.length > 0) {
+      content.innerHTML = applyBskyFacets(fields.content, bskyFacets).replace(/\n/g, '<br>');
+    } else if (looksLikeMarkdown(fields.content)) {
       content.innerHTML = renderMarkdown(fields.content);
     } else {
       content.innerHTML = escapeHtml(fields.content).replace(/\n/g, '<br>');

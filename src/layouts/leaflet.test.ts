@@ -129,6 +129,64 @@ describe('Leaflet Layout', () => {
       expect(strong).toBeTruthy();
       expect(strong?.textContent).toBe('bold');
     });
+
+    it('should render link facets as anchor tags', () => {
+      const record = {
+        value: {
+          $type: 'pub.leaflet.document',
+          pages: [{
+            $type: 'pub.leaflet.pages.linearDocument',
+            blocks: [{
+              block: {
+                $type: 'pub.leaflet.blocks.text',
+                plaintext: 'Check this out.',
+                facets: [{
+                  index: { byteStart: 0, byteEnd: 5 },
+                  features: [{
+                    $type: 'pub.leaflet.richtext.facet#link',
+                    uri: 'https://example.com'
+                  }]
+                }]
+              }
+            }]
+          }]
+        }
+      };
+      const result = renderLeaflet({ title: 'Test' } as any, record);
+      const link = result.querySelector('.leaflet-content a');
+      expect(link).toBeTruthy();
+      expect(link?.getAttribute('href')).toBe('https://example.com');
+      expect(link?.textContent).toBe('Check');
+      expect(link?.getAttribute('target')).toBe('_blank');
+      expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
+    });
+
+    it('should not render link facets with unsafe protocols', () => {
+      const record = {
+        value: {
+          $type: 'pub.leaflet.document',
+          pages: [{
+            $type: 'pub.leaflet.pages.linearDocument',
+            blocks: [{
+              block: {
+                $type: 'pub.leaflet.blocks.text',
+                plaintext: 'Click me.',
+                facets: [{
+                  index: { byteStart: 0, byteEnd: 5 },
+                  features: [{
+                    $type: 'pub.leaflet.richtext.facet#link',
+                    uri: 'javascript:alert(1)'
+                  }]
+                }]
+              }
+            }]
+          }]
+        }
+      };
+      const result = renderLeaflet({ title: 'Test' } as any, record);
+      const link = result.querySelector('.leaflet-content a');
+      expect(link).toBeNull(); // unsafe URI is not linked
+    });
   });
 
   describe('Header Block Rendering', () => {
