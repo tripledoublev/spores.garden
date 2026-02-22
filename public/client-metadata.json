@@ -1,9 +1,9 @@
 {
-    "client_id": "https://spores.garden/client-metadata.json",
-    "client_name": "spores.garden",
-    "client_uri": "https://spores.garden",
+    "client_id": "https://staging.spores.garden/client-metadata.json",
+    "client_name": "spores.garden (staging)",
+    "client_uri": "https://staging.spores.garden",
     "redirect_uris": [
-        "https://spores.garden/"
+        "https://staging.spores.garden/"
     ],
     "scope": "atproto transition:generic",
     "grant_types": [
