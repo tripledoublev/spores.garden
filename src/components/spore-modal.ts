@@ -172,7 +172,7 @@ export async function showSporeDetailsModal(originGardenDid: string) {
       </div>
       <div style="margin-bottom: 1.5rem; padding: var(--spacing-md);" ${contentSlot}>
         <div style="display: flex; flex-direction: column; gap: 0; align-items: center; justify-content: center; min-height: 60px; color: var(--color-text-muted); font-size: 0.875rem;">
-          Loading lineage…
+          Loading trajectory…
         </div>
       </div>
     </div>
