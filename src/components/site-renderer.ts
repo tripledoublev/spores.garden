@@ -94,7 +94,6 @@ export class SiteRenderer {
         const leftGroup = document.createElement('div');
         leftGroup.className = 'header-left';
         leftGroup.style.display = 'flex';
-        leftGroup.style.flexWrap = 'wrap';
         leftGroup.style.alignItems = 'self-start';
         leftGroup.style.gap = '1rem';
 
@@ -112,12 +111,22 @@ export class SiteRenderer {
             homeButton.innerHTML = this.getDandelionIcon();
         }
 
-        leftGroup.appendChild(homeButton);
+        // Inner row: home button + title always stay on the same line
+        const topRow = document.createElement('div');
+        topRow.style.display = 'flex';
+        topRow.style.gap = '1rem';
+        topRow.style.flexWrap = 'nowrap';
+        topRow.style.flex = '1';
+        topRow.style.minWidth = '0';
+        topRow.appendChild(homeButton);
+        leftGroup.appendChild(topRow);
 
         // Title and subtitle container
         const titleContainer = document.createElement('div');
         titleContainer.style.display = 'flex';
         titleContainer.style.flexDirection = 'column';
+        titleContainer.style.flex = '1';
+        titleContainer.style.minWidth = '0';
 
         // When in edit mode and owner is logged in, show editable inputs
         if (this.editor.editMode && isOwnerLoggedIn && !isHomePage) {
@@ -214,7 +223,7 @@ export class SiteRenderer {
             }
         }
 
-        leftGroup.appendChild(titleContainer);
+        topRow.appendChild(titleContainer);
         header.appendChild(leftGroup);
 
         // Controls
