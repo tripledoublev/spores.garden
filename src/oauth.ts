@@ -45,6 +45,7 @@ import { debugLog } from './utils/logger';
 export let authReady = false;
 
 const SESSION_STORAGE_KEY = 'spores_garden_oauth_session';
+const RETURN_URL_STORAGE_KEY = 'spores_garden_return_url';
 
 let oauthConfig: OAuthConfig | null = null;
 let currentAgent: OAuthUserAgent | null = null;
@@ -111,6 +112,8 @@ async function handleOAuthCallback() {
     const errorDescription = params.get('error_description') || error;
     console.error('OAuth error in callback:', error, errorDescription);
 
+    sessionStorage.removeItem(RETURN_URL_STORAGE_KEY);
+
     // Clean up URL
     history.replaceState(null, '', location.pathname);
 
@@ -131,14 +134,18 @@ async function handleOAuthCallback() {
     // Save session to sessionStorage for persistence across page refreshes
     saveSessionToStorage(session);
 
-    // Clean up URL after successful authorization
-    history.replaceState(null, '', location.pathname);
+    // Clean up URL after successful authorization, restoring pre-login route if available
+    const returnUrl = sessionStorage.getItem(RETURN_URL_STORAGE_KEY);
+    sessionStorage.removeItem(RETURN_URL_STORAGE_KEY);
+    history.replaceState(null, '', returnUrl || location.pathname);
 
     // Dispatch event for UI to update
     window.dispatchEvent(new CustomEvent('auth-change', {
       detail: { loggedIn: true, did: currentSession.info.sub }
     }));
   } catch (error) {
+    sessionStorage.removeItem(RETURN_URL_STORAGE_KEY);
+
     // Clean up URL even on error to prevent retry loops
     history.replaceState(null, '', location.pathname);
 
@@ -167,6 +174,12 @@ export async function login(handle: string) {
   if (!oauthConfig) {
     throw new Error('OAuth not initialized');
   }
+
+  // Save current route so OAuth callback can restore where login started.
+  sessionStorage.setItem(
+    RETURN_URL_STORAGE_KEY,
+    `${location.pathname}${location.search}${location.hash}`
+  );
 
   const authUrl = await createAuthorizationUrl({
     target: { type: 'account', identifier: handle as any },
