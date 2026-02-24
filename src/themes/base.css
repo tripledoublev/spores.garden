@@ -511,17 +511,22 @@ site-app.theme-ready .header {
     flex: 1;
     min-width: 0;
     overflow: visible;
-    flex-wrap: nowrap !important;
-    /* Prevent wrapping - keep title on same line as home button */
+    flex-wrap: wrap;
   }
 
-  /* Title container should flex and allow text wrapping */
-  .header-left > div {
+  /* topRow (inner container) and any non-spores direct child */
+  .header-left > div:not(.header-spores) {
     flex: 1;
     min-width: 0;
     max-width: 100%;
     overflow-wrap: break-word;
     word-wrap: break-word;
+  }
+
+  /* Push spores onto their own line below the title row */
+  .header-spores {
+    flex-basis: 100%;
+    flex-wrap: wrap;
   }
 
   .site-info {
