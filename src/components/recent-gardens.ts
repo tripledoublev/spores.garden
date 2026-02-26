@@ -330,8 +330,8 @@ class RecentGardens extends HTMLElement {
     // For non-config records, verify the user has a garden
     if (updateType !== 'edit') {
       try {
-        const configRecord = await getRecord(gardenDid, getCollection('siteConfig', 'old'), 'self', { useSlingshot: true })
-          || await getRecord(gardenDid, getCollection('siteConfig', 'new'), 'self', { useSlingshot: true });
+        const configRecord = await getRecord(gardenDid, getCollection('siteConfig', 'old'), 'self')
+          || await getRecord(gardenDid, getCollection('siteConfig', 'new'), 'self');
         if (!configRecord?.value) return;
       } catch {
         return;
