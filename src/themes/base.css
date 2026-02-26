@@ -108,13 +108,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Isoline pattern background - composited as a GPU layer to avoid scroll repaints */
+/* Isoline pattern background - promoted to its own GPU layer to avoid scroll repaints */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  will-change: transform;
   background-image: var(--pattern-background, none);
   background-size: var(--pattern-width, auto) var(--pattern-height, auto);
   background-repeat: no-repeat;
@@ -717,8 +718,8 @@ body.has-pattern section-block.section {
   background: rgba(var(--color-background-rgb), 0.25) !important;
   border-radius: var(--border-radius);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(42px);
-  -webkit-backdrop-filter: blur(42px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(var(--color-text-rgb), 0.1);
   padding: var(--spacing-lg);
 }
@@ -736,8 +737,8 @@ body.has-pattern .header,
 body.has-pattern .controls.open {
   background: rgba(var(--color-background-rgb), 0.25) !important;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(42px);
-  -webkit-backdrop-filter: blur(42px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(var(--color-text-rgb), 0.1);
 }
 
@@ -1962,8 +1963,8 @@ body.has-pattern .flower-grid-item {
   background: rgba(var(--color-background-rgb), 0.25) !important;
   border-radius: var(--border-radius);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(42px);
-  -webkit-backdrop-filter: blur(42px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(var(--color-text-rgb), 0.1);
 }
 

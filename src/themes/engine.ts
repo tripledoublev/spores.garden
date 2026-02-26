@@ -19,23 +19,26 @@ function getViewportPatternSize(): { w: number; h: number } {
 function applyPatternAtViewportSize(): void {
   if (!lastPatternDid || !lastPatternColors) return;
   const { w, h } = getViewportPatternSize();
-  if (currentPatternBlobUrl) URL.revokeObjectURL(currentPatternBlobUrl);
   const svgString = getIsolineSVGStringForDid(lastPatternDid, lastPatternColors, w, h);
   const blob = new Blob([svgString], { type: 'image/svg+xml' });
-  currentPatternBlobUrl = URL.createObjectURL(blob);
+  const newUrl = URL.createObjectURL(blob);
+  const oldUrl = currentPatternBlobUrl;
+  currentPatternBlobUrl = newUrl;
   const root = document.documentElement;
-  root.style.setProperty('--pattern-background', `url("${currentPatternBlobUrl}")`);
+  root.style.setProperty('--pattern-background', `url("${newUrl}")`);
   root.style.setProperty('--pattern-width', `${w}px`);
   root.style.setProperty('--pattern-height', `${h}px`);
+  // Revoke old URL after the browser has painted the new pattern to avoid a blank frame
+  requestAnimationFrame(() => { if (oldUrl) URL.revokeObjectURL(oldUrl); });
 }
 
-let resizeThrottleId: ReturnType<typeof setTimeout> | null = null;
+let resizeDebounceId: ReturnType<typeof setTimeout> | null = null;
 function onResize(): void {
-  if (resizeThrottleId) return;
-  resizeThrottleId = setTimeout(() => {
-    resizeThrottleId = null;
+  if (resizeDebounceId) clearTimeout(resizeDebounceId);
+  resizeDebounceId = setTimeout(() => {
+    resizeDebounceId = null;
     applyPatternAtViewportSize();
-  }, 150);
+  }, 300);
 }
 
 let resizeListenerAdded = false;
