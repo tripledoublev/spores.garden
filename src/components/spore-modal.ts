@@ -47,8 +47,7 @@ async function findSporeRecordsByOrigin(originGardenDid: string): Promise<SporeR
           const record = await getRecord(
             bl.did,
             bl.collection || SPECIAL_SPORE_COLLECTION,
-            bl.rkey,
-            { useSlingshot: true }
+            bl.rkey
           );
           if (!record?.value) return null;
           return {

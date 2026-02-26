@@ -54,7 +54,7 @@ export async function findSporeByOrigin(originGardenDid: string): Promise<SporeI
     const records = await Promise.all(
       backlinks.map(async (bl) => {
         try {
-          return await getRecord(bl.did, bl.collection || SPECIAL_SPORE_COLLECTION, bl.rkey, { useSlingshot: true });
+          return await getRecord(bl.did, bl.collection || SPECIAL_SPORE_COLLECTION, bl.rkey);
         } catch {
           return null;
         }
