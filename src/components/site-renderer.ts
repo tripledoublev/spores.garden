@@ -15,7 +15,6 @@ import './recent-gardens';
 import './section-block';
 import { findAllHeldSpores } from '../utils/special-spore';
 import { createHelpTooltip } from '../utils/help-tooltip';
-import { getIsolineSVGStringForDid } from '../themes/isolines';
 
 /**
  * Handles the main rendering logic for the site application.
@@ -28,7 +27,6 @@ export class SiteRenderer {
     private data: SiteData;
     private renderId = 0;
     private scrollHandler: (() => void) | null = null;
-    private homepageBlobUrl: string | null = null;
 
     constructor(
         app: HTMLElement,
@@ -45,10 +43,6 @@ export class SiteRenderer {
     }
 
     async render() {
-        if (this.homepageBlobUrl) {
-            URL.revokeObjectURL(this.homepageBlobUrl);
-            this.homepageBlobUrl = null;
-        }
         const myRenderId = ++this.renderId;
         const config = getConfig() || {
             title: 'spores.garden',
@@ -420,23 +414,6 @@ export class SiteRenderer {
             // Home page view
             const homepageView = document.createElement('div');
             homepageView.className = 'homepage-view';
-
-            // Monochrome isoline contour on the page body
-            const root = document.documentElement;
-            const isoW = document.documentElement.clientWidth || 1200;
-            const isoH = document.documentElement.clientHeight || 800;
-            const isoSvg = getIsolineSVGStringForDid(
-                'did:web:spores.garden',
-                { background: '#ffffff', text: '#000000' },
-                isoW, isoH
-            );
-            const isoBlob = new Blob([isoSvg], { type: 'image/svg+xml' });
-            const isoUrl = URL.createObjectURL(isoBlob);
-            this.homepageBlobUrl = isoUrl; // tracked for cleanup on next render
-            root.style.setProperty('--pattern-background', `url("${isoUrl}")`);
-            root.style.setProperty('--pattern-width', `${isoW}px`);
-            root.style.setProperty('--pattern-height', `${isoH}px`);
-            document.body.classList.add('has-pattern');
 
             // Hero section
             const hero = document.createElement('div');
