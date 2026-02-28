@@ -99,12 +99,16 @@ class SiteApp extends HTMLElement {
     
     // Initialize config with current URL params
     const config = await initConfig();
-    
+
     // Always apply theme (including home page) so fonts-ready is set and text isn't hidden.
     // On the homepage, use default theme — never apply a garden's custom colors or background.
     // On navigation, don't block on font loading (big perf win when gardens use different fonts).
     const isGardenPage = SiteRouter.isViewingProfile();
     const did = isGardenPage ? getSiteOwnerDid() : undefined;
+
+    // Prefetch spores now so the network request runs in parallel with font loading
+    if (did) this.renderer.prefetchSpores(did);
+
     await applyTheme(isGardenPage ? config.theme : {}, { waitForFonts: isInitialLoad, did: did || undefined });
     
     // On initial load, set up theme-ready state
