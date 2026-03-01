@@ -14,6 +14,7 @@ import type { SiteData } from './site-data';
 import './recent-gardens';
 import './section-block';
 import { findAllHeldSpores } from '../utils/special-spore';
+import type { SporeInfo } from '../utils/special-spore';
 import { createHelpTooltip } from '../utils/help-tooltip';
 import { getIsolineSVGStringForDid } from '../themes/isolines';
 
@@ -28,6 +29,7 @@ export class SiteRenderer {
     private data: SiteData;
     private renderId = 0;
     private scrollHandler: (() => void) | null = null;
+    private sporesCache: Promise<SporeInfo[]> | null = null;
 
     constructor(
         app: HTMLElement,
@@ -179,13 +181,9 @@ export class SiteRenderer {
                 // If I render it here, I should make sure it looks good.
 
                 if (ownerDid && !isHomePage) {
-                    // Optimization: perform this check asynchronously and update DOM to avoid blocking render?
-                    // However, for simplicity and ensuring it appears with header, we await it or allow it to pop in.
-                    // Since render() is async, we can await it, but it might delay TTI.
-                    // Let's fire it and append when ready to avoid blocking initial paint if possible, 
-                    // but `render` is awaited by caller anyway.
-
-                    findAllHeldSpores(ownerDid).then(spores => {
+                    const sporesPromise = this.sporesCache ?? findAllHeldSpores(ownerDid);
+                    this.sporesCache = null;
+                    sporesPromise.then(spores => {
                         if (this.renderId !== myRenderId) return;
                         if (spores.length > 0) {
                             const sporesWrap = document.createElement('div');
@@ -717,6 +715,10 @@ export class SiteRenderer {
         }).catch(err => {
             console.error('Failed to render flower bed header strip:', err);
         });
+    }
+
+    prefetchSpores(did: string): void {
+        this.sporesCache = findAllHeldSpores(did);
     }
 
     showNotification(message: string, type: 'success' | 'error' = 'success') {
