@@ -19,6 +19,17 @@ export interface SporeInfo {
   currentRecord: any;
 }
 
+function dedupeSporesByOrigin(spores: SporeInfo[]): SporeInfo[] {
+  const seen = new Set<string>();
+  return spores.filter((spore) => {
+    if (!spore?.originGardenDid || seen.has(spore.originGardenDid)) {
+      return false;
+    }
+    seen.add(spore.originGardenDid);
+    return true;
+  });
+}
+
 function parseCaptureTimestampMs(createdAt: unknown, nowMs = Date.now()): number | null {
   if (typeof createdAt !== 'string' || !createdAt) {
     return null;
@@ -120,10 +131,10 @@ export async function findAllHeldSpores(gardenOwnerDid: string): Promise<SporeIn
       if (spore && spore.currentOwnerDid === gardenOwnerDid) heldSpores.push(spore);
     }
 
-    return heldSpores;
+    return dedupeSporesByOrigin(heldSpores);
   } catch (error) {
     console.error('Failed to find held spores:', error);
-    return heldSpores;
+    return dedupeSporesByOrigin(heldSpores);
   }
 }
 
