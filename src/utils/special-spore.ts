@@ -109,11 +109,12 @@ export async function findAllHeldSpores(gardenOwnerDid: string): Promise<SporeIn
     const sporeRecords = ownedResponses.flatMap((response: any) => response.records || []);
 
     const alreadyFound = new Set(heldSpores.map(s => s.originGardenDid));
-    const candidates = sporeRecords
+    const candidateOrigins = sporeRecords
       .map(r => r.value?.subject)
       .filter((originDid): originDid is string =>
         !!originDid && isValidSpore(originDid) && !alreadyFound.has(originDid)
       );
+    const candidates = Array.from(new Set(candidateOrigins));
     const fetched = await Promise.all(candidates.map(findSporeByOrigin));
     for (const spore of fetched) {
       if (spore && spore.currentOwnerDid === gardenOwnerDid) heldSpores.push(spore);
